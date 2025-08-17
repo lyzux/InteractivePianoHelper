@@ -9,6 +9,11 @@ export class Player {
         this.noteTimeouts = [];
         this.currentPattern = null;
         this.currentNoteIndex = 0;
+        this.currentNotes = null;
+        this.currentTiming = null;
+        this.currentKey = null;
+        this.playStartTime = null;
+        this.noteStartTime = null;
     }
 
     play(pattern, key) {
@@ -17,37 +22,48 @@ export class Player {
         this.isPlaying = true;
         this.currentPattern = pattern;
         this.currentNoteIndex = 0;
+        this.currentKey = key;
         
-        const notes = pattern.pattern(key);
-        const timing = pattern.timing;
-        const beatDuration = this.settings.getBeatDuration();
+        this.currentNotes = pattern.pattern(key);
+        this.currentTiming = pattern.timing;
+        this.playStartTime = Date.now();
+        this.noteStartTime = Date.now();
         
-        this.playNextNote(notes, timing, beatDuration);
+        this.playLoop();
     }
 
-    playNextNote(notes, timing, beatDuration) {
-        if (!this.isPlaying || this.currentNoteIndex >= notes.length) {
-            if (this.isPlaying && this.currentNoteIndex >= notes.length) {
-                // Loop the pattern
-                this.currentNoteIndex = 0;
-                this.playNextNote(notes, timing, beatDuration);
+    playLoop() {
+        if (!this.isPlaying) return;
+        
+        const currentTime = Date.now();
+        const currentBeatDuration = this.settings.getBeatDuration();
+        
+        // Prüfe ob es Zeit für die nächste Note ist
+        const noteElapsed = currentTime - this.noteStartTime;
+        const requiredNoteDuration = this.currentTiming[this.currentNoteIndex % this.currentTiming.length] * currentBeatDuration;
+        
+        if (noteElapsed >= requiredNoteDuration) {
+            // Spiele aktuelle Note
+            const note = this.currentNotes[this.currentNoteIndex];
+            const noteDuration = this.currentTiming[this.currentNoteIndex % this.currentTiming.length] * (currentBeatDuration / 1000);
+            
+            if (note) {
+                this.audioEngine.playNote(note, noteDuration, this.settings.getSustain());
+                this.piano.highlightKey(note);
+                setTimeout(() => this.piano.unhighlightKey(note), noteDuration * 1000);
             }
-            return;
+            
+            // Nächste Note vorbereiten
+            this.currentNoteIndex++;
+            if (this.currentNoteIndex >= this.currentNotes.length) {
+                this.currentNoteIndex = 0; // Loop pattern
+            }
+            
+            this.noteStartTime = currentTime;
         }
         
-        const note = notes[this.currentNoteIndex];
-        const duration = timing[this.currentNoteIndex % timing.length] * (beatDuration / 1000);
-        
-        if (note) {
-            this.audioEngine.playNote(note, duration, this.settings.getSustain());
-            this.piano.highlightKey(note);
-            setTimeout(() => this.piano.unhighlightKey(note), duration * 1000);
-        }
-        
-        this.currentNoteIndex++;
-        this.currentTimeout = setTimeout(() => {
-            this.playNextNote(notes, timing, beatDuration);
-        }, duration * 1000);
+        // Weiter im Loop (alle 20ms für sehr responsive Tempo-Änderungen)
+        this.currentTimeout = setTimeout(() => this.playLoop(), 20);
     }
 
     stop() {
@@ -62,6 +78,11 @@ export class Player {
         this.piano.clearAllHighlights();
         this.currentPattern = null;
         this.currentNoteIndex = 0;
+        this.currentNotes = null;
+        this.currentTiming = null;
+        this.currentKey = null;
+        this.playStartTime = null;
+        this.noteStartTime = null;
     }
 
     isCurrentlyPlaying() {

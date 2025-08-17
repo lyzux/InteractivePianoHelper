@@ -42,6 +42,7 @@ export class Settings {
     }
 
     setTempo(tempo) {
+        console.log(`🎵 Settings: Tempo changed to ${tempo} BPM`);
         this.tempo = tempo;
         this.updateTempoDisplay();
         this.notifyCallbacks('tempoChange', tempo);

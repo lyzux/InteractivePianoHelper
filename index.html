@@ -307,10 +307,18 @@
             }
 
             // Initialize settings
+            console.log('🔧 Initialisiere Settings...');
             settings.init('tempo', 'tempoDisplay', 'sustain', 'key');
             
             // Try to load saved settings
             settings.load();
+            
+            // Debug: Teste ob Tempo-Slider gefunden wurde
+            const tempoSlider = document.getElementById('tempo');
+            console.log('🔧 Tempo Slider gefunden:', tempoSlider);
+            if (tempoSlider) {
+                console.log('🔧 Tempo Slider Wert:', tempoSlider.value);
+            }
 
             return { audioEngine, piano, settings, patternLoader, player };
         }
@@ -358,6 +366,7 @@
                 // UI initialisieren nachdem alles geladen ist
                 populatePatternDropdown();
                 updatePatternInfo();
+                setupEventListeners();
                 
                 console.log('✅ App erfolgreich initialisiert!');
             } catch (error) {
@@ -418,6 +427,7 @@
             // UI initialisieren
             populatePatternDropdown();
             updatePatternInfo();
+            setupEventListeners();
             
             console.log('🔧 Notfall-System aktiv - Grundfunktionen verfügbar');
         }
@@ -457,7 +467,21 @@
         // Draw staff notation using ABCjs
         function drawStaffNotation() {
             const patternType = document.getElementById('pattern').value;
-            const key = settings.getKey();
+            
+            // Sichere Key-Ermittlung
+            let key = 'C'; // Fallback
+            if (settings && typeof settings.getKey === 'function') {
+                key = settings.getKey();
+            } else {
+                // Direkt aus dem DOM lesen falls settings noch nicht verfügbar
+                const keySelect = document.getElementById('key');
+                if (keySelect) {
+                    key = keySelect.value;
+                }
+            }
+            
+            console.log(`🎼 Drawing staff notation for pattern: ${patternType}, key: ${key}`);
+            
             const abcNotation = patternLoader.generateABCNotation(patternType, key);
             const staffDiv = document.getElementById('staffNotation');
             
@@ -465,6 +489,7 @@
             staffDiv.innerHTML = '';
             
             if (abcNotation) {
+                console.log(`📝 ABC Notation: ${abcNotation.substring(0, 100)}...`);
                 // Render with ABCjs
                 ABCJS.renderAbc('staffNotation', abcNotation, {
                     responsive: 'resize',
@@ -475,6 +500,8 @@
                     paddingleft: 20,
                     paddingright: 20
                 });
+            } else {
+                console.warn('⚠️ No ABC notation generated');
             }
         }
 
@@ -505,25 +532,51 @@
         }
 
         function handleKeyChange() {
+            console.log('🎵 Key changed, updating notation...');
             player.stop();
             document.getElementById('playBtn').classList.remove('playing');
             drawStaffNotation();
         }
 
-        // Setup event listeners
-        document.getElementById('playBtn').addEventListener('click', handlePlay);
-        document.getElementById('stopBtn').addEventListener('click', handleStop);
-        document.getElementById('pattern').addEventListener('change', handlePatternChange);
+        // Setup event listeners (wird nach der Initialisierung aufgerufen)
+        function setupEventListeners() {
+            document.getElementById('playBtn').addEventListener('click', handlePlay);
+            document.getElementById('stopBtn').addEventListener('click', handleStop);
+            document.getElementById('pattern').addEventListener('change', handlePatternChange);
+            
+            // Key select direkter Event Listener zusätzlich zu settings callbacks
+            document.getElementById('key').addEventListener('change', handleKeyChange);
+            
+            // Direkter Tempo-Slider Event Listener (Fallback)
+            const tempoSlider = document.getElementById('tempo');
+            if (tempoSlider) {
+                console.log('🔧 Füge direkten Tempo Event Listener hinzu');
+                tempoSlider.addEventListener('input', (e) => {
+                    const newTempo = parseInt(e.target.value);
+                    console.log(`🎵 Direkter Tempo Change: ${newTempo} BPM`);
+                    if (settings && typeof settings.setTempo === 'function') {
+                        settings.setTempo(newTempo);
+                    }
+                    // Update display directly
+                    const display = document.getElementById('tempoDisplay');
+                    if (display) {
+                        display.textContent = `${newTempo} BPM`;
+                    }
+                });
+            }
 
-        // Settings callbacks
-        settings.onKeyChange(handleKeyChange);
-        settings.onTempoChange(() => {
-            // Save settings when changed
-            settings.save();
-        });
-        settings.onSustainChange(() => {
-            settings.save();
-        });
+            // Settings callbacks (falls settings verfügbar)
+            if (settings && typeof settings.onKeyChange === 'function') {
+                settings.onKeyChange(handleKeyChange);
+                settings.onTempoChange(() => {
+                    // Save settings when changed
+                    settings.save();
+                });
+                settings.onSustainChange(() => {
+                    settings.save();
+                });
+            }
+        }
 
         // UI wird nach erfolgreicher Initialisierung geladen
 
