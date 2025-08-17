@@ -315,6 +315,13 @@
                     <option value="ballad">Ballade</option>
                     <option value="tango">Tango</option>
                     <option value="habanera">Habanera</option>
+                    <option value="oktav">Oktav-Bass/Orgelpunkt</option>
+                    <option value="polonaise">Polonaise-Bass</option>
+                    <option value="ostinato">Ostinato-Bass</option>
+                    <option value="chaconne">Chaconne/Passacaglia</option>
+                    <option value="arpeggien">Arpeggien (aufgebrochene Akkorde)</option>
+                    <option value="lombardisch">Lombardischer Rhythmus</option>
+                    <option value="pompa">Pompa/Hymnen-Bass</option>
                 </select>
             </div>
             
@@ -573,6 +580,118 @@ Takt 1: C - G - E - G  |  Takt 2: C - G - E - G
                     return patterns[key];
                 },
                 timing: [1.5, 0.5, 1, 1]
+            },
+            oktav: {
+                name: 'Oktav-Bass/Orgelpunkt',
+                description: 'Konstanter Basston oder Oktavsprünge. Der Grundton bleibt als Orgelpunkt liegen oder springt zur Oktave.',
+                notation: 'Orgelpunkt:\nC2 - C3 - C2 - C3\nFingersatz: 5 - 1 - 5 - 1',
+                pattern: (key) => {
+                    const patterns = {
+                        'C': ['C2', 'C3', 'C2', 'C3'],
+                        'G': ['G1', 'G2', 'G1', 'G2'],
+                        'F': ['F2', 'F3', 'F2', 'F3'],
+                        'Am': ['A1', 'A2', 'A1', 'A2'],
+                        'Dm': ['D2', 'D3', 'D2', 'D3']
+                    };
+                    return patterns[key];
+                },
+                timing: [1, 1, 1, 1]
+            },
+            polonaise: {
+                name: 'Polonaise-Bass',
+                description: 'Polnischer Tanz im 3/4-Takt mit charakteristischem Rhythmus. Betonung auf der ersten und dritten Zählzeit.',
+                notation: 'Polonaise-Rhythmus:\nC3 - (Pause) - C3 - | G2 - (Pause) - G2\nFingersatz: 5 - - 5 - | 5 - - 5',
+                pattern: (key) => {
+                    const patterns = {
+                        'C': ['C3', null, 'C3', 'G2', null, 'G2'],
+                        'G': ['G2', null, 'G2', 'D2', null, 'D2'],
+                        'F': ['F3', null, 'F3', 'C3', null, 'C3'],
+                        'Am': ['A2', null, 'A2', 'E2', null, 'E2'],
+                        'Dm': ['D3', null, 'D3', 'A2', null, 'A2']
+                    };
+                    return patterns[key].filter(n => n !== null);
+                },
+                timing: [1, 1, 1, 1]
+            },
+            ostinato: {
+                name: 'Ostinato-Bass',
+                description: 'Repetitives Bassmuster, das kontinuierlich wiederholt wird. Charakteristisch für Barock und moderne Musik.',
+                notation: 'Ostinato-Pattern:\nC3 - G2 - A2 - F2\nFingersatz: 1 - 5 - 4 - 2\n(Kontinuierliche Wiederholung)',
+                pattern: (key) => {
+                    const patterns = {
+                        'C': ['C3', 'G2', 'A2', 'F2'],
+                        'G': ['G2', 'D2', 'E2', 'C2'],
+                        'F': ['F3', 'C3', 'D3', 'Bb2'],
+                        'Am': ['A2', 'E2', 'F2', 'D2'],
+                        'Dm': ['D3', 'A2', 'Bb2', 'G2']
+                    };
+                    return patterns[key];
+                },
+                timing: [1, 1, 1, 1]
+            },
+            chaconne: {
+                name: 'Chaconne/Passacaglia',
+                description: 'Barocker Variationstanz über einem ostinaten Harmoniemodell. Oft chromatischer Abstieg im Bass.',
+                notation: 'Chaconne-Bass (Tetrachord):\nC3 - B2 - Bb2 - A2 - Ab2 - G2\nFingersatz: 1 - 2 - 3 - 4 - 3 - 5\n(Chromatischer Abstieg)',
+                pattern: (key) => {
+                    const patterns = {
+                        'C': ['C3', 'B2', 'Bb2', 'A2', 'Ab2', 'G2'],
+                        'G': ['G2', 'F#2', 'F2', 'E2', 'Eb2', 'D2'],
+                        'F': ['F3', 'E3', 'Eb3', 'D3', 'Db3', 'C3'],
+                        'Am': ['A2', 'G#2', 'G2', 'F#2', 'F2', 'E2'],
+                        'Dm': ['D3', 'C#3', 'C3', 'B2', 'Bb2', 'A2']
+                    };
+                    return patterns[key];
+                },
+                timing: [1, 1, 1, 1, 1, 1]
+            },
+            arpeggien: {
+                name: 'Arpeggien (aufgebrochene Akkorde)',
+                description: 'Akkordtöne werden einzeln nacheinander gespielt statt gleichzeitig. Sehr melodisch und fließend.',
+                notation: 'Arpeggio:\nC3 - E3 - G3 - C4 - G3 - E3 - C3\nFingersatz: 5 - 3 - 2 - 1 - 2 - 3 - 5\n(Legato, melodisch)',
+                pattern: (key) => {
+                    const patterns = {
+                        'C': ['C3', 'E3', 'G3', 'C4', 'G3', 'E3', 'C3'],
+                        'G': ['G2', 'B2', 'D3', 'G3', 'D3', 'B2', 'G2'],
+                        'F': ['F3', 'A3', 'C4', 'F4', 'C4', 'A3', 'F3'],
+                        'Am': ['A2', 'C3', 'E3', 'A3', 'E3', 'C3', 'A2'],
+                        'Dm': ['D3', 'F3', 'A3', 'D4', 'A3', 'F3', 'D3']
+                    };
+                    return patterns[key];
+                },
+                timing: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1]
+            },
+            lombardisch: {
+                name: 'Lombardischer Rhythmus',
+                description: 'Charakteristischer punktierter Rhythmus: kurz-lang. Auch "Schottischer Snap" genannt.',
+                notation: 'Lombardischer Rhythmus:\nC3(kurz) - G2(lang) - E3(kurz) - C3(lang)\nFingersatz: 1 - 5 - 3 - 1\n(Punktiert: kurz-lang)',
+                pattern: (key) => {
+                    const patterns = {
+                        'C': ['C3', 'G2', 'E3', 'C3'],
+                        'G': ['G2', 'D2', 'B2', 'G2'],
+                        'F': ['F3', 'C3', 'A3', 'F3'],
+                        'Am': ['A2', 'E2', 'C3', 'A2'],
+                        'Dm': ['D3', 'A2', 'F3', 'D3']
+                    };
+                    return patterns[key];
+                },
+                timing: [0.25, 0.75, 0.25, 0.75]
+            },
+            pompa: {
+                name: 'Pompa/Hymnen-Bass',
+                description: 'Feierlicher, hymnischer Bass mit kräftigen Viertelnoten. Typisch für Märsche und kirchliche Musik.',
+                notation: 'Pompa-Bass:\nC3 - C3 - G2 - G2 - C3 - G2 - C3\nFingersatz: 1 - 1 - 5 - 5 - 1 - 5 - 1\n(Pompös, festlich)',
+                pattern: (key) => {
+                    const patterns = {
+                        'C': ['C3', 'C3', 'G2', 'G2', 'C3', 'G2', 'C3'],
+                        'G': ['G2', 'G2', 'D2', 'D2', 'G2', 'D2', 'G2'],
+                        'F': ['F3', 'F3', 'C3', 'C3', 'F3', 'C3', 'F3'],
+                        'Am': ['A2', 'A2', 'E2', 'E2', 'A2', 'E2', 'A2'],
+                        'Dm': ['D3', 'D3', 'A2', 'A2', 'D3', 'A2', 'D3']
+                    };
+                    return patterns[key];
+                },
+                timing: [1, 1, 1, 1, 1, 1, 1]
             }
         };
 
@@ -902,9 +1021,14 @@ Takt 1: C - G - E - G  |  Takt 2: C - G - E - G
             
             if (Array.isArray(note)) {
                 // Chord notation in ABC: [CEG]
-                return '[' + note.map(convertToABCNote).join('') + ']';
+                return '[' + note.map(convertSingleNoteToABC).join('') + ']';
             }
             
+            return convertSingleNoteToABC(note);
+        }
+        
+        // Helper function to convert single note
+        function convertSingleNoteToABC(note) {
             let noteName = note.charAt(0);
             let octave = parseInt(note.slice(-1));
             let accidental = note.slice(1, -1);
@@ -940,6 +1064,32 @@ Takt 1: C - G - E - G  |  Takt 2: C - G - E - G
             return noteName;
         }
 
+        // Generate fingering for basslines
+        function getFingeringForPattern(patternType, noteIndex, totalNotes) {
+            const fingerings = {
+                alberti: [1, 5, 3, 5],
+                waltz: [5, [3, 2], [3, 2]], // Bass note, then chord fingerings
+                march: [5, [3, 2, 1], 5, [3, 2, 1]], // Bass, chord, bass, chord
+                boogie: [5, 4, 3, 2, 1, 2, 3, 4],
+                stride: [5, [3, 2, 1], 5, [3, 2, 1]], // Bass, chord, bass, chord
+                bossa: [5, 3, 5, 3],
+                ragtime: [5, [3, 2], 5, [3, 2], 5, [3, 2, 1]],
+                ballad: [5, 3, 2, 1, 2, 3],
+                tango: [5, 5, 5, 5, 5],
+                habanera: [5, 3, 2, 2],
+                oktav: [5, 1, 5, 1],
+                polonaise: [5, 5, 5, 5],
+                ostinato: [1, 5, 4, 2],
+                chaconne: [1, 2, 3, 4, 3, 5],
+                arpeggien: [5, 3, 2, 1, 2, 3, 5],
+                lombardisch: [1, 5, 3, 1],
+                pompa: [1, 1, 5, 5, 1, 5, 1]
+            };
+            
+            const patternFingering = fingerings[patternType] || [];
+            return patternFingering[noteIndex % patternFingering.length] || '';
+        }
+
         // Generate ABC notation string
         function generateABCNotation() {
             const patternType = document.getElementById('pattern').value;
@@ -954,21 +1104,39 @@ Takt 1: C - G - E - G  |  Takt 2: C - G - E - G
             abc += `K:${key} clef=bass\n`;
             
             // Set time signature based on pattern
-            if (patternType === 'waltz') {
+            if (patternType === 'waltz' || patternType === 'polonaise') {
                 abc += 'M:3/4\n';
             } else {
                 abc += 'M:4/4\n';
             }
             abc += 'L:1/4\n';
             
-            // Convert notes to ABC notation
+            // Convert notes to ABC notation with fingerings
             let abcNotes = [];
             notes.forEach((note, index) => {
-                let abcNote = convertToABCNote(note);
+                // Get fingering for this note
+                const fingering = getFingeringForPattern(patternType, index, notes.length);
                 
-                // Add rhythm notation based on timing
+                // Add fingering annotation BEFORE the note
+                let abcNote = '';
+                if (fingering && note !== null) {
+                    if (Array.isArray(fingering)) {
+                        // For chords, show all fingerings
+                        abcNote += `"${fingering.join(',')}"`;
+                    } else {
+                        // For single notes
+                        abcNote += `"${fingering}"`;
+                    }
+                }
+                
+                // Convert note to ABC notation
+                abcNote += convertToABCNote(note);
+                
+                // Add rhythm notation based on timing AFTER the note
                 const duration = timing[index % timing.length];
-                if (duration === 0.5) {
+                if (duration === 0.25) {
+                    abcNote += '/4';
+                } else if (duration === 0.5) {
                     abcNote += '/2';
                 } else if (duration === 0.75) {
                     abcNote += '3/4';
@@ -977,6 +1145,7 @@ Takt 1: C - G - E - G  |  Takt 2: C - G - E - G
                 } else if (duration === 2) {
                     abcNote += '2';
                 }
+                // If duration is 1, no suffix needed (quarter note is default)
                 
                 abcNotes.push(abcNote);
             });
