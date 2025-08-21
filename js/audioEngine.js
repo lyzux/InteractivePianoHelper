@@ -4,6 +4,11 @@ export class AudioEngine {
         this.audioContext = null;
         this.masterGainNode = null;
         this.compressor = null;
+        this.reverbNode = null;
+        this.roomFilter = null;
+        this.stringResonanceNodes = new Map();
+        this.sustainedNotes = new Map();
+        this.pedalResonance = null;
         this.noteFrequencies = {
             'A0': 27.50, 'A#0': 29.14, 'Bb0': 29.14, 'B0': 30.87,
             'C1': 32.70, 'C#1': 34.65, 'Db1': 34.65, 'D1': 36.71, 'D#1': 38.89, 'Eb1': 38.89, 'E1': 41.20, 'F1': 43.65,
@@ -33,25 +38,33 @@ export class AudioEngine {
             this.masterGainNode = this.audioContext.createGain();
             this.masterGainNode.gain.value = 0.5;
             
-            // Create compressor for more realistic dynamics
+            // Create subtle compressor for natural dynamics
             this.compressor = this.audioContext.createDynamicsCompressor();
-            this.compressor.threshold.value = -24;
-            this.compressor.knee.value = 30;
-            this.compressor.ratio.value = 12;
-            this.compressor.attack.value = 0.003;
+            this.compressor.threshold.value = -12;
+            this.compressor.knee.value = 15;
+            this.compressor.ratio.value = 3;
+            this.compressor.attack.value = 0.005;
             this.compressor.release.value = 0.25;
             
-            // Connect audio chain
-            this.masterGainNode.connect(this.compressor);
+            // Simple room tone filter
+            this.roomFilter = this.audioContext.createBiquadFilter();
+            this.roomFilter.type = 'highshelf';
+            this.roomFilter.frequency.value = 8000;
+            this.roomFilter.gain.value = -1;
+            this.roomFilter.Q.value = 0.5;
+            
+            // Connect simple audio chain
+            this.masterGainNode.connect(this.roomFilter);
+            this.roomFilter.connect(this.compressor);
             this.compressor.connect(this.audioContext.destination);
         }
     }
 
-    playNote(note, duration = 0.5, useSustain = true) {
+    playNote(note, duration = 0.5, useSustain = true, velocity = 0.8) {
         this.init();
         
         if (Array.isArray(note)) {
-            note.forEach(n => this.playNote(n, duration, useSustain));
+            note.forEach(n => this.playNote(n, duration, useSustain, velocity));
             return;
         }
         
@@ -60,103 +73,205 @@ export class AudioEngine {
         
         const actualDuration = useSustain ? duration * 3.5 : duration;
         
-        // Concert grand piano synthesis with realistic harmonics
+        // Multiple unison strings per note (2-3 strings with slight detuning)
+        const unisonCount = noteNumber < 30 ? 1 : (noteNumber < 60 ? 2 : 3);
         const oscillators = [];
         const gains = [];
         const filters = [];
         
-        // Enhanced harmonic series for realistic piano sound
-        const harmonicRatios = [1, 2, 3, 4, 5, 6.3, 8.1, 10.2, 12.5];
-        const harmonicAmplitudes = [1.0, 0.6, 0.4, 0.25, 0.15, 0.08, 0.05, 0.03, 0.02];
+        // Add mechanical action noise
+        this.addActionNoise(frequency, velocity, now);
         
-        // Calculate note-dependent parameters
+        // Inharmonic overtones - string stiffness makes overtones sharp
+        const B = 0.0001 * Math.pow(frequency / 440, -0.5); // Inharmonicity coefficient
+        const harmonicNumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        const harmonicRatios = harmonicNumbers.map(n => n * Math.sqrt(1 + B * n * n));
+        const harmonicAmplitudes = [1.0, 0.6, 0.35, 0.2, 0.12, 0.08, 0.05, 0.03, 0.02, 0.015];
+        
+        // Calculate note-dependent parameters with realistic velocity response
         const noteNumber = this.getNoteNumber(note);
-        const velocityMultiplier = Math.pow(0.95, Math.max(0, noteNumber - 40)); // Lower notes stronger
-        const brightness = Math.min(1, 0.3 + (noteNumber - 20) * 0.02); // Higher notes brighter
+        const velocityMultiplier = Math.pow(0.92, Math.max(0, noteNumber - 40)); // Lower notes stronger
+        
+        // Realistic velocity-dependent brightness (higher velocity = brighter sound)
+        const basebrightness = Math.min(1, 0.25 + (noteNumber - 20) * 0.018);
+        const brightness = Math.min(1, basebrightness * (0.6 + velocity * 0.7));
+        
+        // Velocity-dependent attack characteristics
+        const velocityAttack = Math.max(0.001, 0.008 - velocity * 0.006);
+        const velocityVolume = Math.pow(velocity, 0.8); // Realistic volume curve
         
         const now = this.audioContext.currentTime;
         
-        // Create oscillators for each harmonic
-        harmonicRatios.forEach((ratio, i) => {
-            if (i >= harmonicAmplitudes.length) return;
+        // Create unison strings with harmonics
+        for (let unison = 0; unison < unisonCount; unison++) {
+            // Unison string detuning (creates beating and shimmer)
+            const unisonDetune = unison === 0 ? 0 : (Math.random() - 0.5) * 8;
             
-            oscillators[i] = this.audioContext.createOscillator();
-            gains[i] = this.audioContext.createGain();
-            filters[i] = this.audioContext.createBiquadFilter();
+            harmonicRatios.forEach((ratio, i) => {
+                if (i >= harmonicAmplitudes.length) return;
+                
+                const oscIndex = unison * harmonicRatios.length + i;
+                oscillators[oscIndex] = this.audioContext.createOscillator();
+                gains[oscIndex] = this.audioContext.createGain();
+                filters[oscIndex] = this.audioContext.createBiquadFilter();
+                
+                // Inharmonic frequency with unison detuning
+                oscillators[oscIndex].frequency.value = frequency * ratio;
+                oscillators[oscIndex].detune.value = unisonDetune + (Math.random() - 0.5) * 2;
+                oscillators[oscIndex].type = 'sine';
+                
+                // Soundboard resonance filter
+                filters[oscIndex].type = 'peaking';
+                filters[oscIndex].frequency.value = frequency * ratio;
+                filters[oscIndex].Q.value = 1.5 + Math.random() * 2;
+                filters[oscIndex].gain.value = (Math.random() - 0.5) * 3; // Random resonance
+                
+                // Connect audio chain
+                oscillators[oscIndex].connect(filters[oscIndex]);
+                filters[oscIndex].connect(gains[oscIndex]);
+                gains[oscIndex].connect(this.masterGainNode);
             
-            // Set oscillator frequency and type
-            oscillators[i].frequency.value = frequency * ratio;
-            oscillators[i].type = i === 0 ? 'sine' : (i < 3 ? 'triangle' : 'sawtooth');
+                // Hammer strike variability - felt compression randomness
+                const hammerVariation = 0.9 + Math.random() * 0.2; // ±10% variation
+                const attackJitter = velocityAttack * (0.8 + Math.random() * 0.4);
+                
+                // Irregular decay - different frequencies sustain differently
+                const decayTime = (0.08 + noteNumber * 0.001) * (0.7 + Math.random() * 0.6);
+                const sustainLevel = useSustain ? 0.3 * (1 - i * 0.04) * hammerVariation : 0.08;
+                const releaseTime = useSustain ? actualDuration * (0.8 + Math.random() * 0.3) : actualDuration * 0.6;
+                
+                // Amplitude with unison scaling and harmonic variation
+                const unisonScale = 1.0 / Math.sqrt(unisonCount); // Prevent volume buildup
+                const amplitude = harmonicAmplitudes[i] * velocityMultiplier * velocityVolume * 0.3 * unisonScale * hammerVariation;
             
-            // Configure low-pass filter for each harmonic
-            filters[i].type = 'lowpass';
-            filters[i].frequency.value = frequency * ratio * (1 + brightness * 2);
-            filters[i].Q.value = 0.5 + (i * 0.1);
+                // Natural envelope with felt compression characteristics
+                gains[oscIndex].gain.setValueAtTime(0, now);
+                gains[oscIndex].gain.linearRampToValueAtTime(amplitude * 1.1, now + attackJitter);
+                gains[oscIndex].gain.exponentialRampToValueAtTime(amplitude * 0.7, now + attackJitter + decayTime * 0.2);
+                gains[oscIndex].gain.exponentialRampToValueAtTime(amplitude * sustainLevel, now + attackJitter + decayTime);
+                gains[oscIndex].gain.exponentialRampToValueAtTime(0.001, now + releaseTime);
             
-            // Connect audio chain: oscillator -> filter -> gain -> master
-            oscillators[i].connect(filters[i]);
-            filters[i].connect(gains[i]);
-            gains[i].connect(this.masterGainNode);
+                // String vibration irregularities
+                if (i === 0 && unison === 0) {
+                    const stringLfo = this.audioContext.createOscillator();
+                    const stringLfoGain = this.audioContext.createGain();
+                    stringLfo.frequency.value = 6 + Math.random() * 3;
+                    stringLfo.type = 'triangle';
+                    stringLfoGain.gain.value = frequency * 0.002;
+                    stringLfo.connect(stringLfoGain);
+                    stringLfoGain.connect(oscillators[oscIndex].frequency);
+                    stringLfo.start(now + 0.1);
+                    stringLfo.stop(now + releaseTime);
+                }
             
-            // Enhanced ADSR envelope for realistic piano attack/decay
-            const attackTime = 0.005 + (i * 0.002); // Slight stagger for realism
-            const decayTime = 0.08 + (noteNumber * 0.002);
-            const sustainLevel = useSustain ? 0.3 * (1 - i * 0.05) : 0.1;
-            const releaseTime = useSustain ? actualDuration * 0.9 : actualDuration * 0.7;
-            
-            const amplitude = harmonicAmplitudes[i] * velocityMultiplier * (0.3 + brightness * 0.4);
-            
-            // Complex envelope with multiple segments
-            gains[i].gain.setValueAtTime(0, now);
-            gains[i].gain.linearRampToValueAtTime(amplitude * 1.2, now + attackTime);
-            gains[i].gain.exponentialRampToValueAtTime(amplitude * 0.8, now + attackTime + decayTime * 0.3);
-            gains[i].gain.exponentialRampToValueAtTime(amplitude * sustainLevel, now + attackTime + decayTime);
-            gains[i].gain.exponentialRampToValueAtTime(0.001, now + releaseTime);
-            
-            // Add subtle frequency modulation for warmth
-            if (i === 0) {
-                const lfo = this.audioContext.createOscillator();
-                const lfoGain = this.audioContext.createGain();
-                lfo.frequency.value = 4.5 + Math.random() * 2;
-                lfo.type = 'sine';
-                lfoGain.gain.value = frequency * 0.002; // Very subtle vibrato
-                lfo.connect(lfoGain);
-                lfoGain.connect(oscillators[i].frequency);
-                lfo.start(now);
-                lfo.stop(now + releaseTime + 0.1);
-            }
-            
-            // Add realistic detuning for each harmonic
-            const detuning = [0, 1.5, -2.1, 3.2, -1.8, 2.5, -3.1, 1.7, -2.3];
-            oscillators[i].detune.value = detuning[i] || 0;
-            
-            // Start and stop oscillator
-            oscillators[i].start(now + attackTime * 0.1);
-            oscillators[i].stop(now + releaseTime + 0.2);
-        });
-        
-        // Add sympathetic resonance for bass notes
-        if (noteNumber < 40) {
-            const resonanceOsc = this.audioContext.createOscillator();
-            const resonanceGain = this.audioContext.createGain();
-            const resonanceFilter = this.audioContext.createBiquadFilter();
-            
-            resonanceOsc.frequency.value = frequency * 0.5; // Sub-harmonic
-            resonanceOsc.type = 'sine';
-            resonanceFilter.type = 'highpass';
-            resonanceFilter.frequency.value = frequency * 0.3;
-            
-            resonanceOsc.connect(resonanceFilter);
-            resonanceFilter.connect(resonanceGain);
-            resonanceGain.connect(this.masterGainNode);
-            
-            resonanceGain.gain.setValueAtTime(0, now);
-            resonanceGain.gain.linearRampToValueAtTime(0.15 * velocityMultiplier, now + 0.02);
-            resonanceGain.gain.exponentialRampToValueAtTime(0.001, now + actualDuration * 0.6);
-            
-            resonanceOsc.start(now);
-            resonanceOsc.stop(now + actualDuration * 0.6 + 0.1);
+                // Start and stop oscillator with slight timing variation
+                const startTime = now + attackJitter * 0.1 + (Math.random() - 0.5) * 0.001;
+                oscillators[oscIndex].start(startTime);
+                oscillators[oscIndex].stop(now + releaseTime + 0.2);
+            });
         }
+        
+        // Sympathetic string resonance
+        this.addSympatheticResonance(frequency, velocityVolume, now, actualDuration);
+        
+        // Soundboard body resonance
+        this.addSoundboardResonance(frequency, velocityVolume, now, actualDuration);
+    }
+    
+    // Add mechanical action noise (key clicks, hammer thumps)
+    addActionNoise(frequency, velocity, startTime) {
+        // Key click noise
+        const clickNoise = this.audioContext.createBufferSource();
+        const clickBuffer = this.audioContext.createBuffer(1, 0.005 * this.audioContext.sampleRate, this.audioContext.sampleRate);
+        const clickData = clickBuffer.getChannelData(0);
+        
+        for (let i = 0; i < clickData.length; i++) {
+            clickData[i] = (Math.random() - 0.5) * 0.1 * velocity;
+        }
+        
+        const clickGain = this.audioContext.createGain();
+        const clickFilter = this.audioContext.createBiquadFilter();
+        clickFilter.type = 'highpass';
+        clickFilter.frequency.value = 2000 + Math.random() * 1000;
+        
+        clickNoise.buffer = clickBuffer;
+        clickNoise.connect(clickFilter);
+        clickFilter.connect(clickGain);
+        clickGain.connect(this.masterGainNode);
+        
+        clickGain.gain.setValueAtTime(0.02 * velocity, startTime);
+        clickGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.01);
+        
+        clickNoise.start(startTime);
+    }
+    
+    // Add sympathetic string resonance
+    addSympatheticResonance(frequency, velocity, startTime, duration) {
+        const harmonicFreqs = [frequency * 2, frequency * 3, frequency * 0.5, frequency * 1.5];
+        
+        harmonicFreqs.forEach((freq, index) => {
+            if (freq >= 20 && freq <= 20000) {
+                const sympOsc = this.audioContext.createOscillator();
+                const sympGain = this.audioContext.createGain();
+                const sympFilter = this.audioContext.createBiquadFilter();
+                
+                sympOsc.frequency.value = freq;
+                sympOsc.type = 'sine';
+                sympOsc.detune.value = (Math.random() - 0.5) * 5;
+                
+                sympFilter.type = 'bandpass';
+                sympFilter.frequency.value = freq;
+                sympFilter.Q.value = 20;
+                
+                sympOsc.connect(sympFilter);
+                sympFilter.connect(sympGain);
+                sympGain.connect(this.masterGainNode);
+                
+                const amp = velocity * 0.015 / (index + 1);
+                sympGain.gain.setValueAtTime(0, startTime);
+                sympGain.gain.linearRampToValueAtTime(amp, startTime + 0.1);
+                sympGain.gain.exponentialRampToValueAtTime(amp * 0.3, startTime + 0.5);
+                sympGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration * 1.5);
+                
+                sympOsc.start(startTime + 0.02);
+                sympOsc.stop(startTime + duration * 1.5 + 0.1);
+            }
+        });
+    }
+    
+    // Add soundboard body resonance
+    addSoundboardResonance(frequency, velocity, startTime, duration) {
+        // Wooden soundboard has characteristic resonant frequencies
+        const bodyFreqs = [200, 400, 800, 1200];
+        
+        bodyFreqs.forEach((bodyFreq, index) => {
+            const bodyOsc = this.audioContext.createOscillator();
+            const bodyGain = this.audioContext.createGain();
+            const bodyFilter = this.audioContext.createBiquadFilter();
+            
+            bodyOsc.frequency.value = bodyFreq + (Math.random() - 0.5) * 50;
+            bodyOsc.type = 'sine';
+            
+            bodyFilter.type = 'peaking';
+            bodyFilter.frequency.value = bodyFreq;
+            bodyFilter.Q.value = 3 + Math.random() * 2;
+            bodyFilter.gain.value = 2;
+            
+            bodyOsc.connect(bodyFilter);
+            bodyFilter.connect(bodyGain);
+            bodyGain.connect(this.masterGainNode);
+            
+            const coupling = Math.max(0, 1 - Math.abs(frequency - bodyFreq) / bodyFreq);
+            const amp = velocity * 0.02 * coupling;
+            
+            bodyGain.gain.setValueAtTime(0, startTime);
+            bodyGain.gain.linearRampToValueAtTime(amp, startTime + 0.05);
+            bodyGain.gain.exponentialRampToValueAtTime(amp * 0.4, startTime + 0.3);
+            bodyGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration * 1.2);
+            
+            bodyOsc.start(startTime + 0.01);
+            bodyOsc.stop(startTime + duration * 1.2 + 0.1);
+        });
     }
     
     // Helper function to get MIDI note number
