@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Klavierbass-Rhythmen</title>
-    <script src="https://cdn.jsdelivr.net/npm/abcjs@6.2.2/dist/abcjs-basic-min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
     <div class="container">
-        <h1>🎹 Klavierbass-Rhythmen Übersicht</h1>
+        <h1>🎹 Klavier-Patterns Übersicht</h1>
         
         <div class="controls">
             <div class="control-group">
@@ -56,20 +56,14 @@
         </div>
         
         <div class="pattern-info" id="patternInfo">
-            <h2>Bassline-Muster</h2>
+            <h2>Pattern-Details</h2>
             <p>Wählen Sie ein Rhythmus-Muster aus, um Details zu sehen.</p>
         </div>
         
-        <div class="notation">
-            <h3>Notation:</h3>
-            <div class="notation-display" id="notationDisplay">
-                Wählen Sie ein Muster aus.
-            </div>
-        </div>
         
         <div class="staff-notation">
-            <h3>Bassschlüssel-Notation:</h3>
-            <div id="staffNotation"></div>
+            <h3>Notensystem:</h3>
+            <div id="vexflow-notation"></div>
         </div>
         
         <div class="piano-container">
@@ -107,113 +101,80 @@
                 }));
             }
 
-            generateABCNotation(patternId, key) {
+            generateVexFlowNotation(patternId, key) {
                 const pattern = this.getPattern(patternId);
-                if (!pattern) return '';
+                if (!pattern) return null;
 
-                const notes = pattern.pattern(key);
+                const patternData = pattern.pattern(key);
                 const timing = pattern.timing;
                 
-                // ABC header
-                let abc = 'X:1\n';
-                abc += `T:${pattern.name}\n`;
-                abc += `K:${key} clef=bass\n`;
-                abc += `M:${pattern.timeSignature || '4/4'}\n`;
-                abc += 'L:1/4\n';
+                // Get bass and treble clef data
+                const bassClefNotes = pattern.bassClef ? pattern.bassClef(key) : (pattern.leftHand ? pattern.leftHand(key) : patternData);
+                const trebleClefNotes = pattern.trebleClef ? pattern.trebleClef(key) : (pattern.rightHand ? pattern.rightHand(key) : null);
+                const bassClefFingering = pattern.bassClefFingering || pattern.leftHandFingering || pattern.fingering;
+                const trebleClefFingering = pattern.trebleClefFingering || pattern.rightHandFingering;
                 
-                // Convert notes to ABC notation with fingerings
-                let abcNotes = [];
-                console.log(`ABC Debug für ${pattern.name}:`, notes, timing);
-                notes.forEach((note, index) => {
-                    // Get fingering for this note
-                    const fingering = pattern.fingering ? pattern.fingering[index % pattern.fingering.length] : '';
-                    
-                    // Add fingering annotation BEFORE the note (nur wenn nicht null)
-                    let abcNote = '';
-                    if (fingering && note !== null && fingering !== null) {
-                        if (Array.isArray(fingering)) {
-                            abcNote += `"${fingering.join(',')}"`;
-                        } else {
-                            abcNote += `"${fingering}"`;
-                        }
-                    }
-                    
-                    // Convert note to ABC notation
-                    abcNote += this.convertToABCNote(note);
-                    
-                    // Add rhythm notation based on timing AFTER the note
-                    const duration = timing[index % timing.length];
-                    if (duration === 0.25) {
-                        abcNote += '/4';
-                    } else if (duration === 0.5) {
-                        abcNote += '/2';
-                    } else if (duration === 0.75) {
-                        abcNote += '3/4';
-                    } else if (duration === 1.5) {
-                        abcNote += '3/2';
-                    } else if (duration === 2) {
-                        abcNote += '2';
-                    }
-                    // Für Pausen (null) ist die Rhythmus-Notation besonders wichtig
-                    if (note === null && duration !== 1) {
-                        // Stelle sicher, dass Pausen korrekte Länge haben
-                        console.log(`Pause mit Dauer: ${duration} -> ${abcNote}`);
-                    }
-                    
-                    abcNotes.push(abcNote);
-                });
-                
-                abc += abcNotes.join(' ') + ' |\n';
-                console.log(`Finale ABC für ${pattern.name}:`, abc);
-                return abc;
+                return {
+                    bassClef: {
+                        notes: bassClefNotes,
+                        fingering: bassClefFingering,
+                        timing: timing
+                    },
+                    trebleClef: trebleClefNotes ? {
+                        notes: trebleClefNotes,
+                        fingering: trebleClefFingering,
+                        timing: timing
+                    } : null,
+                    timeSignature: pattern.timeSignature || '4/4',
+                    key: key
+                };
             }
 
-            // Convert note to ABC notation format
-            convertToABCNote(note) {
-                if (!note) return 'z'; // Rest
+            // Convert note string to VexFlow format
+            convertToVexFlowNote(note, clef = 'treble') {
+                if (!note) return null; // Rest
                 
                 if (Array.isArray(note)) {
-                    // Chord notation in ABC: [CEG]
-                    return '[' + note.map(this.convertSingleNoteToABC).join('') + ']';
+                    // Chord - return array of note strings
+                    return note.map(n => this.convertSingleNoteToVexFlow(n, clef));
                 }
                 
-                return this.convertSingleNoteToABC(note);
+                return this.convertSingleNoteToVexFlow(note, clef);
             }
             
-            // Helper function to convert single note
-            convertSingleNoteToABC(note) {
-                let noteName = note.charAt(0);
+            // Helper function to convert single note to VexFlow format
+            convertSingleNoteToVexFlow(note, clef = 'treble') {
+                let noteName = note.charAt(0).toLowerCase();
                 let octave = parseInt(note.slice(-1));
                 let accidental = note.slice(1, -1);
                 
-                // Handle accidentals
+                // Handle accidentals - VexFlow uses # and b directly
                 if (accidental === '#') {
-                    noteName = '^' + noteName;
+                    noteName += '#';
                 } else if (accidental === 'b') {
-                    noteName = '_' + noteName;
+                    noteName += 'b';
                 }
                 
-                // ABC octave notation for bass clef (korrigiert für korrekte Oktaven)
-                // In ABC mit Bass-Schlüssel: C, zeigt C2 an, C zeigt C3 an, etc.
-                // Unsere Noten: C3 soll als C3 im Bass-Schlüssel angezeigt werden
-                if (octave === 1) {
-                    noteName = noteName.toUpperCase() + ',,,';
-                } else if (octave === 2) {
-                    noteName = noteName.toUpperCase() + ',,';
-                } else if (octave === 3) {
-                    noteName = noteName.toUpperCase() + ',';
-                } else if (octave === 4) {
-                    noteName = noteName.toUpperCase();
-                } else if (octave === 5) {
-                    noteName = noteName.toLowerCase();
-                } else if (octave >= 6) {
-                    noteName = noteName.toLowerCase();
-                    for (let i = 6; i <= octave; i++) {
-                        noteName += "'";
-                    }
-                }
+                // VexFlow octave mapping - no adjustment needed when clef is properly specified
+                const adjustedOctave = octave;
                 
-                return noteName;
+                const result = `${noteName}/${adjustedOctave}`;
+                console.log(`Converting ${note} for ${clef} clef: ${result}`);
+                
+                return result;
+            }
+
+            // Convert timing to VexFlow duration
+            convertTimingToVexFlowDuration(timing) {
+                if (timing === 0.25) return '16'; // Sixteenth note
+                if (timing === 0.5) return '8';   // Eighth note
+                if (timing === 0.75) return '8d'; // Dotted eighth
+                if (timing === 1) return 'q';     // Quarter note
+                if (timing === 1.5) return 'qd';  // Dotted quarter
+                if (timing === 2) return 'h';     // Half note
+                if (timing === 3) return 'hd';    // Dotted half
+                if (timing === 4) return 'w';     // Whole note
+                return 'q'; // Default to quarter note
             }
 
             // Automatisches Laden aller Patterns
@@ -223,7 +184,8 @@
                 const knownPatterns = [
                     'alberti', 'waltz', 'march', 'boogie', 'stride', 'bossa',
                     'ragtime', 'ballad', 'tango', 'habanera', 'arpeggien',
-                    'lombardisch', 'chaconne', 'oktav', 'ostinato', 'pompa', 'polonaise'
+                    'lombardisch', 'chaconne', 'oktav', 'ostinato', 'pompa', 'polonaise',
+                    'classical', 'hymn'
                 ];
 
                 let loadedCount = 0;
@@ -457,14 +419,14 @@
                     <p>${pattern.description}</p>
                 `;
                 
-                document.getElementById('notationDisplay').textContent = pattern.notation;
+                // Removed notation display
                 
                 // Update staff notation
                 drawStaffNotation();
             }
         }
 
-        // Draw staff notation using ABCjs
+        // Draw staff notation using VexFlow
         function drawStaffNotation() {
             const patternType = document.getElementById('pattern').value;
             
@@ -482,26 +444,199 @@
             
             console.log(`🎼 Drawing staff notation for pattern: ${patternType}, key: ${key}`);
             
-            const abcNotation = patternLoader.generateABCNotation(patternType, key);
-            const staffDiv = document.getElementById('staffNotation');
+            const notationData = patternLoader.generateVexFlowNotation(patternType, key);
+            if (!notationData) return;
             
             // Clear previous notation
-            staffDiv.innerHTML = '';
+            const vexFlowDiv = document.getElementById('vexflow-notation');
+            vexFlowDiv.innerHTML = '';
             
-            if (abcNotation) {
-                console.log(`📝 ABC Notation: ${abcNotation.substring(0, 100)}...`);
-                // Render with ABCjs
-                ABCJS.renderAbc('staffNotation', abcNotation, {
-                    responsive: 'resize',
-                    staffwidth: 600,
-                    scale: 1.2,
-                    paddingtop: 10,
-                    paddingbottom: 10,
-                    paddingleft: 20,
-                    paddingright: 20
-                });
-            } else {
-                console.warn('⚠️ No ABC notation generated');
+            // Check if VexFlow is loaded - version 4.x uses different namespace
+            if (typeof Vex === 'undefined') {
+                console.error('VexFlow is not loaded properly');
+                vexFlowDiv.innerHTML = '<p>Notation library loading... Please wait.</p>';
+                // Try again in a second
+                setTimeout(drawStaffNotation, 1000);
+                return;
+            }
+            
+            try {
+                // VexFlow 4.x direct access
+                const VF = Vex;
+                
+                // Create SVG renderer
+                const renderer = new VF.Renderer(vexFlowDiv, VF.Renderer.Backends.SVG);
+                renderer.resize(800, 300);
+                const context = renderer.getContext();
+                
+                // Create treble clef stave (top)
+                const trebleStave = new VF.Stave(10, 40, 750);
+                trebleStave.addClef('treble');
+                trebleStave.addTimeSignature(notationData.timeSignature);
+                trebleStave.addKeySignature(key);
+                trebleStave.setContext(context).draw();
+                
+                // Create bass clef stave (bottom)
+                const bassStave = new VF.Stave(10, 140, 750);
+                bassStave.addClef('bass');
+                bassStave.addTimeSignature(notationData.timeSignature);
+                bassStave.addKeySignature(key);
+                bassStave.setContext(context).draw();
+                
+                // Connect the staves with a brace
+                const connector = new VF.StaveConnector(trebleStave, bassStave);
+                connector.setType(VF.StaveConnector.type.BRACE);
+                connector.setContext(context).draw();
+                
+                // Create notes for both hands
+                const trebleNotes = [];
+                const bassNotes = [];
+                
+                // Process bass clef
+                if (notationData.bassClef) {
+                    notationData.bassClef.notes.forEach((note, index) => {
+                        const duration = patternLoader.convertTimingToVexFlowDuration(
+                            notationData.bassClef.timing[index % notationData.bassClef.timing.length]
+                        );
+                        
+                        if (note === null) {
+                            // Rest
+                            bassNotes.push(new VF.StaveNote({ keys: ['b/4'], duration: duration + 'r', clef: 'bass' }));
+                        } else {
+                            const vexNote = patternLoader.convertToVexFlowNote(note, 'bass');
+                            if (Array.isArray(vexNote)) {
+                                // Chord
+                                const staveNote = new VF.StaveNote({ keys: vexNote, duration: duration, clef: 'bass' });
+                                
+                                // Add fingering annotations for chords - stacked vertically
+                                try {
+                                    const fingering = notationData.bassClef.fingering[index % notationData.bassClef.fingering.length];
+                                    if (fingering && Array.isArray(fingering)) {
+                                        // Add each fingering number to its corresponding note in the chord
+                                        fingering.forEach((finger, fingerIndex) => {
+                                            if (finger !== null && fingerIndex < vexNote.length) {
+                                                const annotation = new VF.Annotation(finger.toString());
+                                                annotation.setVerticalJustification(VF.Annotation.VerticalJustify.BOTTOM);
+                                                staveNote.addModifier(annotation, fingerIndex);
+                                            }
+                                        });
+                                    }
+                                } catch (e) {
+                                    console.log('Annotation error:', e);
+                                }
+                                
+                                bassNotes.push(staveNote);
+                            } else {
+                                // Single note
+                                const staveNote = new VF.StaveNote({ keys: [vexNote], duration: duration, clef: 'bass' });
+                                
+                                // Add fingering annotation
+                                try {
+                                    const fingering = notationData.bassClef.fingering[index % notationData.bassClef.fingering.length];
+                                    if (fingering && fingering !== null && !Array.isArray(fingering)) {
+                                        const annotation = new VF.Annotation(fingering.toString());
+                                        annotation.setVerticalJustification(VF.Annotation.VerticalJustify.BOTTOM);
+                                        staveNote.addModifier(annotation, 0);
+                                    }
+                                } catch (e) {
+                                    console.log('Annotation error:', e);
+                                }
+                                
+                                bassNotes.push(staveNote);
+                            }
+                        }
+                    });
+                }
+                
+                // Process treble clef
+                if (notationData.trebleClef) {
+                    notationData.trebleClef.notes.forEach((note, index) => {
+                        const duration = patternLoader.convertTimingToVexFlowDuration(
+                            notationData.trebleClef.timing[index % notationData.trebleClef.timing.length]
+                        );
+                        
+                        if (note === null) {
+                            // Rest
+                            trebleNotes.push(new VF.StaveNote({ keys: ['b/4'], duration: duration + 'r', clef: 'treble' }));
+                        } else {
+                            const vexNote = patternLoader.convertToVexFlowNote(note, 'treble');
+                            if (Array.isArray(vexNote)) {
+                                // Chord
+                                const staveNote = new VF.StaveNote({ keys: vexNote, duration: duration, clef: 'treble' });
+                                
+                                // Add fingering annotations for chords - stacked vertically
+                                try {
+                                    const fingering = notationData.trebleClef.fingering[index % notationData.trebleClef.fingering.length];
+                                    if (fingering && Array.isArray(fingering)) {
+                                        // Add each fingering number to its corresponding note in the chord
+                                        fingering.forEach((finger, fingerIndex) => {
+                                            if (finger !== null && fingerIndex < vexNote.length) {
+                                                const annotation = new VF.Annotation(finger.toString());
+                                                annotation.setVerticalJustification(VF.Annotation.VerticalJustify.TOP);
+                                                staveNote.addModifier(annotation, fingerIndex);
+                                            }
+                                        });
+                                    }
+                                } catch (e) {
+                                    console.log('Annotation error:', e);
+                                }
+                                
+                                trebleNotes.push(staveNote);
+                            } else {
+                                // Single note
+                                const staveNote = new VF.StaveNote({ keys: [vexNote], duration: duration, clef: 'treble' });
+                                
+                                // Add fingering annotation
+                                try {
+                                    const fingering = notationData.trebleClef.fingering[index % notationData.trebleClef.fingering.length];
+                                    if (fingering && fingering !== null && !Array.isArray(fingering)) {
+                                        const annotation = new VF.Annotation(fingering.toString());
+                                        annotation.setVerticalJustification(VF.Annotation.VerticalJustify.TOP);
+                                        staveNote.addModifier(annotation, 0);
+                                    }
+                                } catch (e) {
+                                    console.log('Annotation error:', e);
+                                }
+                                
+                                trebleNotes.push(staveNote);
+                            }
+                        }
+                    });
+                } else {
+                    // Fill treble staff with rests if no treble clef
+                    notationData.bassClef.notes.forEach((note, index) => {
+                        const duration = patternLoader.convertTimingToVexFlowDuration(
+                            notationData.bassClef.timing[index % notationData.bassClef.timing.length]
+                        );
+                        trebleNotes.push(new VF.StaveNote({ keys: ['b/4'], duration: duration + 'r', clef: 'treble' }));
+                    });
+                }
+                
+                // Calculate the total beats for the voice
+                const timeSignatureParts = notationData.timeSignature.split('/');
+                const numBeats = parseInt(timeSignatureParts[0]);
+                const beatValue = parseInt(timeSignatureParts[1]);
+                
+                // Create voices and format
+                if (trebleNotes.length > 0) {
+                    const trebleVoice = new VF.Voice({ num_beats: numBeats, beat_value: beatValue });
+                    trebleVoice.setStrict(false); // Allow incomplete voices
+                    trebleVoice.addTickables(trebleNotes);
+                    new VF.Formatter().joinVoices([trebleVoice]).format([trebleVoice], 700);
+                    trebleVoice.draw(context, trebleStave);
+                }
+                
+                if (bassNotes.length > 0) {
+                    const bassVoice = new VF.Voice({ num_beats: numBeats, beat_value: beatValue });
+                    bassVoice.setStrict(false); // Allow incomplete voices
+                    bassVoice.addTickables(bassNotes);
+                    new VF.Formatter().joinVoices([bassVoice]).format([bassVoice], 700);
+                    bassVoice.draw(context, bassStave);
+                }
+                
+            } catch (error) {
+                console.error('VexFlow rendering error:', error);
+                vexFlowDiv.innerHTML = '<p>Fehler beim Rendern der Notation</p>';
             }
         }
 
