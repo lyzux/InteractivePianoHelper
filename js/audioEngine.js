@@ -58,86 +58,119 @@ export class AudioEngine {
         const frequency = this.noteFrequencies[note];
         if (!frequency) return;
         
-        const actualDuration = useSustain ? duration * 2.5 : duration;
+        const actualDuration = useSustain ? duration * 3.5 : duration;
         
-        // Create multiple oscillators for richer sound (fundamental + harmonics)
+        // Concert grand piano synthesis with realistic harmonics
         const oscillators = [];
         const gains = [];
+        const filters = [];
         
-        // Fundamental frequency
-        oscillators[0] = this.audioContext.createOscillator();
-        gains[0] = this.audioContext.createGain();
-        oscillators[0].frequency.value = frequency;
-        oscillators[0].type = 'sine';
+        // Enhanced harmonic series for realistic piano sound
+        const harmonicRatios = [1, 2, 3, 4, 5, 6.3, 8.1, 10.2, 12.5];
+        const harmonicAmplitudes = [1.0, 0.6, 0.4, 0.25, 0.15, 0.08, 0.05, 0.03, 0.02];
         
-        // 2nd harmonic (octave)
-        oscillators[1] = this.audioContext.createOscillator();
-        gains[1] = this.audioContext.createGain();
-        oscillators[1].frequency.value = frequency * 2;
-        oscillators[1].type = 'sine';
+        // Calculate note-dependent parameters
+        const noteNumber = this.getNoteNumber(note);
+        const velocityMultiplier = Math.pow(0.95, Math.max(0, noteNumber - 40)); // Lower notes stronger
+        const brightness = Math.min(1, 0.3 + (noteNumber - 20) * 0.02); // Higher notes brighter
         
-        // 3rd harmonic
-        oscillators[2] = this.audioContext.createOscillator();
-        gains[2] = this.audioContext.createGain();
-        oscillators[2].frequency.value = frequency * 3;
-        oscillators[2].type = 'sine';
-        
-        // 4th harmonic
-        oscillators[3] = this.audioContext.createOscillator();
-        gains[3] = this.audioContext.createGain();
-        oscillators[3].frequency.value = frequency * 4;
-        oscillators[3].type = 'sine';
-        
-        // 5th harmonic
-        oscillators[4] = this.audioContext.createOscillator();
-        gains[4] = this.audioContext.createGain();
-        oscillators[4].frequency.value = frequency * 5;
-        oscillators[4].type = 'sine';
-        
-        // Set harmonic amplitudes (decreasing for higher harmonics)
-        const harmonicAmplitudes = [0.6, 0.3, 0.15, 0.08, 0.04];
-        
-        // Calculate velocity based on note register (lower notes louder)
-        const noteNumber = parseInt(note.slice(-1));
-        const velocityMultiplier = 1 - (noteNumber * 0.08);
-        
-        // Create envelope for each oscillator
         const now = this.audioContext.currentTime;
-        const attackTime = 0.01;
-        const decayTime = 0.1;
-        const sustainLevel = useSustain ? 0.4 : 0.2;
-        const releaseTime = useSustain ? actualDuration : actualDuration * 0.8;
         
-        oscillators.forEach((osc, i) => {
-            // Connect oscillator through gain to master
-            osc.connect(gains[i]);
+        // Create oscillators for each harmonic
+        harmonicRatios.forEach((ratio, i) => {
+            if (i >= harmonicAmplitudes.length) return;
+            
+            oscillators[i] = this.audioContext.createOscillator();
+            gains[i] = this.audioContext.createGain();
+            filters[i] = this.audioContext.createBiquadFilter();
+            
+            // Set oscillator frequency and type
+            oscillators[i].frequency.value = frequency * ratio;
+            oscillators[i].type = i === 0 ? 'sine' : (i < 3 ? 'triangle' : 'sawtooth');
+            
+            // Configure low-pass filter for each harmonic
+            filters[i].type = 'lowpass';
+            filters[i].frequency.value = frequency * ratio * (1 + brightness * 2);
+            filters[i].Q.value = 0.5 + (i * 0.1);
+            
+            // Connect audio chain: oscillator -> filter -> gain -> master
+            oscillators[i].connect(filters[i]);
+            filters[i].connect(gains[i]);
             gains[i].connect(this.masterGainNode);
             
-            // ADSR envelope
+            // Enhanced ADSR envelope for realistic piano attack/decay
+            const attackTime = 0.005 + (i * 0.002); // Slight stagger for realism
+            const decayTime = 0.08 + (noteNumber * 0.002);
+            const sustainLevel = useSustain ? 0.3 * (1 - i * 0.05) : 0.1;
+            const releaseTime = useSustain ? actualDuration * 0.9 : actualDuration * 0.7;
+            
+            const amplitude = harmonicAmplitudes[i] * velocityMultiplier * (0.3 + brightness * 0.4);
+            
+            // Complex envelope with multiple segments
             gains[i].gain.setValueAtTime(0, now);
-            gains[i].gain.linearRampToValueAtTime(
-                harmonicAmplitudes[i] * velocityMultiplier, 
-                now + attackTime
-            );
-            gains[i].gain.exponentialRampToValueAtTime(
-                harmonicAmplitudes[i] * sustainLevel * velocityMultiplier, 
-                now + attackTime + decayTime
-            );
-            gains[i].gain.exponentialRampToValueAtTime(
-                0.001, 
-                now + releaseTime
-            );
+            gains[i].gain.linearRampToValueAtTime(amplitude * 1.2, now + attackTime);
+            gains[i].gain.exponentialRampToValueAtTime(amplitude * 0.8, now + attackTime + decayTime * 0.3);
+            gains[i].gain.exponentialRampToValueAtTime(amplitude * sustainLevel, now + attackTime + decayTime);
+            gains[i].gain.exponentialRampToValueAtTime(0.001, now + releaseTime);
+            
+            // Add subtle frequency modulation for warmth
+            if (i === 0) {
+                const lfo = this.audioContext.createOscillator();
+                const lfoGain = this.audioContext.createGain();
+                lfo.frequency.value = 4.5 + Math.random() * 2;
+                lfo.type = 'sine';
+                lfoGain.gain.value = frequency * 0.002; // Very subtle vibrato
+                lfo.connect(lfoGain);
+                lfoGain.connect(oscillators[i].frequency);
+                lfo.start(now);
+                lfo.stop(now + releaseTime + 0.1);
+            }
+            
+            // Add realistic detuning for each harmonic
+            const detuning = [0, 1.5, -2.1, 3.2, -1.8, 2.5, -3.1, 1.7, -2.3];
+            oscillators[i].detune.value = detuning[i] || 0;
             
             // Start and stop oscillator
-            osc.start(now);
-            osc.stop(now + releaseTime + 0.1);
+            oscillators[i].start(now + attackTime * 0.1);
+            oscillators[i].stop(now + releaseTime + 0.2);
         });
         
-        // Add slight detuning for richness
-        oscillators[1].detune.value = 2;
-        oscillators[2].detune.value = -3;
-        oscillators[3].detune.value = 5;
-        oscillators[4].detune.value = -7;
+        // Add sympathetic resonance for bass notes
+        if (noteNumber < 40) {
+            const resonanceOsc = this.audioContext.createOscillator();
+            const resonanceGain = this.audioContext.createGain();
+            const resonanceFilter = this.audioContext.createBiquadFilter();
+            
+            resonanceOsc.frequency.value = frequency * 0.5; // Sub-harmonic
+            resonanceOsc.type = 'sine';
+            resonanceFilter.type = 'highpass';
+            resonanceFilter.frequency.value = frequency * 0.3;
+            
+            resonanceOsc.connect(resonanceFilter);
+            resonanceFilter.connect(resonanceGain);
+            resonanceGain.connect(this.masterGainNode);
+            
+            resonanceGain.gain.setValueAtTime(0, now);
+            resonanceGain.gain.linearRampToValueAtTime(0.15 * velocityMultiplier, now + 0.02);
+            resonanceGain.gain.exponentialRampToValueAtTime(0.001, now + actualDuration * 0.6);
+            
+            resonanceOsc.start(now);
+            resonanceOsc.stop(now + actualDuration * 0.6 + 0.1);
+        }
+    }
+    
+    // Helper function to get MIDI note number
+    getNoteNumber(note) {
+        const noteMap = { 'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11 };
+        const noteName = note.charAt(0);
+        const octave = parseInt(note.slice(-1));
+        let noteNumber = noteMap[noteName] + (octave + 1) * 12;
+        
+        // Handle accidentals
+        if (note.includes('#')) noteNumber += 1;
+        if (note.includes('b')) noteNumber -= 1;
+        
+        return noteNumber;
     }
 
     close() {
