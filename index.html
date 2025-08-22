@@ -6,12 +6,153 @@
     <title>Klavierbass-Rhythmen</title>
     <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
     <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .main-layout {
+            display: flex;
+            gap: 20px;
+            width: 95%;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            min-height: calc(100vh - 200px);
+        }
+        
+        .piano-section {
+            flex: 1;
+            min-width: 800px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .physics-sidebar {
+            width: 400px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-height: calc(100vh - 280px);
+            overflow-y: auto;
+        }
+        
+        .physics-sidebar h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 10px;
+        }
+        
+        .param-group {
+            margin-bottom: 15px;
+        }
+        
+        .param-label {
+            display: block;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+        
+        .param-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .param-slider {
+            flex: 1;
+            height: 6px;
+            background: #ddd;
+            border-radius: 3px;
+            outline: none;
+            appearance: none;
+            cursor: pointer;
+        }
+        
+        .param-slider::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #4CAF50;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .param-value {
+            min-width: 45px;
+            text-align: right;
+            font-family: monospace;
+            font-size: 0.85em;
+            color: #666;
+        }
+        
+        .test-piano {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .test-btn {
+            padding: 8px 12px;
+            margin: 2px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8em;
+        }
+        
+        .test-btn:hover {
+            background: #45a049;
+        }
+        
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+        
+        .piano-keyboard-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 15px;
+            z-index: 1000;
+            border-top: 2px solid #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        body {
+            padding-bottom: 120px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-layout {
+                flex-direction: column;
+                width: 98%;
+            }
+            .physics-sidebar {
+                width: 100%;
+                max-height: 400px;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <h1>🎹 Klavier-Patterns Übersicht</h1>
         
-        <div class="controls">
+        <div class="main-layout">
+            <div class="piano-section">
+                <div class="content-area">
+                    <div class="controls">
             <div class="control-group">
                 <label for="pattern">Rhythmus-Muster</label>
                 <select id="pattern">
@@ -36,6 +177,7 @@
                 <div class="tempo-display" id="tempoDisplay">120 BPM</div>
             </div>
             
+            
             <div class="control-group">
                 <label>&nbsp;</label>
                 <button id="playBtn">▶ Abspielen</button>
@@ -53,6 +195,7 @@
                     <label for="sustain">🎹 Sustain-Pedal</label>
                 </div>
             </div>
+            
         </div>
         
         <div class="pattern-info" id="patternInfo">
@@ -65,10 +208,33 @@
             <h3>Notensystem:</h3>
             <div id="vexflow-notation"></div>
         </div>
+                </div>
+            </div>
+            
+            <div class="physics-sidebar">
+                <h3>🎛️ Piano Controls</h3>
+                <div id="physicsControls">
+                    <!-- Physics controls will be generated here -->
+                </div>
+                
+                <div class="test-piano">
+                    <h4>Test Sound</h4>
+                    <button class="test-btn" onclick="testNote('C3')">C3</button>
+                    <button class="test-btn" onclick="testNote('C4')">C4</button>
+                    <button class="test-btn" onclick="testNote('C5')">C5</button>
+                    <br>
+                    <button class="test-btn" onclick="testChord()">Chord</button>
+                    <button class="test-btn" onclick="testScale()">Scale</button>
+                </div>
+            </div>
+        </div>
         
-        <div class="piano-container">
-            <div class="piano" id="piano">
-                <!-- Piano keys will be generated by JavaScript -->
+        <!-- Piano keyboard at bottom of screen -->
+        <div class="piano-keyboard-container">
+            <div class="piano-container">
+                <div class="piano" id="piano">
+                    <!-- Piano keys will be generated by JavaScript -->
+                </div>
             </div>
         </div>
     </div>
@@ -185,7 +351,7 @@
                     'alberti', 'waltz', 'march', 'boogie', 'stride', 'bossa',
                     'ragtime', 'ballad', 'tango', 'habanera', 'arpeggien',
                     'lombardisch', 'chaconne', 'oktav', 'ostinato', 'pompa', 'polonaise',
-                    'classical', 'hymn'
+                    'classical', 'hymn', 'furelise'
                 ];
 
                 let loadedCount = 0;
@@ -258,6 +424,12 @@
             const settings = new Settings();
             const patternLoader = new SimplePatternLoader(); // Verwende einfache Version
             const player = new Player(audioEngine, piano, settings);
+            
+            // Generate physics controls after audioEngine is available
+            setTimeout(() => {
+                console.log('Attempting to generate physics controls...');
+                generatePhysicsControls();
+            }, 500);
 
             // Patterns automatisch laden
             console.log('🔄 Starte automatisches Pattern-Loading...');
@@ -316,6 +488,9 @@
         // App initialisieren (in asynchroner IIFE)
         let audioEngine, piano, settings, patternLoader, player;
         
+        // Make audioEngine globally accessible for physics controls
+        window.audioEngine = null;
+        
         (async () => {
             try {
                 const components = await initializeApp();
@@ -324,6 +499,12 @@
                 settings = components.settings;
                 patternLoader = components.patternLoader;
                 player = components.player;
+                
+                // Make audioEngine globally accessible
+                window.audioEngine = audioEngine;
+                
+                // Generate physics controls now that audioEngine is available
+                generatePhysicsControls();
                 
                 // UI initialisieren nachdem alles geladen ist
                 populatePatternDropdown();
@@ -344,7 +525,15 @@
             console.log('🚨 Initialisiere Notfall-Fallback...');
             
             // Minimale Komponenten erstellen
-            audioEngine = { init: () => {}, playNote: () => {}, close: () => {} };
+            audioEngine = { 
+                init: () => {}, 
+                playNote: () => {}, 
+                close: () => {},
+                setLidPosition: () => {},
+                getLidPosition: () => 0,
+                loadPhysicsParameters: () => false,
+                savePhysicsParameters: () => false
+            };
             piano = { highlightKey: () => {}, unhighlightKey: () => {}, clearAllHighlights: () => {} };
             settings = { 
                 getKey: () => 'C', 
@@ -365,7 +554,26 @@
                 getPattern: function(id) { return this.patterns.get(id); },
                 getAllPatterns: function() { return Array.from(this.patterns.entries()).map(([id, pattern]) => ({ id, ...pattern })); },
                 getPatternOptions: function() { return this.getAllPatterns().map(p => ({ value: p.id, label: p.name })); },
-                generateABCNotation: () => 'X:1\nT:Fallback\nK:C\nC4 G4 E4 G4 |'
+                generateABCNotation: () => 'X:1\nT:Fallback\nK:C\nC4 G4 E4 G4 |',
+                generateVexFlowNotation: function(patternId, key) {
+                    return {
+                        bassClef: {
+                            notes: ['C3', 'G3', 'E3', 'G3'],
+                            timing: [1, 1, 1, 1],
+                            fingering: [1, 5, 3, 5]
+                        },
+                        trebleClef: null,
+                        timeSignature: '4/4',
+                        key: key
+                    };
+                },
+                convertTimingToVexFlowDuration: function(timing) {
+                    return 'q'; // Quarter note
+                },
+                convertToVexFlowNote: function(note, clef) {
+                    if (!note) return null;
+                    return note.toLowerCase() + '/3';
+                }
             };
             
             // Minimaler Player
@@ -700,6 +908,7 @@
                 });
             }
 
+
             // Settings callbacks (falls settings verfügbar)
             if (settings && typeof settings.onKeyChange === 'function') {
                 settings.onKeyChange(handleKeyChange);
@@ -713,7 +922,126 @@
             }
         }
 
-        // UI wird nach erfolgreicher Initialisierung geladen
+        // Generate physics controls
+        function generatePhysicsControls() {
+            console.log('🎛️ generatePhysicsControls called');
+            
+            const container = document.getElementById('physicsControls');
+            console.log('📦 Container found:', !!container);
+            
+            const engine = window.audioEngine || audioEngine;
+            console.log('🎵 AudioEngine found:', !!engine);
+            console.log('🎵 AudioEngine type:', typeof engine);
+            
+            if (!container) {
+                console.error('❌ Physics controls container not found');
+                return;
+            }
+            
+            if (!engine) {
+                console.error('❌ AudioEngine not available');
+                return;
+            }
+            
+            // Clear existing controls
+            container.innerHTML = '';
+            
+            console.log('✅ Generating physics controls...');
+            
+            const paramDefs = {
+                volume: { min: 0, max: 1, step: 0.01, label: 'Volume' },
+                brightness: { min: 0, max: 1, step: 0.01, label: 'Brightness' },
+                warmth: { min: 0, max: 1, step: 0.01, label: 'Warmth' },
+                attack: { min: 0.001, max: 0.1, step: 0.001, label: 'Attack' },
+                release: { min: 0.5, max: 5, step: 0.1, label: 'Release' },
+                harmonics: { min: 0, max: 1, step: 0.01, label: 'Harmonics' },
+                detune: { min: 0, max: 1, step: 0.01, label: 'Detune' },
+                chorus: { min: 0, max: 1, step: 0.01, label: 'Chorus' },
+                roomSize: { min: 0, max: 1, step: 0.01, label: 'Room Size' },
+                damping: { min: 0, max: 1, step: 0.01, label: 'Damping' },
+                lidPosition: { min: 0, max: 1, step: 0.01, label: 'Lid Position' },
+                pedalResonance: { min: 0, max: 1, step: 0.01, label: 'Pedal Resonance' }
+            };
+            
+            let controlsCreated = 0;
+            
+            Object.entries(paramDefs).forEach(([param, def]) => {
+                console.log(`🎛️ Creating control for ${param}`);
+                
+                const group = document.createElement('div');
+                group.className = 'param-group';
+                
+                const label = document.createElement('label');
+                label.className = 'param-label';
+                label.textContent = def.label;
+                
+                const control = document.createElement('div');
+                control.className = 'param-control';
+                
+                const slider = document.createElement('input');
+                slider.type = 'range';
+                slider.className = 'param-slider';
+                slider.min = def.min;
+                slider.max = def.max;
+                slider.step = def.step;
+                
+                // Get current parameter value
+                const currentValue = engine.getParam ? engine.getParam(param) : 0.5;
+                slider.value = currentValue;
+                console.log(`🎛️ ${param} current value: ${currentValue}`);
+                
+                const value = document.createElement('span');
+                value.className = 'param-value';
+                value.textContent = parseFloat(slider.value).toFixed(2);
+                
+                slider.addEventListener('input', (e) => {
+                    const newValue = parseFloat(e.target.value);
+                    value.textContent = newValue.toFixed(2);
+                    console.log(`🎛️ ${param} changed to: ${newValue}`);
+                    if (engine.setParam) {
+                        engine.setParam(param, newValue);
+                    }
+                });
+                
+                control.appendChild(slider);
+                control.appendChild(value);
+                group.appendChild(label);
+                group.appendChild(control);
+                container.appendChild(group);
+                
+                controlsCreated++;
+            });
+            
+            console.log(`✅ Created ${controlsCreated} physics controls`);
+        }
+        
+        // Test functions
+        window.testNote = function(note) {
+            const engine = window.audioEngine || audioEngine;
+            if (engine) {
+                engine.playNote(note, 2.0, true, 0.8);
+            }
+        };
+        
+        window.testChord = function() {
+            const engine = window.audioEngine || audioEngine;
+            if (engine) {
+                const chord = ['C4', 'E4', 'G4'];
+                chord.forEach((note, index) => {
+                    setTimeout(() => engine.playNote(note, 2.0, true, 0.7), index * 50);
+                });
+            }
+        };
+        
+        window.testScale = function() {
+            const engine = window.audioEngine || audioEngine;
+            if (engine) {
+                const scale = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'];
+                scale.forEach((note, index) => {
+                    setTimeout(() => engine.playNote(note, 0.8, false, 0.6), index * 200);
+                });
+            }
+        };
 
         // Cleanup on page unload
         window.addEventListener('beforeunload', () => {
