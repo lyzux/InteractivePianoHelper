@@ -4,6 +4,7 @@ export class AudioEngine {
         this.audioContext = null;
         this.masterGain = null;
         this.mainFilter = null;
+        this.activeNotes = new Map(); // Track active oscillators for stopping
         
         // Simple piano parameters (6-12 essential controls)
         this.params = {
@@ -52,14 +53,27 @@ export class AudioEngine {
         if (!this.audioContext) {
             this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
             
-            // Simple audio chain: Master -> Filter -> Destination
+            // Create separate buses for fundamental and harmonic content
             this.masterGain = this.audioContext.createGain();
             this.masterGain.gain.value = this.params.volume;
+            
+            // Harmonic bus with compression to prevent buildup
+            this.harmonicGain = this.audioContext.createGain();
+            this.harmonicCompressor = this.audioContext.createDynamicsCompressor();
+            this.harmonicCompressor.threshold.value = -20;
+            this.harmonicCompressor.knee.value = 10;
+            this.harmonicCompressor.ratio.value = 6;
+            this.harmonicCompressor.attack.value = 0.003;
+            this.harmonicCompressor.release.value = 0.25;
+            this.harmonicGain.gain.value = 0.6; // Reduce harmonic bus volume
             
             this.mainFilter = this.audioContext.createBiquadFilter();
             this.mainFilter.type = 'lowpass';
             this.updateFilter();
             
+            // Connect: Harmonics -> Compressor -> Harmonic Gain -> Master -> Filter -> Destination
+            this.harmonicCompressor.connect(this.harmonicGain);
+            this.harmonicGain.connect(this.masterGain);
             this.masterGain.connect(this.mainFilter);
             this.mainFilter.connect(this.audioContext.destination);
         }
@@ -103,13 +117,76 @@ export class AudioEngine {
         const frequency = this.noteFrequencies[note];
         if (!frequency) return;
         
+        // Only stop existing note if it's a different call (not manual control)
+        if (duration < 10) {
+            this.stopNote(note);
+        }
+        
         const now = this.audioContext.currentTime;
         const actualDuration = useSustain ? duration * this.params.release : duration;
         
-        this.createCleanPianoNote(frequency, velocity, now, actualDuration);
+        this.createCleanPianoNote(note, frequency, velocity, now, actualDuration);
     }
 
-    createCleanPianoNote(frequency, velocity, startTime, duration) {
+    stopNote(note) {
+        if (this.activeNotes.has(note)) {
+            const noteData = this.activeNotes.get(note);
+            const now = this.audioContext ? this.audioContext.currentTime : 0;
+            
+            // Natural piano release for fundamental tone
+            if (noteData.gain && noteData.gain.gain) {
+                noteData.gain.gain.cancelScheduledValues(now);
+                noteData.gain.gain.setValueAtTime(noteData.gain.gain.value, now);
+                // Natural release time based on piano release parameter
+                const releaseTime = this.params.release * 0.8;
+                noteData.gain.gain.exponentialRampToValueAtTime(0.001, now + releaseTime);
+                
+                // Stop the fundamental oscillator when it finishes fading
+                if (noteData.oscillators && noteData.oscillators.length > 0) {
+                    const fundamentalOsc = noteData.oscillators[0]; // First oscillator is fundamental
+                    if (fundamentalOsc) {
+                        try {
+                            fundamentalOsc.stop(now + releaseTime + 0.01);
+                        } catch (e) {
+                            // Oscillator might already be stopped
+                        }
+                    }
+                }
+            }
+            
+            // Fade out harmonics much faster to prevent buildup and stop oscillators
+            if (noteData.harmonicGains && noteData.harmonicGains.length > 0 && noteData.harmonicOscillators) {
+                noteData.harmonicGains.forEach((harmGain, index) => {
+                    if (harmGain && harmGain.gain) {
+                        harmGain.gain.cancelScheduledValues(now);
+                        harmGain.gain.setValueAtTime(harmGain.gain.value, now);
+                        // Harmonics fade out 3x faster than fundamental
+                        const harmonicReleaseTime = (this.params.release * 0.8) / 3;
+                        harmGain.gain.exponentialRampToValueAtTime(0.001, now + harmonicReleaseTime);
+                        
+                        // Stop the harmonic oscillator when it finishes fading
+                        const harmOsc = noteData.harmonicOscillators[index];
+                        if (harmOsc) {
+                            try {
+                                harmOsc.stop(now + harmonicReleaseTime + 0.01);
+                            } catch (e) {
+                                // Oscillator might already be stopped
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Clean up after release completes
+            setTimeout(() => {
+                if (this.activeNotes.has(note)) {
+                    this.activeNotes.delete(note);
+                }
+            }, (this.params.release * 0.8 + 0.2) * 1000);
+        }
+    }
+
+    createCleanPianoNote(noteName, frequency, velocity, startTime, duration) {
         // Create fundamental tone
         const osc = this.audioContext.createOscillator();
         const gain = this.audioContext.createGain();
@@ -129,26 +206,60 @@ export class AudioEngine {
         noteFilter.connect(gain);
         gain.connect(this.masterGain);
         
-        // Simple envelope
+        // Envelope with sustain (no automatic fade for long notes)
         const amplitude = 0.3 * velocity;
         const attackTime = this.params.attack;
         const warmthBoost = this.params.warmth;
+        const sustainLevel = amplitude * 0.7;
         
         gain.gain.setValueAtTime(0.001, startTime);
         gain.gain.linearRampToValueAtTime(amplitude * (0.8 + warmthBoost * 0.2), startTime + attackTime);
-        gain.gain.linearRampToValueAtTime(amplitude * 0.7, startTime + attackTime + 0.1);
-        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+        gain.gain.linearRampToValueAtTime(sustainLevel, startTime + attackTime + 0.1);
+        
+        // For long durations, hold at sustain level (don't fade to 0.001)
+        if (duration > 5) {
+            // Hold at sustain level - will be stopped manually
+            gain.gain.setValueAtTime(sustainLevel, startTime + duration - 1);
+        } else {
+            // Normal fade for short notes
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+        }
+        
+        // Track this note for potential stopping
+        const oscillators = [osc];
         
         osc.start(startTime);
         osc.stop(startTime + duration + 0.1);
         
         // Add subtle harmonic if harmonics parameter > 0
+        let harmonicGains = [];
+        let harmonicOscillators = [];
         if (this.params.harmonics > 0.1) {
-            this.addHarmonic(frequency, velocity, startTime, duration);
+            const { oscillators: harmOscs, gains: harmGains } = this.addHarmonic(noteName, frequency, velocity, startTime, duration);
+            oscillators.push(...harmOscs);
+            harmonicGains = harmGains;
+            harmonicOscillators = harmOscs;
         }
+        
+        // Store note data for potential stopping
+        this.activeNotes.set(noteName, {
+            oscillators: oscillators,
+            gain: gain,
+            harmonicGains: harmonicGains,
+            harmonicOscillators: harmonicOscillators,
+            startTime: startTime,
+            duration: duration
+        });
+        
+        // Clean up after note naturally ends
+        setTimeout(() => {
+            if (this.activeNotes.has(noteName)) {
+                this.activeNotes.delete(noteName);
+            }
+        }, (duration + 0.2) * 1000);
     }
 
-    addHarmonic(frequency, velocity, startTime, duration) {
+    addHarmonic(noteName, frequency, velocity, startTime, duration) {
         const harmOsc = this.audioContext.createOscillator();
         const harmGain = this.audioContext.createGain();
         const harmFilter = this.audioContext.createBiquadFilter();
@@ -162,19 +273,37 @@ export class AudioEngine {
         
         harmOsc.connect(harmFilter);
         harmFilter.connect(harmGain);
-        harmGain.connect(this.masterGain);
+        harmGain.connect(this.harmonicCompressor); // Connect to harmonic bus with compression
         
-        const harmAmp = 0.1 * velocity * this.params.harmonics;
+        // Restore original harmonic amplitude - compression will handle buildup
+        const harmAmp = 0.08 * velocity * this.params.harmonics; // Slightly higher since compressor will control it
         
         harmGain.gain.setValueAtTime(0.001, startTime);
         harmGain.gain.linearRampToValueAtTime(harmAmp, startTime + this.params.attack + 0.01);
-        harmGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration * 0.7);
+        
+        // For long durations, hold at sustain level like fundamental
+        if (duration > 5) {
+            harmGain.gain.setValueAtTime(harmAmp * 0.7, startTime + duration - 1);
+        } else {
+            harmGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration * 0.7);
+        }
         
         harmOsc.start(startTime);
         harmOsc.stop(startTime + duration);
+        
+        return { 
+            oscillators: [harmOsc], 
+            gains: [harmGain] 
+        };
     }
 
     close() {
+        // Stop all active notes
+        this.activeNotes.forEach((noteData, note) => {
+            this.stopNote(note);
+        });
+        this.activeNotes.clear();
+        
         if (this.audioContext) {
             this.audioContext.close();
             this.audioContext = null;

@@ -240,6 +240,8 @@
     </div>
 
     <script type="module">
+        console.log('🚨 SCRIPT STARTING TO EXECUTE');
+        
         // Einfache Pattern-Loader Klasse direkt hier definiert
         class SimplePatternLoader {
             constructor() {
@@ -411,18 +413,36 @@
         }
 
         // Import modules (nur die funktionierenden)
-        import { AudioEngine } from './js/audioEngine.js';
-        import { Piano } from './js/piano.js';
+        console.log('🚨 ABOUT TO IMPORT MODULES');
+        import { AudioEngine } from './js/audioEngine.js?v=555555';
+        console.log('🚨 IMPORTED AudioEngine');
+        import { Piano } from './js/piano.js?v=999999';
+        console.log('🚨 IMPORTED Piano');
         import { Settings } from './js/settings.js';
+        console.log('🚨 IMPORTED Settings');
         import { Player } from './js/player.js';
+        console.log('🚨 IMPORTED Player');
 
         // Asynchrone Initialisierung
         async function initializeApp() {
+            console.log('🚨 INITIALIZE APP CALLED');
             // Initialize components
+            console.log('🚨 CREATING AudioEngine');
             const audioEngine = new AudioEngine();
-            const piano = new Piano('piano', audioEngine);
+            console.log('🚨 CREATING Piano');
+            let piano;
+            try {
+                piano = new Piano('piano', audioEngine);
+                console.log('🚨 PIANO CREATED SUCCESSFULLY');
+            } catch (error) {
+                console.error('🚨 ERROR CREATING PIANO:', error);
+                throw error;
+            }
+            console.log('🚨 CREATING Settings');
             const settings = new Settings();
+            console.log('🚨 CREATING PatternLoader');
             const patternLoader = new SimplePatternLoader(); // Verwende einfache Version
+            console.log('🚨 CREATING Player');
             const player = new Player(audioEngine, piano, settings);
             
             // Generate physics controls after audioEngine is available

@@ -1,10 +1,22 @@
 // Piano Module - Reusable Piano Component
 export class Piano {
     constructor(containerId, audioEngine) {
+        console.log('🚨 PIANO CONSTRUCTOR CALLED!');
+        console.log('Container ID:', containerId);
+        console.log('AudioEngine:', audioEngine);
+        
         this.container = document.getElementById(containerId);
+        console.log('Container element:', this.container);
+        
         this.audioEngine = audioEngine;
         this.activeKeys = new Set();
+        this.heldKeys = new Set(); // Keys held with Ctrl+click
+        this.keyPressStartTimes = new Map(); // Track when keys were pressed
+        this.currentNoteStops = new Map(); // Store timeout/stop functions for active notes
+        
+        console.log('🚨 ABOUT TO CALL INIT');
         this.init();
+        console.log('🚨 INIT COMPLETED');
     }
 
     init() {
@@ -13,6 +25,7 @@ export class Piano {
     }
 
     createPiano() {
+        console.log('🎹 Creating piano...');
         this.container.innerHTML = '';
         
         // Define the complete 88-key layout
@@ -53,7 +66,8 @@ export class Piano {
             octave.whiteKeys.forEach((note) => {
                 const key = document.createElement('div');
                 key.className = 'key white-key';
-                key.dataset.note = note + octave.number;
+                const fullNote = note + octave.number;
+                key.dataset.note = fullNote;
                 
                 // Only label C keys and middle C area
                 if (note === 'C' || (octave.number === 4 && note === 'A')) {
@@ -63,6 +77,11 @@ export class Piano {
                     key.appendChild(label);
                 }
                 
+                // Attach individual key listeners
+                console.log(`🎹 About to attach listeners to white key: ${fullNote}`);
+                this.attachKeyListeners(key, fullNote);
+                console.log(`🎹 Attached listeners to white key: ${fullNote}`);
+                
                 octaveGroup.appendChild(key);
             });
             
@@ -70,7 +89,8 @@ export class Piano {
             Object.entries(octave.blackKeys).forEach(([note, position]) => {
                 const key = document.createElement('div');
                 key.className = 'key black-key';
-                key.dataset.note = note + octave.number;
+                const fullNote = note + octave.number;
+                key.dataset.note = fullNote;
                 key.style.left = position + 'px';
                 
                 // Label only specific black keys for reference
@@ -80,6 +100,11 @@ export class Piano {
                     label.textContent = 'F#4';
                     key.appendChild(label);
                 }
+                
+                // Attach individual key listeners
+                console.log(`🎹 About to attach listeners to black key: ${fullNote}`);
+                this.attachKeyListeners(key, fullNote);
+                console.log(`🎹 Attached listeners to black key: ${fullNote}`);
                 
                 octaveGroup.appendChild(key);
             });
@@ -98,22 +123,132 @@ export class Piano {
     }
 
     attachEventListeners() {
-        this.container.addEventListener('click', (e) => {
-            if (e.target.classList.contains('key')) {
-                const note = e.target.dataset.note;
-                if (note) {
-                    this.playKey(note);
-                }
+        console.log('🎵 Setting up global event listeners');
+        
+        // Global mouseup to catch mouseup anywhere on the page
+        document.addEventListener('mouseup', (e) => {
+            console.log('🎵 GLOBAL MOUSEUP - stopping all non-held notes');
+            // Create a copy of activeKeys to avoid modification during iteration
+            const keysToStop = Array.from(this.activeKeys).filter(note => !this.heldKeys.has(note));
+            keysToStop.forEach(note => this.stopNote(note));
+        });
+        
+        // Global keyup listener to release held keys when Ctrl is released
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'Control' || e.key === 'Meta') {
+                console.log('🎵 Ctrl released - releasing all held keys');
+                this.releaseAllHeldKeys();
             }
+        });
+
+        // Prevent context menu on right-click
+        this.container.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
         });
     }
 
+    // Attach individual key listeners (called after creating each key)
+    attachKeyListeners(keyElement, note) {
+        console.log(`Attaching listeners to key: ${note}`);
+        
+        keyElement.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log(`🎵 MOUSEDOWN EVENT on ${note}, Ctrl: ${e.ctrlKey || e.metaKey}`);
+            this.startNote(note, e.ctrlKey || e.metaKey);
+        });
+
+        // Removed individual mouseup - using global mouseup instead
+
+        keyElement.addEventListener('mouseenter', (e) => {
+            console.log(`🎵 MOUSEENTER on ${note}, buttons: ${e.buttons}`);
+            // Only start note if mouse button is already down and this isn't a held key
+            if (e.buttons === 1 && !this.keyPressStartTimes.has(note)) {
+                this.startNote(note, e.ctrlKey || e.metaKey);
+            }
+        });
+
+        keyElement.addEventListener('mouseleave', (e) => {
+            console.log(`🎵 MOUSELEAVE on ${note}`);
+            // Stop note when leaving key (unless held with Ctrl)
+            if (!this.heldKeys.has(note)) {
+                this.stopNote(note);
+            }
+        });
+
+        // Test if the key element is getting the events
+        keyElement.addEventListener('click', (e) => {
+            console.log(`🎵 CLICK EVENT on ${note} (should not happen for manual control)`);
+        });
+    }
+
+    // Legacy method for backward compatibility
     playKey(note, duration = 0.5) {
         if (this.audioEngine) {
             const sustainEnabled = document.getElementById('sustain')?.checked || true;
             this.audioEngine.playNote(note, duration, sustainEnabled);
             this.highlightKey(note);
             setTimeout(() => this.unhighlightKey(note), duration * 1000);
+        }
+    }
+
+    // Start a note (mousedown)
+    startNote(note, isCtrlHeld = false) {
+        if (this.audioEngine) {
+            console.log(`Starting note: ${note}, Ctrl: ${isCtrlHeld}`);
+            
+            // Don't start if already playing
+            if (this.keyPressStartTimes.has(note)) {
+                console.log(`Note ${note} already playing`);
+                return;
+            }
+            
+            // Record when the note started
+            this.keyPressStartTimes.set(note, Date.now());
+            
+            // If Ctrl is held, add to held keys
+            if (isCtrlHeld) {
+                this.heldKeys.add(note);
+                console.log(`Added ${note} to held keys`);
+            }
+            
+            // Start playing the note immediately with a very long duration
+            const sustainEnabled = document.getElementById('sustain')?.checked || true;
+            const duration = 30; // Very long duration, we'll stop it manually
+            this.audioEngine.playNote(note, duration, sustainEnabled, 0.8);
+            
+            this.highlightKey(note);
+            this.activeKeys.add(note);
+        }
+    }
+
+    // Stop a note (mouseup or when leaving key)
+    stopNote(note) {
+        console.log(`Stopping note: ${note}`);
+        
+        if (!this.keyPressStartTimes.has(note)) {
+            console.log(`Note ${note} wasn't started properly`);
+            return; // Note wasn't started properly
+        }
+
+        // Clean up tracking
+        this.keyPressStartTimes.delete(note);
+        this.activeKeys.delete(note);
+        
+        // Simply stop the current note - it has already been playing
+        if (this.audioEngine && this.audioEngine.stopNote) {
+            this.audioEngine.stopNote(note);
+        }
+        
+        // Unhighlight immediately since note stops
+        this.unhighlightKey(note);
+    }
+
+    // Release all keys held with Ctrl
+    releaseAllHeldKeys() {
+        for (const note of this.heldKeys) {
+            this.stopNote(note);
+            this.heldKeys.delete(note);
         }
     }
 
@@ -181,10 +316,16 @@ export class Piano {
             key.classList.remove('active');
         });
         this.activeKeys.clear();
+        this.heldKeys.clear();
+        this.keyPressStartTimes.clear();
+        this.currentNoteStops.clear();
     }
 
     destroy() {
         this.container.innerHTML = '';
         this.activeKeys.clear();
+        this.heldKeys.clear();
+        this.keyPressStartTimes.clear();
+        this.currentNoteStops.clear();
     }
 }
