@@ -1,7 +1,7 @@
 // Hymn Pattern - Both Hands
 export const hymn = {
-    name: 'Choral/Hymne (beide Hände)',
-    description: 'Vierstimmiger Choralsatz mit Melodie in der rechten Hand (Sopran) und Bass in der linken Hand. Typisch für Kirchenmusik und Choräle.',
+    name: 'Chorale/Hymn (Both Hands)',
+    description: 'Four-part chorale setting with melody in the right hand (soprano) and bass in the left hand. Typical for church music and chorales.',
     
     // Legacy support - returns left hand pattern
     pattern: (key) => {

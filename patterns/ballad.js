@@ -1,8 +1,8 @@
 // Ballad Pattern
 export const ballad = {
-    name: 'Ballade',
-    description: 'Ruhiges, gefühlvolles Begleitmuster. Gebrochene Akkorde in langsamem Tempo, ideal für romantische Stücke.',
-    notation: 'Arpeggierter Akkord:\nC3 - E3 - G3 - C4 - G3 - E3\n(Sanft fließend, legato)',
+    name: 'Ballad',
+    description: 'Calm, emotional accompaniment pattern. Broken chords in slow tempo, ideal for romantic pieces.',
+    notation: 'Arpeggiated Chord:\nC3 - E3 - G3 - C4 - G3 - E3\n(Gently flowing, legato)',
     pattern: (key) => {
         const patterns = {
             'C': ['C3', 'E3', 'G3', 'C4', 'G3', 'E3'],

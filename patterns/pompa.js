@@ -1,8 +1,8 @@
-// Pompa/Hymnen-Bass Pattern
+// Pompa/Hymn Bass Pattern
 export const pompa = {
-    name: 'Pompa/Hymnen-Bass',
-    description: 'Feierlicher, hymnischer Bass mit kräftigen Viertelnoten. Typisch für Märsche und kirchliche Musik.',
-    notation: 'Pompa-Bass:\nC3 - C3 - G2 - G2 - C3 - G2 - C3\nFingersatz: 1 - 1 - 5 - 5 - 1 - 5 - 1\n(Pompös, festlich)',
+    name: 'Pompa/Hymn Bass',
+    description: 'Ceremonial, hymnic bass with strong quarter notes. Typical for marches and church music.',
+    notation: 'Pompa Bass:\nC3 - C3 - G2 - G2 - C3 - G2 - C3\nFingering: 1 - 1 - 5 - 5 - 1 - 5 - 1\n(Pompous, ceremonial)',
     pattern: (key) => {
         const patterns = {
             'C': ['C3', 'C3', 'G2', 'G2', 'C3', 'G2', 'C3'],

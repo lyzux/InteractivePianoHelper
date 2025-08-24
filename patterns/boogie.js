@@ -1,7 +1,7 @@
 // Boogie-Woogie Pattern
 export const boogie = {
     name: 'Boogie-Woogie',
-    description: 'Swingender Blues-Rhythmus mit walking bass. Die linke Hand spielt ein repetitives Muster in Achtelnoten mit Swing-Feel.',
+    description: 'Swinging blues rhythm with walking bass. The left hand plays a repetitive pattern in eighth notes with swing feel.',
     
     // Legacy support
     pattern: (key) => {

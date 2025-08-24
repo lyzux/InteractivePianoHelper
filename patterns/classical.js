@@ -1,7 +1,7 @@
 // Classical Pattern - Both Hands
 export const classical = {
-    name: 'Klassisch (beide Hände)',
-    description: 'Klassisches Muster mit Alberti-Bass in der linken Hand und einer einfachen Melodie in der rechten Hand. Typisch für die Wiener Klassik.',
+    name: 'Classical (Both Hands)',
+    description: 'Classical pattern with Alberti bass in the left hand and a simple melody in the right hand. Typical of the Viennese Classical period.',
     
     // Legacy support - returns left hand pattern
     pattern: (key) => {

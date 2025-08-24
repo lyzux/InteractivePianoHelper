@@ -1,8 +1,8 @@
 // Ragtime Pattern
 export const ragtime = {
     name: 'Ragtime',
-    description: 'Synkopierter amerikanischer Stil mit "ragged" Rhythmus. Populär im frühen 20. Jahrhundert, bekannt durch Scott Joplin.',
-    notation: 'Bass - Akkord - Bass - Akkord (synkopiert)\nC2 - (E3,G3) - G2 - (E3,G3)\nMit charakteristischen Synkopen',
+    description: 'Syncopated American style with "ragged" rhythm. Popular in the early 20th century, known through Scott Joplin.',
+    notation: 'Bass - Chord - Bass - Chord (syncopated)\nC2 - (E3,G3) - G2 - (E3,G3)\nWith characteristic syncopation',
     pattern: (key) => {
         const patterns = {
             'C': ['C2', ['E3', 'G3'], 'G2', ['E3', 'G3'], 'C2', ['E3', 'G3', 'C4']],

@@ -1,7 +1,7 @@
 // Für Elise Pattern - Beethoven's Original Opening (Authentic)
 export const furelise = {
     name: 'Für Elise (Original)',
-    description: 'Beethovens authentisches "Für Elise" - das komplette Eröffnungsthema mit beiden Händen, genau wie im Original komponiert.',
+    description: 'Beethoven\'s authentic "Für Elise" - the complete opening theme for both hands, exactly as composed in the original.',
     
     // Legacy support - returns right hand melody (original A minor only)
     pattern: (key) => {

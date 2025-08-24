@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Klavierbass-Rhythmen</title>
+    <title>Piano Bass Rhythms</title>
     <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
     <style>
         .main-layout {
@@ -147,27 +148,27 @@
 </head>
 <body>
     <div class="container">
-        <h1>🎹 Klavier-Patterns Übersicht</h1>
+        <h1>Piano Patterns</h1>
         
         <div class="main-layout">
             <div class="piano-section">
                 <div class="content-area">
                     <div class="controls">
             <div class="control-group">
-                <label for="pattern">Rhythmus-Muster</label>
+                <label for="pattern">Rhythm Pattern</label>
                 <select id="pattern">
                     <!-- Patterns will be populated by JavaScript -->
                 </select>
             </div>
             
             <div class="control-group">
-                <label for="key">Tonart</label>
+                <label for="key">Key</label>
                 <select id="key">
-                    <option value="C">C-Dur</option>
-                    <option value="G">G-Dur</option>
-                    <option value="F">F-Dur</option>
-                    <option value="Am">A-Moll</option>
-                    <option value="Dm">D-Moll</option>
+                    <option value="C">C Major</option>
+                    <option value="G">G Major</option>
+                    <option value="F">F Major</option>
+                    <option value="Am">A Minor</option>
+                    <option value="Dm">D Minor</option>
                 </select>
             </div>
             
@@ -180,39 +181,39 @@
             
             <div class="control-group">
                 <label>&nbsp;</label>
-                <button id="playBtn">▶ Abspielen</button>
+                <button id="playBtn">Play</button>
             </div>
             
             <div class="control-group">
                 <label>&nbsp;</label>
-                <button id="stopBtn" class="stop">⏹ Stoppen</button>
+                <button id="stopBtn" class="stop">Stop</button>
             </div>
             
             <div class="control-group">
                 <label>&nbsp;</label>
                 <div class="pedal-control">
                     <input type="checkbox" id="sustain" checked>
-                    <label for="sustain">🎹 Sustain-Pedal</label>
+                    <label for="sustain">Sustain Pedal</label>
                 </div>
             </div>
             
         </div>
         
         <div class="pattern-info" id="patternInfo">
-            <h2>Pattern-Details</h2>
-            <p>Wählen Sie ein Rhythmus-Muster aus, um Details zu sehen.</p>
+            <h2>Pattern Details</h2>
+            <p>Select a rhythm pattern to see details.</p>
         </div>
         
         
         <div class="staff-notation">
-            <h3>Notensystem:</h3>
+            <h3>Staff Notation:</h3>
             <div id="vexflow-notation"></div>
         </div>
                 </div>
             </div>
             
             <div class="physics-sidebar">
-                <h3>🎛️ Piano Controls</h3>
+                <h3>Piano Controls</h3>
                 <div id="physicsControls">
                     <!-- Physics controls will be generated here -->
                 </div>
@@ -240,9 +241,9 @@
     </div>
 
     <script type="module">
-        console.log('🚨 SCRIPT STARTING TO EXECUTE');
+        console.log('SCRIPT STARTING TO EXECUTE');
         
-        // Einfache Pattern-Loader Klasse direkt hier definiert
+        // Simple Pattern-Loader class defined directly here
         class SimplePatternLoader {
             constructor() {
                 this.patterns = new Map();
@@ -345,9 +346,9 @@
                 return 'q'; // Default to quarter note
             }
 
-            // Automatisches Laden aller Patterns
+            // Automatic loading of all patterns
             async autoLoadPatterns() {
-                console.log('🔄 Lade Patterns automatisch...');
+                console.log('Loading patterns automatically...');
                 
                 const knownPatterns = [
                     'alberti', 'waltz', 'march', 'boogie', 'stride', 'bossa',
@@ -359,45 +360,45 @@
                 let loadedCount = 0;
                 for (const patternId of knownPatterns) {
                     try {
-                        console.log(`Versuche zu laden: ${patternId}`);
-                        // Cache-Busting für aktualisierte Pattern-Dateien
+                        console.log(`Attempting to load: ${patternId}`);
+                        // Cache-busting for updated pattern files
                         const timestamp = Date.now();
                         const module = await import(`./patterns/${patternId}.js?v=${timestamp}`);
                         const pattern = module[patternId];
                         
                         if (pattern) {
                             this.registerPattern(patternId, pattern);
-                            console.log(`✅ Geladen: ${pattern.name}`);
+                            console.log(`Loaded: ${pattern.name}`);
                             
-                            // Debug: Zeige Pattern-Daten für Patterns mit Pausen
+                            // Debug: Show pattern data for patterns with rests
                             if (['polonaise', 'tango', 'bossa'].includes(patternId)) {
                                 const testNotes = pattern.pattern('C');
-                                console.log(`🔍 Debug ${patternId}:`, testNotes);
-                                console.log(`🔍 Timing ${patternId}:`, pattern.timing);
-                                console.log(`🔍 Fingering ${patternId}:`, pattern.fingering);
+                                console.log(`Debug ${patternId}:`, testNotes);
+                                console.log(`Timing ${patternId}:`, pattern.timing);
+                                console.log(`Fingering ${patternId}:`, pattern.fingering);
                             }
                             
                             loadedCount++;
                         }
                     } catch (error) {
-                        console.log(`⚪ ${patternId}.js nicht gefunden`);
+                        console.log(`${patternId}.js not found`);
                     }
                 }
 
-                console.log(`🎵 ${loadedCount} Patterns geladen!`);
+                console.log(`${loadedCount} Patterns loaded!`);
                 
-                // Debug: Teste Pausen-Pattern
+                // Debug: Test rest patterns
                 this.addTestPattern();
                 
                 return loadedCount > 0;
             }
 
-            // Debug: Erstelle Test-Pattern mit Pausen
+            // Debug: Create test pattern with rests
             addTestPattern() {
                 const testPattern = {
-                    name: 'Test-Pausen',
-                    description: 'Test-Pattern um Pausen zu überprüfen',
-                    notation: 'C3 - (Pause) - G3 - (Pause)',
+                    name: 'Test-Rests',
+                    description: 'Test pattern to check rests',
+                    notation: 'C3 - (Rest) - G3 - (Rest)',
                     pattern: (key) => {
                         return ['C3', null, 'G3', null];
                     },
@@ -408,41 +409,41 @@
                 };
                 
                 this.registerPattern('test-pausen', testPattern);
-                console.log('🔧 Test-Pausen Pattern hinzugefügt');
+                console.log('Test-Rests Pattern added');
             }
         }
 
-        // Import modules (nur die funktionierenden)
-        console.log('🚨 ABOUT TO IMPORT MODULES');
+        // Import modules (only the working ones)
+        console.log('ABOUT TO IMPORT MODULES');
         import { AudioEngine } from './js/audioEngine.js?v=20250824011';
-        console.log('🚨 IMPORTED AudioEngine');
+        console.log('IMPORTED AudioEngine');
         import { Piano } from './js/piano.js?v=20250824001';
-        console.log('🚨 IMPORTED Piano');
+        console.log('IMPORTED Piano');
         import { Settings } from './js/settings.js?v=20250824001';
-        console.log('🚨 IMPORTED Settings');
+        console.log('IMPORTED Settings');
         import { Player } from './js/player.js?v=20250824001';
-        console.log('🚨 IMPORTED Player');
+        console.log('IMPORTED Player');
 
-        // Asynchrone Initialisierung
+        // Asynchronous initialization
         async function initializeApp() {
-            console.log('🚨 INITIALIZE APP CALLED');
+            console.log('INITIALIZE APP CALLED');
             // Initialize components
-            console.log('🚨 CREATING AudioEngine');
+            console.log('CREATING AudioEngine');
             const audioEngine = new AudioEngine();
-            console.log('🚨 CREATING Piano');
+            console.log('CREATING Piano');
             let piano;
             try {
                 piano = new Piano('piano', audioEngine);
-                console.log('🚨 PIANO CREATED SUCCESSFULLY');
+                console.log('PIANO CREATED SUCCESSFULLY');
             } catch (error) {
-                console.error('🚨 ERROR CREATING PIANO:', error);
+                console.error('ERROR CREATING PIANO:', error);
                 throw error;
             }
-            console.log('🚨 CREATING Settings');
+            console.log('CREATING Settings');
             const settings = new Settings();
-            console.log('🚨 CREATING PatternLoader');
-            const patternLoader = new SimplePatternLoader(); // Verwende einfache Version
-            console.log('🚨 CREATING Player');
+            console.log('CREATING PatternLoader');
+            const patternLoader = new SimplePatternLoader(); // Use simple version
+            console.log('CREATING Player');
             const player = new Player(audioEngine, piano, settings);
             
             // Generate physics controls after audioEngine is available
@@ -451,40 +452,40 @@
                 generatePhysicsControls();
             }, 500);
 
-            // Patterns automatisch laden
-            console.log('🔄 Starte automatisches Pattern-Loading...');
+            // Load patterns automatically
+            console.log('Starting automatic pattern loading...');
             const success = await patternLoader.autoLoadPatterns();
             
             if (!success || patternLoader.getAllPatterns().length === 0) {
-                console.warn('⚠️ Automatisches Laden fehlgeschlagen - verwende Fallback');
+                console.warn('Automatic loading failed - using fallback');
                 await loadPatternsFallback(patternLoader);
             }
 
             // Initialize settings
-            console.log('🔧 Initialisiere Settings...');
+            console.log('Initializing Settings...');
             settings.init('tempo', 'tempoDisplay', 'sustain', 'key');
             
             // Try to load saved settings
             settings.load();
             
-            // Debug: Teste ob Tempo-Slider gefunden wurde
+            // Debug: Test if tempo slider was found
             const tempoSlider = document.getElementById('tempo');
-            console.log('🔧 Tempo Slider gefunden:', tempoSlider);
+            console.log('Tempo Slider found:', tempoSlider);
             if (tempoSlider) {
-                console.log('🔧 Tempo Slider Wert:', tempoSlider.value);
+                console.log('Tempo Slider Value:', tempoSlider.value);
             }
 
             return { audioEngine, piano, settings, patternLoader, player };
         }
 
-        // Fallback: Manuelle Pattern-Registrierung falls Auto-Load fehlschlägt
+        // Fallback: Manual pattern registration if auto-load fails
         async function loadPatternsFallback(patternLoader) {
-            console.log('🔧 Lade Patterns manuell als Fallback...');
+            console.log('Loading patterns manually as fallback...');
             
-            // Minimaler Fallback mit einem Pattern
+            // Minimal fallback with one pattern
             const albertiPattern = {
                 name: 'Alberti-Bass',
-                description: 'Ein klassisches Begleitmuster, benannt nach Domenico Alberti.',
+                description: 'A classic accompaniment pattern, named after Domenico Alberti.',
                 notation: 'C - G - E - G (1 - 5 - 3 - 5)',
                 pattern: (key) => {
                     const patterns = {
@@ -502,10 +503,10 @@
             };
             
             patternLoader.registerPattern('alberti', albertiPattern);
-            console.log('✅ Fallback Pattern geladen: Alberti-Bass');
+            console.log('Fallback Pattern loaded: Alberti-Bass');
         }
 
-        // App initialisieren (in asynchroner IIFE)
+        // Initialize app (in asynchronous IIFE)
         let audioEngine, piano, settings, patternLoader, player;
         
         // Make audioEngine globally accessible for physics controls
@@ -526,25 +527,25 @@
                 // Generate physics controls now that audioEngine is available
                 generatePhysicsControls();
                 
-                // UI initialisieren nachdem alles geladen ist
+                // Initialize UI after everything is loaded
                 populatePatternDropdown();
                 updatePatternInfo();
                 setupEventListeners();
                 
-                console.log('✅ App erfolgreich initialisiert!');
+                console.log('App successfully initialized!');
             } catch (error) {
-                console.error('❌ Fehler bei der App-Initialisierung:', error);
+                console.error('Error during app initialization:', error);
                 
-                // Notfall-Fallback
+                // Emergency fallback
                 setupEmergencyFallback();
             }
         })();
 
-        // Notfall-Fallback wenn alles fehlschlägt
+        // Emergency fallback when everything fails
         function setupEmergencyFallback() {
-            console.log('🚨 Initialisiere Notfall-Fallback...');
+            console.log('Initializing emergency fallback...');
             
-            // Minimale Komponenten erstellen
+            // Create minimal components
             audioEngine = { 
                 init: () => {}, 
                 playNote: () => {}, 
@@ -567,7 +568,7 @@
                 onSustainChange: () => {}
             };
             
-            // Einfacher Pattern-Loader mit einem Pattern
+            // Simple pattern loader with one pattern
             patternLoader = {
                 patterns: new Map(),
                 registerPattern: function(id, pattern) { this.patterns.set(id, pattern); },
@@ -596,17 +597,17 @@
                 }
             };
             
-            // Minimaler Player
+            // Minimal player
             player = { 
-                play: () => console.log('▶ Spiele Pattern...'), 
-                stop: () => console.log('⏹ Stoppe Pattern...'),
+                play: () => console.log('Playing Pattern...'), 
+                stop: () => console.log('Stopping Pattern...'),
                 isCurrentlyPlaying: () => false
             };
             
             // Fallback-Pattern
             const fallbackPattern = {
-                name: 'Notfall-Alberti',
-                description: 'Einfaches Fallback-Pattern wenn das System nicht vollständig geladen werden kann.',
+                name: 'Emergency-Alberti',
+                description: 'Simple fallback pattern when the system cannot be fully loaded.',
                 notation: 'C - G - E - G',
                 pattern: () => ['C3', 'G3', 'E3', 'G3'],
                 timing: [1, 1, 1, 1]
@@ -614,12 +615,12 @@
             
             patternLoader.registerPattern('fallback', fallbackPattern);
             
-            // UI initialisieren
+            // Initialize UI
             populatePatternDropdown();
             updatePatternInfo();
             setupEventListeners();
             
-            console.log('🔧 Notfall-System aktiv - Grundfunktionen verfügbar');
+            console.log('Emergency system active - basic functions available');
         }
 
         // Populate pattern dropdown
@@ -658,19 +659,19 @@
         function drawStaffNotation() {
             const patternType = document.getElementById('pattern').value;
             
-            // Sichere Key-Ermittlung
+            // Safe key determination
             let key = 'C'; // Fallback
             if (settings && typeof settings.getKey === 'function') {
                 key = settings.getKey();
             } else {
-                // Direkt aus dem DOM lesen falls settings noch nicht verfügbar
+                // Read directly from DOM if settings not yet available
                 const keySelect = document.getElementById('key');
                 if (keySelect) {
                     key = keySelect.value;
                 }
             }
             
-            console.log(`🎼 Drawing staff notation for pattern: ${patternType}, key: ${key}`);
+            console.log(`Drawing staff notation for pattern: ${patternType}, key: ${key}`);
             
             const notationData = patternLoader.generateVexFlowNotation(patternType, key);
             if (!notationData) return;
@@ -864,7 +865,7 @@
                 
             } catch (error) {
                 console.error('VexFlow rendering error:', error);
-                vexFlowDiv.innerHTML = '<p>Fehler beim Rendern der Notation</p>';
+                vexFlowDiv.innerHTML = '<p>Error rendering notation</p>';
             }
         }
 
@@ -895,28 +896,28 @@
         }
 
         function handleKeyChange() {
-            console.log('🎵 Key changed, updating notation...');
+            console.log('Key changed, updating notation...');
             player.stop();
             document.getElementById('playBtn').classList.remove('playing');
             drawStaffNotation();
         }
 
-        // Setup event listeners (wird nach der Initialisierung aufgerufen)
+        // Setup event listeners (called after initialization)
         function setupEventListeners() {
             document.getElementById('playBtn').addEventListener('click', handlePlay);
             document.getElementById('stopBtn').addEventListener('click', handleStop);
             document.getElementById('pattern').addEventListener('change', handlePatternChange);
             
-            // Key select direkter Event Listener zusätzlich zu settings callbacks
+            // Key select direct event listener in addition to settings callbacks
             document.getElementById('key').addEventListener('change', handleKeyChange);
             
-            // Direkter Tempo-Slider Event Listener (Fallback)
+            // Direct tempo slider event listener (fallback)
             const tempoSlider = document.getElementById('tempo');
             if (tempoSlider) {
-                console.log('🔧 Füge direkten Tempo Event Listener hinzu');
+                console.log('Adding direct tempo event listener');
                 tempoSlider.addEventListener('input', (e) => {
                     const newTempo = parseInt(e.target.value);
-                    console.log(`🎵 Direkter Tempo Change: ${newTempo} BPM`);
+                    console.log(`Direct Tempo Change: ${newTempo} BPM`);
                     if (settings && typeof settings.setTempo === 'function') {
                         settings.setTempo(newTempo);
                     }
@@ -929,7 +930,7 @@
             }
 
 
-            // Settings callbacks (falls settings verfügbar)
+            // Settings callbacks (if settings available)
             if (settings && typeof settings.onKeyChange === 'function') {
                 settings.onKeyChange(handleKeyChange);
                 settings.onTempoChange(() => {
@@ -944,29 +945,29 @@
 
         // Generate physics controls
         function generatePhysicsControls() {
-            console.log('🎛️ generatePhysicsControls called');
+            console.log('generatePhysicsControls called');
             
             const container = document.getElementById('physicsControls');
-            console.log('📦 Container found:', !!container);
+            console.log('Container found:', !!container);
             
             const engine = window.audioEngine || audioEngine;
-            console.log('🎵 AudioEngine found:', !!engine);
-            console.log('🎵 AudioEngine type:', typeof engine);
+            console.log('AudioEngine found:', !!engine);
+            console.log('AudioEngine type:', typeof engine);
             
             if (!container) {
-                console.error('❌ Physics controls container not found');
+                console.error('Physics controls container not found');
                 return;
             }
             
             if (!engine) {
-                console.error('❌ AudioEngine not available');
+                console.error('AudioEngine not available');
                 return;
             }
             
             // Clear existing controls
             container.innerHTML = '';
             
-            console.log('✅ Generating physics controls...');
+            console.log('Generating physics controls...');
             
             const paramDefs = {
                 volume: { min: 0, max: 1, step: 0.01, label: 'Volume' },
@@ -986,7 +987,7 @@
             let controlsCreated = 0;
             
             Object.entries(paramDefs).forEach(([param, def]) => {
-                console.log(`🎛️ Creating control for ${param}`);
+                console.log(`Creating control for ${param}`);
                 
                 const group = document.createElement('div');
                 group.className = 'param-group';
@@ -1008,7 +1009,7 @@
                 // Get current parameter value
                 const currentValue = engine.getParam ? engine.getParam(param) : 0.5;
                 slider.value = currentValue;
-                console.log(`🎛️ ${param} current value: ${currentValue}`);
+                console.log(`${param} current value: ${currentValue}`);
                 
                 const value = document.createElement('span');
                 value.className = 'param-value';
@@ -1017,7 +1018,7 @@
                 slider.addEventListener('input', (e) => {
                     const newValue = parseFloat(e.target.value);
                     value.textContent = newValue.toFixed(2);
-                    console.log(`🎛️ ${param} changed to: ${newValue}`);
+                    console.log(`${param} changed to: ${newValue}`);
                     if (engine.setParam) {
                         engine.setParam(param, newValue);
                     }
@@ -1032,7 +1033,7 @@
                 controlsCreated++;
             });
             
-            console.log(`✅ Created ${controlsCreated} physics controls`);
+            console.log(`Created ${controlsCreated} physics controls`);
         }
         
         // Test functions

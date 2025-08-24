@@ -1,8 +1,8 @@
-// Polonaise-Bass Pattern
+// Polonaise Bass Pattern
 export const polonaise = {
-    name: 'Polonaise-Bass',
-    description: 'Polnischer Tanz im 3/4-Takt mit charakteristischem Rhythmus. Betonung auf der ersten und dritten Zählzeit.',
-    notation: 'Polonaise-Rhythmus:\nC3 - (Pause) - C3 - | G2 - (Pause) - G2\nFingersatz: 5 - - 5 - | 5 - - 5',
+    name: 'Polonaise Bass',
+    description: 'Polish dance in 3/4 time with characteristic rhythm. Emphasis on the first and third beats.',
+    notation: 'Polonaise Rhythm:\nC3 - (Rest) - C3 - | G2 - (Rest) - G2\nFingering: 5 - - 5 - | 5 - - 5',
     pattern: (key) => {
         const patterns = {
             'C': ['C3', null, 'C3', 'G2', null, 'G2'],

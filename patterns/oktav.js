@@ -1,8 +1,8 @@
-// Oktav-Bass/Orgelpunkt Pattern
+// Octave Bass/Pedal Point Pattern
 export const oktav = {
-    name: 'Oktav-Bass/Orgelpunkt',
-    description: 'Konstanter Basston oder Oktavsprünge. Der Grundton bleibt als Orgelpunkt liegen oder springt zur Oktave.',
-    notation: 'Orgelpunkt:\nC2 - C3 - C2 - C3\nFingersatz: 5 - 1 - 5 - 1',
+    name: 'Octave Bass/Pedal Point',
+    description: 'Constant bass note or octave jumps. The root note remains as a pedal point or jumps to the octave.',
+    notation: 'Pedal Point:\nC2 - C3 - C2 - C3\nFingering: 5 - 1 - 5 - 1',
     pattern: (key) => {
         const patterns = {
             'C': ['C2', 'C3', 'C2', 'C3'],

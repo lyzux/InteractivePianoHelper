@@ -1,7 +1,7 @@
 // Waltz Pattern
 export const waltz = {
-    name: 'Walzer',
-    description: 'Der klassische 3/4-Takt mit Betonung auf der ersten Zählzeit. Bass auf 1, Akkord auf 2 und 3. Typisch für Wiener Walzer und viele Volkslieder.',
+    name: 'Waltz',
+    description: 'The classic 3/4 time with emphasis on the first beat. Bass on 1, chord on 2 and 3. Typical for Viennese waltzes and many folk songs.',
     
     // Legacy support
     pattern: (key) => {

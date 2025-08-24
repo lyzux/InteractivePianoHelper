@@ -1,8 +1,8 @@
-// Ostinato-Bass Pattern
+// Ostinato Bass Pattern
 export const ostinato = {
-    name: 'Ostinato-Bass',
-    description: 'Repetitives Bassmuster, das kontinuierlich wiederholt wird. Charakteristisch für Barock und moderne Musik.',
-    notation: 'Ostinato-Pattern:\nC3 - G2 - A2 - F2\nFingersatz: 1 - 5 - 4 - 2\n(Kontinuierliche Wiederholung)',
+    name: 'Ostinato Bass',
+    description: 'Repetitive bass pattern that is continuously repeated. Characteristic of Baroque and modern music.',
+    notation: 'Ostinato Pattern:\nC3 - G2 - A2 - F2\nFingering: 1 - 5 - 4 - 2\n(Continuous repetition)',
     pattern: (key) => {
         const patterns = {
             'C': ['C3', 'G2', 'A2', 'F2'],

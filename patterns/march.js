@@ -1,7 +1,7 @@
 // March Pattern
 export const march = {
-    name: 'Marsch',
-    description: 'Kraftvoller 4/4-Rhythmus mit alternierenden Basstönen und Akkorden. Typisch für Militärmärsche und festliche Musik. Bass-Akkord-Bass-Akkord Pattern.',
+    name: 'March',
+    description: 'Powerful 4/4 rhythm with alternating bass notes and chords. Typical for military marches and festive music. Bass-chord-bass-chord pattern.',
     
     // Legacy support
     pattern: (key) => {

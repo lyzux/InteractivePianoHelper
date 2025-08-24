@@ -1,8 +1,8 @@
 // Stride Piano Pattern
 export const stride = {
     name: 'Stride Piano',
-    description: 'Jazz-Stil mit großen Sprüngen zwischen Bass und Akkord. Die linke Hand "schreitet" über die Tastatur.',
-    notation: 'Takt 1: C2 - (E3,G3,C4) - G2 - (E3,G3,C4)\n        Bass - Akkord - Bass - Akkord\n        (Große Sprünge zwischen tiefen und hohen Tönen)',
+    description: 'Jazz style with large leaps between bass and chord. The left hand "strides" across the keyboard.',
+    notation: 'Measure 1: C2 - (E3,G3,C4) - G2 - (E3,G3,C4)\n        Bass - Chord - Bass - Chord\n        (Large leaps between low and high notes)',
     pattern: (key) => {
         const patterns = {
             'C': ['C2', ['E3', 'G3', 'C4'], 'G2', ['E3', 'G3', 'C4']],

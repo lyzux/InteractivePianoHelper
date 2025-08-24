@@ -1,8 +1,8 @@
-// Lombardischer Rhythmus Pattern
+// Lombard Rhythm Pattern
 export const lombardisch = {
-    name: 'Lombardischer Rhythmus',
-    description: 'Charakteristischer punktierter Rhythmus: kurz-lang. Auch "Schottischer Snap" genannt.',
-    notation: 'Lombardischer Rhythmus:\nC3(kurz) - G2(lang) - E3(kurz) - C3(lang)\nFingersatz: 1 - 5 - 3 - 1\n(Punktiert: kurz-lang)',
+    name: 'Lombard Rhythm',
+    description: 'Characteristic dotted rhythm: short-long. Also called "Scotch Snap".',
+    notation: 'Lombard Rhythm:\nC3(short) - G2(long) - E3(short) - C3(long)\nFingering: 1 - 5 - 3 - 1\n(Dotted: short-long)',
     pattern: (key) => {
         const patterns = {
             'C': ['C3', 'G2', 'E3', 'C3'],

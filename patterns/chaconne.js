@@ -1,8 +1,8 @@
 // Chaconne/Passacaglia Pattern
 export const chaconne = {
     name: 'Chaconne/Passacaglia',
-    description: 'Barocker Variationstanz über einem ostinaten Harmoniemodell. Oft chromatischer Abstieg im Bass.',
-    notation: 'Chaconne-Bass (Tetrachord):\nC3 - B2 - Bb2 - A2 - Ab2 - G2\nFingersatz: 1 - 2 - 3 - 4 - 3 - 5\n(Chromatischer Abstieg)',
+    description: 'Baroque variation dance over an ostinato harmonic pattern. Often features chromatic bass descent.',
+    notation: 'Chaconne Bass (Tetrachord):\nC3 - B2 - Bb2 - A2 - Ab2 - G2\nFingering: 1 - 2 - 3 - 4 - 3 - 5\n(Chromatic descent)',
     pattern: (key) => {
         const patterns = {
             'C': ['C3', 'B2', 'Bb2', 'A2', 'Ab2', 'G2'],

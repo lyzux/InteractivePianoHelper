@@ -1,8 +1,8 @@
 // Habanera Pattern
 export const habanera = {
     name: 'Habanera',
-    description: 'Kubanischer Rhythmus, bekannt aus Bizets Carmen. Charakteristisches punktiertes Muster mit treibendem Charakter.',
-    notation: 'Habanera-Rhythmus:\nC3 (lang) - E3 (kurz) - G3 - G3\n(Punktierter Rhythmus: lang-kurz-kurz-kurz)',
+    description: 'Cuban rhythm, known from Bizet\'s Carmen. Characteristic dotted pattern with driving character.',
+    notation: 'Habanera Rhythm:\nC3 (long) - E3 (short) - G3 - G3\n(Dotted rhythm: long-short-short-short)',
     pattern: (key) => {
         const patterns = {
             'C': ['C3', 'E3', 'G3', 'G3'],

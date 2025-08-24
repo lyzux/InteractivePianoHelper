@@ -1,7 +1,7 @@
 // Alberti Bass Pattern
 export const alberti = {
     name: 'Alberti-Bass',
-    description: 'Ein klassisches Begleitmuster, benannt nach Domenico Alberti. Die Töne eines Akkords werden in der Reihenfolge tief-hoch-mittel-hoch gespielt. Sehr häufig in der Klassik, besonders bei Mozart und Haydn. Nur linke Hand.',
+    description: 'A classic accompaniment pattern, named after Domenico Alberti. The notes of a chord are played in the order low-high-middle-high. Very common in classical music, especially in Mozart and Haydn. Left hand only.',
     
     // Legacy support
     pattern: (key) => {

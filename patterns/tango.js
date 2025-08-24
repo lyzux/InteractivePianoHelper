@@ -1,8 +1,8 @@
 // Tango Pattern
 export const tango = {
     name: 'Tango',
-    description: 'Dramatischer argentinischer Rhythmus mit markanten Akzenten und Pausen. Leidenschaftlich und rhythmisch prägnant.',
-    notation: 'Tango-Rhythmus:\nC3 - C3 - G2 - G2 - (Pause) - C3\n(Staccato mit dramatischen Pausen)',
+    description: 'Dramatic Argentinian rhythm with distinctive accents and pauses. Passionate and rhythmically expressive.',
+    notation: 'Tango Rhythm:\nC3 - C3 - G2 - G2 - (Rest) - C3\n(Staccato with dramatic pauses)',
     pattern: (key) => {
         const patterns = {
             'C': ['C3', 'C3', 'G2', 'G2', null, 'C3'],
