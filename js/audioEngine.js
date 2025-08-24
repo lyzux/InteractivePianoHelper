@@ -10,23 +10,23 @@ export class AudioEngine {
         this.params = {
             // Core sound parameters
             volume: 0.3,
-            brightness: 0.5,        // Controls high-frequency content
-            warmth: 0.7,           // Controls low-frequency emphasis
-            attack: 0.01,          // Note attack time
-            release: 0.5,          // Note release/sustain time (reduced from 2.0)
+            brightness: 0.67,      // Controls high-frequency content
+            warmth: 0.72,         // Controls low-frequency emphasis
+            attack: 0.01,         // Note attack time
+            release: 4.0,         // Note release/sustain time
             
             // Harmonic content
-            harmonics: 0.3,        // Amount of harmonic content
-            detune: 0.0,          // Slight detuning for realism
+            harmonics: 0.84,      // Amount of harmonic content
+            detune: 0.16,        // Slight detuning for realism
             
             // Effects
-            chorus: 0.2,          // Subtle chorus effect
-            roomSize: 0.3,        // Room ambience
-            damping: 0.5,         // String damping simulation
+            chorus: 0.71,        // Subtle chorus effect
+            roomSize: 0.70,      // Room ambience
+            damping: 0.50,       // String damping simulation
             
             // Piano mechanics
-            lidPosition: 0.0,     // Piano lid (0=closed, 1=open)
-            pedalResonance: 0.4   // Sustain pedal resonance
+            lidPosition: 0.56,   // Piano lid (0=closed, 1=open)
+            pedalResonance: 0.40 // Sustain pedal resonance
         };
         
         this.noteFrequencies = {

@@ -181,12 +181,7 @@
             
             <div class="control-group">
                 <label>&nbsp;</label>
-                <button id="playBtn">Play</button>
-            </div>
-            
-            <div class="control-group">
-                <label>&nbsp;</label>
-                <button id="stopBtn" class="stop">Stop</button>
+                <button id="playStopBtn">Play</button>
             </div>
             
             <div class="control-group">
@@ -415,7 +410,7 @@
 
         // Import modules (only the working ones)
         console.log('ABOUT TO IMPORT MODULES');
-        import { AudioEngine } from './js/audioEngine.js?v=20250824011';
+        import { AudioEngine } from './js/audioEngine.js?v=20250824013';
         console.log('IMPORTED AudioEngine');
         import { Piano } from './js/piano.js?v=20250824001';
         console.log('IMPORTED Piano');
@@ -870,42 +865,51 @@
         }
 
         // Event handlers
-        function handlePlay() {
-            player.stop();
-            setTimeout(() => {
-                const patternType = document.getElementById('pattern').value;
-                const pattern = patternLoader.getPattern(patternType);
-                const key = settings.getKey();
-                
-                if (pattern) {
-                    player.play(pattern, key);
-                    document.getElementById('playBtn').classList.add('playing');
-                }
-            }, 100);
-        }
-
-        function handleStop() {
-            player.stop();
-            document.getElementById('playBtn').classList.remove('playing');
+        function handlePlayStop() {
+            const button = document.getElementById('playStopBtn');
+            
+            if (player.isCurrentlyPlaying()) {
+                // Currently playing - stop it
+                player.stop();
+                button.classList.remove('playing');
+                button.textContent = 'Play';
+            } else {
+                // Not playing - start it
+                player.stop(); // Ensure clean state
+                setTimeout(() => {
+                    const patternType = document.getElementById('pattern').value;
+                    const pattern = patternLoader.getPattern(patternType);
+                    const key = settings.getKey();
+                    
+                    if (pattern) {
+                        player.play(pattern, key);
+                        button.classList.add('playing');
+                        button.textContent = 'Stop';
+                    }
+                }, 100);
+            }
         }
 
         function handlePatternChange() {
             player.stop();
-            document.getElementById('playBtn').classList.remove('playing');
+            const button = document.getElementById('playStopBtn');
+            button.classList.remove('playing');
+            button.textContent = 'Play';
             updatePatternInfo();
         }
 
         function handleKeyChange() {
             console.log('Key changed, updating notation...');
             player.stop();
-            document.getElementById('playBtn').classList.remove('playing');
+            const button = document.getElementById('playStopBtn');
+            button.classList.remove('playing');
+            button.textContent = 'Play';
             drawStaffNotation();
         }
 
         // Setup event listeners (called after initialization)
         function setupEventListeners() {
-            document.getElementById('playBtn').addEventListener('click', handlePlay);
-            document.getElementById('stopBtn').addEventListener('click', handleStop);
+            document.getElementById('playStopBtn').addEventListener('click', handlePlayStop);
             document.getElementById('pattern').addEventListener('change', handlePatternChange);
             
             // Key select direct event listener in addition to settings callbacks
