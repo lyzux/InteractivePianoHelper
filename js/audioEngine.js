@@ -13,7 +13,7 @@ export class AudioEngine {
             brightness: 0.5,        // Controls high-frequency content
             warmth: 0.7,           // Controls low-frequency emphasis
             attack: 0.01,          // Note attack time
-            release: 2.0,          // Note release/sustain time
+            release: 0.5,          // Note release/sustain time (reduced from 2.0)
             
             // Harmonic content
             harmonics: 0.3,        // Amount of harmonic content
@@ -117,15 +117,18 @@ export class AudioEngine {
         const frequency = this.noteFrequencies[note];
         if (!frequency) return;
         
-        // Only stop existing note if it's a different call (not manual control)
-        if (duration < 10) {
-            this.stopNote(note);
+        const now = this.audioContext.currentTime;
+        const isManualClick = duration > 5;
+        
+        // For manual clicks, stop existing note to prevent accumulation
+        if (isManualClick) {
+            this.forceStopNote(note, now);
         }
         
-        const now = this.audioContext.currentTime;
+        // For automatic playback, just play the note for its exact duration - no complex logic needed
         const actualDuration = useSustain ? duration * this.params.release : duration;
         
-        this.createCleanPianoNote(note, frequency, velocity, now, actualDuration);
+        this.createCleanPianoNote(note, frequency, velocity, now, actualDuration, isManualClick);
     }
 
     stopNote(note) {
@@ -133,60 +136,120 @@ export class AudioEngine {
             const noteData = this.activeNotes.get(note);
             const now = this.audioContext ? this.audioContext.currentTime : 0;
             
-            // Natural piano release for fundamental tone
-            if (noteData.gain && noteData.gain.gain) {
-                noteData.gain.gain.cancelScheduledValues(now);
-                noteData.gain.gain.setValueAtTime(noteData.gain.gain.value, now);
-                // Natural release time based on piano release parameter
-                const releaseTime = this.params.release * 0.8;
-                noteData.gain.gain.exponentialRampToValueAtTime(0.001, now + releaseTime);
-                
-                // Stop the fundamental oscillator when it finishes fading
-                if (noteData.oscillators && noteData.oscillators.length > 0) {
-                    const fundamentalOsc = noteData.oscillators[0]; // First oscillator is fundamental
-                    if (fundamentalOsc) {
-                        try {
-                            fundamentalOsc.stop(now + releaseTime + 0.01);
-                        } catch (e) {
-                            // Oscillator might already be stopped
-                        }
-                    }
-                }
-            }
+            // Check sustain pedal setting
+            const sustainEnabled = document.getElementById('sustain')?.checked || false;
             
-            // Fade out harmonics much faster to prevent buildup and stop oscillators
-            if (noteData.harmonicGains && noteData.harmonicGains.length > 0 && noteData.harmonicOscillators) {
-                noteData.harmonicGains.forEach((harmGain, index) => {
-                    if (harmGain && harmGain.gain) {
-                        harmGain.gain.cancelScheduledValues(now);
-                        harmGain.gain.setValueAtTime(harmGain.gain.value, now);
-                        // Harmonics fade out 3x faster than fundamental
-                        const harmonicReleaseTime = (this.params.release * 0.8) / 3;
-                        harmGain.gain.exponentialRampToValueAtTime(0.001, now + harmonicReleaseTime);
-                        
-                        // Stop the harmonic oscillator when it finishes fading
-                        const harmOsc = noteData.harmonicOscillators[index];
-                        if (harmOsc) {
-                            try {
-                                harmOsc.stop(now + harmonicReleaseTime + 0.01);
-                            } catch (e) {
-                                // Oscillator might already be stopped
-                            }
-                        }
+            // Adjust release times based on sustain pedal
+            const fundamentalReleaseTime = sustainEnabled ? 1.5 : 0.6; // Longer with sustain
+            const harmonicReleaseTime = sustainEnabled ? 0.8 : 0.3;     // Harmonics also longer with sustain
+            
+            // Immediately remove from active notes to prevent race conditions
+            this.activeNotes.delete(note);
+            
+            // Stop oscillators after their natural release (prevents 30s humming)
+            if (noteData.oscillators) {
+                noteData.oscillators.forEach(osc => {
+                    try {
+                        osc.stop(now + fundamentalReleaseTime + 0.1);
+                    } catch (e) {
+                        // Already stopped
+                    }
+                });
+            }
+            if (noteData.harmonicOscillators) {
+                noteData.harmonicOscillators.forEach(harmOsc => {
+                    try {
+                        harmOsc.stop(now + harmonicReleaseTime + 0.1);
+                    } catch (e) {
+                        // Already stopped
                     }
                 });
             }
             
-            // Clean up after release completes
-            setTimeout(() => {
-                if (this.activeNotes.has(note)) {
-                    this.activeNotes.delete(note);
-                }
-            }, (this.params.release * 0.8 + 0.2) * 1000);
+            // Natural gain fade for musical sound
+            if (noteData.gain && noteData.gain.gain) {
+                noteData.gain.gain.cancelScheduledValues(now);
+                noteData.gain.gain.setValueAtTime(noteData.gain.gain.value, now);
+                // Natural piano release curve
+                noteData.gain.gain.exponentialRampToValueAtTime(0.001, now + fundamentalReleaseTime);
+            }
+            
+            // Harmonics fade faster but still naturally
+            if (noteData.harmonicGains && noteData.harmonicGains.length > 0) {
+                noteData.harmonicGains.forEach((harmGain, index) => {
+                    if (harmGain && harmGain.gain) {
+                        harmGain.gain.cancelScheduledValues(now);
+                        harmGain.gain.setValueAtTime(harmGain.gain.value, now);
+                        // Harmonics fade faster but still musical
+                        harmGain.gain.exponentialRampToValueAtTime(0.001, now + harmonicReleaseTime);
+                    }
+                });
+            }
         }
     }
 
-    createCleanPianoNote(noteName, frequency, velocity, startTime, duration) {
+
+    // Force stop only manual notes (automatic notes are protected)
+    forceStopNote(noteName, currentTime) {
+        // Stop only manual notes - automatic notes should not be interrupted
+        const notesToStop = [];
+        
+        // Find all notes that should be stopped (only manual ones)
+        for (const [key, noteData] of this.activeNotes) {
+            if (noteData.originalNoteName === noteName && !noteData.isAutomatic) {
+                notesToStop.push(key);
+            }
+        }
+        
+        // Stop the manual notes
+        notesToStop.forEach(key => {
+            const noteData = this.activeNotes.get(key);
+            
+            // Stop oscillators immediately
+            if (noteData.oscillators) {
+                noteData.oscillators.forEach(osc => {
+                    try {
+                        osc.stop(currentTime + 0.01);
+                    } catch (e) {
+                        // Already stopped
+                    }
+                });
+            }
+            if (noteData.harmonicOscillators) {
+                noteData.harmonicOscillators.forEach(harmOsc => {
+                    try {
+                        harmOsc.stop(currentTime + 0.01);
+                    } catch (e) {
+                        // Already stopped
+                    }
+                });
+            }
+            
+            // Quick gain fade
+            if (noteData.gain && noteData.gain.gain) {
+                noteData.gain.gain.cancelScheduledValues(currentTime);
+                noteData.gain.gain.setValueAtTime(noteData.gain.gain.value, currentTime);
+                noteData.gain.gain.exponentialRampToValueAtTime(0.001, currentTime + 0.01);
+            }
+            
+            if (noteData.harmonicGains && noteData.harmonicGains.length > 0) {
+                noteData.harmonicGains.forEach((harmGain, index) => {
+                    if (harmGain && harmGain.gain) {
+                        harmGain.gain.gain.cancelScheduledValues(currentTime);
+                        harmGain.gain.setValueAtTime(harmGain.gain.value, currentTime);
+                        harmGain.gain.exponentialRampToValueAtTime(0.001, currentTime + 0.01);
+                    }
+                });
+            }
+            
+            this.activeNotes.delete(key);
+        });
+    }
+
+    createCleanPianoNote(noteName, frequency, velocity, startTime, duration, isManualClick = false) {
+        // Simple approach: For manual clicks use note name, for automatic use unique key
+        const noteKey = isManualClick ? noteName : `${noteName}_${startTime}_${Math.random()}`;
+        
         // Create fundamental tone
         const osc = this.audioContext.createOscillator();
         const gain = this.audioContext.createGain();
@@ -242,19 +305,21 @@ export class AudioEngine {
         }
         
         // Store note data for potential stopping
-        this.activeNotes.set(noteName, {
+        this.activeNotes.set(noteKey, {
             oscillators: oscillators,
             gain: gain,
             harmonicGains: harmonicGains,
             harmonicOscillators: harmonicOscillators,
             startTime: startTime,
-            duration: duration
+            duration: duration,
+            originalNoteName: noteName,
+            isAutomatic: !isManualClick  // Flag to protect automatic notes from stuck key logic
         });
         
         // Clean up after note naturally ends
         setTimeout(() => {
-            if (this.activeNotes.has(noteName)) {
-                this.activeNotes.delete(noteName);
+            if (this.activeNotes.has(noteKey)) {
+                this.activeNotes.delete(noteKey);
             }
         }, (duration + 0.2) * 1000);
     }

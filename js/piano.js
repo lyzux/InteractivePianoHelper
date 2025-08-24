@@ -133,6 +133,12 @@ export class Piano {
             keysToStop.forEach(note => this.stopNote(note));
         });
         
+        // Global mouseleave on document to catch edge cases
+        document.addEventListener('mouseleave', (e) => {
+            console.log('🎵 MOUSE LEFT DOCUMENT - emergency stop all non-held notes');
+            this.emergencyStopAllNotes();
+        });
+        
         // Global keyup listener to release held keys when Ctrl is released
         document.addEventListener('keyup', (e) => {
             if (e.key === 'Control' || e.key === 'Meta') {
@@ -162,16 +168,18 @@ export class Piano {
 
         keyElement.addEventListener('mouseenter', (e) => {
             console.log(`🎵 MOUSEENTER on ${note}, buttons: ${e.buttons}`);
-            // Only start note if mouse button is already down and this isn't a held key
-            if (e.buttons === 1 && !this.keyPressStartTimes.has(note)) {
+            // Only start note if mouse button is down, note isn't already playing, and not held
+            if (e.buttons === 1 && !this.keyPressStartTimes.has(note) && !this.heldKeys.has(note)) {
                 this.startNote(note, e.ctrlKey || e.metaKey);
             }
         });
 
         keyElement.addEventListener('mouseleave', (e) => {
-            console.log(`🎵 MOUSELEAVE on ${note}`);
-            // Stop note when leaving key (unless held with Ctrl)
-            if (!this.heldKeys.has(note)) {
+            console.log(`🎵 MOUSELEAVE on ${note}, buttons: ${e.buttons}`);
+            // Stop note when leaving key, but only if:
+            // 1. Not held with Ctrl AND
+            // 2. Either mouse button is not pressed OR this was a drag operation
+            if (!this.heldKeys.has(note) && this.keyPressStartTimes.has(note)) {
                 this.stopNote(note);
             }
         });
@@ -203,6 +211,9 @@ export class Piano {
                 return;
             }
             
+            // Ensure any previous note data is cleaned up
+            this.stopNote(note);
+            
             // Record when the note started
             this.keyPressStartTimes.set(note, Date.now());
             
@@ -226,29 +237,42 @@ export class Piano {
     stopNote(note) {
         console.log(`Stopping note: ${note}`);
         
-        if (!this.keyPressStartTimes.has(note)) {
-            console.log(`Note ${note} wasn't started properly`);
-            return; // Note wasn't started properly
-        }
-
-        // Clean up tracking
+        // Always clean up tracking regardless of whether note was properly started
+        const wasPlaying = this.keyPressStartTimes.has(note);
         this.keyPressStartTimes.delete(note);
         this.activeKeys.delete(note);
         
-        // Simply stop the current note - it has already been playing
-        if (this.audioEngine && this.audioEngine.stopNote) {
+        // Stop the audio if it was playing
+        if (wasPlaying && this.audioEngine && this.audioEngine.stopNote) {
             this.audioEngine.stopNote(note);
         }
         
-        // Unhighlight immediately since note stops
+        // Always unhighlight to ensure visual consistency
         this.unhighlightKey(note);
     }
 
     // Release all keys held with Ctrl
     releaseAllHeldKeys() {
-        for (const note of this.heldKeys) {
+        // Create a copy to avoid modification during iteration
+        const heldKeysCopy = new Set(this.heldKeys);
+        for (const note of heldKeysCopy) {
             this.stopNote(note);
             this.heldKeys.delete(note);
+        }
+    }
+    
+    // Emergency stop for all non-held notes (for edge cases like mouse leaving window)
+    emergencyStopAllNotes() {
+        // Stop all notes except held ones
+        const allActiveKeys = new Set([
+            ...this.activeKeys,
+            ...this.keyPressStartTimes.keys()
+        ]);
+        
+        for (const note of allActiveKeys) {
+            if (!this.heldKeys.has(note)) {
+                this.stopNote(note);
+            }
         }
     }
 
