@@ -6,7 +6,9 @@
     <title>Piano Bass Rhythms</title>
     <script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/mobile.css">
     <style>
         .main-layout {
             display: flex;
@@ -207,8 +209,18 @@
                 </div>
             </div>
             
-            <div class="physics-sidebar">
-                <h3>Piano Controls</h3>
+            <!-- Mobile hamburger menu -->
+            <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                <span class="material-icons">menu</span>
+            </button>
+            
+            <div class="physics-sidebar" id="physicsSidebar">
+                <div class="sidebar-header">
+                    <h3>Piano Controls</h3>
+                    <button class="mobile-close-btn" id="mobileCloseBtn">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
                 <div id="physicsControls">
                     <!-- Physics controls will be generated here -->
                 </div>
@@ -223,6 +235,9 @@
                     <button class="test-btn" onclick="testScale()">Scale</button>
                 </div>
             </div>
+            
+            <!-- Mobile overlay -->
+            <div class="mobile-overlay" id="mobileOverlay"></div>
         </div>
         
         <!-- Piano keyboard at bottom of screen -->
@@ -943,6 +958,33 @@
                 });
                 settings.onSustainChange(() => {
                     settings.save();
+                });
+            }
+            
+            // Mobile menu event listeners
+            const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+            const mobileCloseBtn = document.getElementById('mobileCloseBtn');
+            const physicsSidebar = document.getElementById('physicsSidebar');
+            const mobileOverlay = document.getElementById('mobileOverlay');
+            
+            if (mobileMenuToggle) {
+                mobileMenuToggle.addEventListener('click', () => {
+                    physicsSidebar.classList.add('mobile-open');
+                    mobileOverlay.classList.add('active');
+                });
+            }
+            
+            if (mobileCloseBtn) {
+                mobileCloseBtn.addEventListener('click', () => {
+                    physicsSidebar.classList.remove('mobile-open');
+                    mobileOverlay.classList.remove('active');
+                });
+            }
+            
+            if (mobileOverlay) {
+                mobileOverlay.addEventListener('click', () => {
+                    physicsSidebar.classList.remove('mobile-open');
+                    mobileOverlay.classList.remove('active');
                 });
             }
         }
