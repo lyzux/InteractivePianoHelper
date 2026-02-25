@@ -136,8 +136,7 @@ HarmonicOscillator (sine, 2×) → BiquadFilter → GainNode → DynamicsCompres
 ```
 
 **Key design choices:**
-- `duration > 5` seconds → manual-click path (held until `stopNote` called; key stored by note name)
-- `duration ≤ 5` → automatic playback path (key stored as `noteName_startTime_random`, auto-cleans after timeout)
+- `isManualClick = duration > 5` (computed in `playNote` from the *original* `duration` argument, before it is scaled by `release`) → manual path: note held at sustain level until `stopNote` is called; key stored by note name. Any value ≤ 5 → automatic path (used by the player): note always fades via scheduled gain ramp; key stored as `noteName_startTime_random`, auto-cleans after the note ends. **Important:** `isManualClick` is determined from the original duration, not from `actualDuration = duration × release`. Using `actualDuration > 5` would incorrectly hold automatic notes at full gain for slow-tempo patterns (e.g. hymn at 60 BPM: `actualDuration = 4 × 4 = 16s`).
 - `isAutomatic` flag prevents stuck-key logic from interrupting pattern notes
 - **chorus**: wet/dry delay line with 0.7 Hz LFO modulation; `chorus` param scales wet mix (0–40%) and LFO depth
 - **roomSize**: `ConvolverNode` with a programmatically generated impulse response (0.1–2.6 s); `roomSize` scales wet mix (0–35%) and decay length
@@ -304,22 +303,18 @@ const APP_VERSION = Date.now();
 
 3. **Only triangle + sine waves** — no sampled audio, no per-note velocity curves beyond a linear amplitude scale. A Soundfont loader would dramatically improve realism.
 
-4. **Room-Size Slider bug** when changing the room size slider while the player is playing a note the note or notes that are played during dragging the slider never get released.
-
 ### Player
 
-5. **Polling loop jitter** — the 20ms `setTimeout` poll accumulates drift. Replace with `AudioContext`-time-based scheduling (`audioContext.currentTime`) for sample-accurate timing.
+4. **Polling loop jitter** — the 20ms `setTimeout` poll accumulates drift. Replace with `AudioContext`-time-based scheduling (`audioContext.currentTime`) for sample-accurate timing.
 
-6. **No quantization or swing timing** — all notes play straight. Swing patterns are labeled "swing" but play straight eighth notes.
-
-7. **Chord arrays not played** — the Player passes note entries directly to `audioEngine.playNote`; if an entry is an array (chord), it is not iterated. Both `leftHand` and `rightHand` chords are silently skipped.
+5. **No quantization or swing timing** — all notes play straight. Swing patterns are labeled "swing" but play straight eighth notes.
 
 ### UX
 
-9. **Debug `console.log` spam** — `piano.js` logs every mouse event with emoji. Remove before any production/public deployment.
+6. **Debug `console.log` spam** — `piano.js` logs every mouse event with emoji. Remove before any production/public deployment.
 
-10. **No keyboard (computer keyboard) input** — only mouse interaction supported; no QWERTY-to-piano mapping.
+7. **No keyboard (computer keyboard) input** — only mouse interaction supported; no QWERTY-to-piano mapping.
 
-11. **No touch support for playing notes** — mobile piano shows key highlights during pattern playback but manual touch-to-play is not implemented.
+8. **No touch support for playing notes** — mobile piano shows key highlights during pattern playback but manual touch-to-play is not implemented.
 
-12. **Settings not restored from localStorage on key/pattern change** — `Settings.load()` is called once at startup; key changes update only the in-memory state, not the `<select>` if changed programmatically.
+9. **Settings not restored from localStorage on key/pattern change** — `Settings.load()` is called once at startup; key changes update only the in-memory state, not the `<select>` if changed programmatically.

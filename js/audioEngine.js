@@ -317,7 +317,7 @@ export class AudioEngine {
             if (noteData.harmonicGains && noteData.harmonicGains.length > 0) {
                 noteData.harmonicGains.forEach((harmGain, index) => {
                     if (harmGain && harmGain.gain) {
-                        harmGain.gain.gain.cancelScheduledValues(currentTime);
+                        harmGain.gain.cancelScheduledValues(currentTime);
                         harmGain.gain.setValueAtTime(harmGain.gain.value, currentTime);
                         harmGain.gain.exponentialRampToValueAtTime(0.001, currentTime + 0.01);
                     }
@@ -373,12 +373,16 @@ export class AudioEngine {
         gain.gain.linearRampToValueAtTime(amplitude * (0.8 + warmthBoost * 0.2), startTime + attackTime);
         gain.gain.linearRampToValueAtTime(sustainLevel, startTime + attackTime + 0.1);
 
-        // For long durations, hold at sustain level (don't fade to 0.001)
-        if (duration > 5) {
-            // Hold at sustain level - will be stopped manually
+        // Manual clicks hold at sustain level; automatic (player) notes always fade.
+        // Note: `isManualClick` is computed from the *original* duration parameter in
+        // playNote(), NOT from `actualDuration` (which can exceed 5 s for slow-tempo
+        // patterns with sustain on).  Using `duration > 5` here would incorrectly hold
+        // automatic notes at sustainLevel when actualDuration > 5.
+        if (isManualClick) {
+            // Hold at sustain level — will be stopped manually via stopNote()
             gain.gain.setValueAtTime(sustainLevel, startTime + duration - 1);
         } else {
-            // Normal fade for short notes
+            // Normal fade for automatic (player) notes
             gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
         }
 
@@ -392,7 +396,7 @@ export class AudioEngine {
         let harmonicGains = [];
         let harmonicOscillators = [];
         if (this.params.harmonics > 0.1) {
-            const { oscillators: harmOscs, gains: harmGains } = this.addHarmonic(noteName, frequency, velocity, startTime, duration);
+            const { oscillators: harmOscs, gains: harmGains } = this.addHarmonic(noteName, frequency, velocity, startTime, duration, isManualClick);
             oscillators.push(...harmOscs);
             harmonicGains = harmGains;
             harmonicOscillators = harmOscs;
@@ -440,7 +444,7 @@ export class AudioEngine {
         }, (duration + 0.2) * 1000);
     }
 
-    addHarmonic(noteName, frequency, velocity, startTime, duration) {
+    addHarmonic(noteName, frequency, velocity, startTime, duration, isManualClick = false) {
         const harmOsc = this.audioContext.createOscillator();
         const harmGain = this.audioContext.createGain();
         const harmFilter = this.audioContext.createBiquadFilter();
@@ -462,8 +466,8 @@ export class AudioEngine {
         harmGain.gain.setValueAtTime(0.001, startTime);
         harmGain.gain.linearRampToValueAtTime(harmAmp, startTime + this.params.attack + 0.01);
 
-        // For long durations, hold at sustain level like fundamental
-        if (duration > 5) {
+        // Manual clicks hold at sustain level; automatic (player) notes always fade.
+        if (isManualClick) {
             harmGain.gain.setValueAtTime(harmAmp * 0.7, startTime + duration - 1);
         } else {
             harmGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration * 0.7);
