@@ -270,7 +270,7 @@ Defined entirely inline in `index.html` as `generateVexFlowNotation()` on `Simpl
 Module imports in `index.html` use version query strings:
 
 ```js
-import { AudioEngine } from './js/audioEngine.js?v=20250824015';
+import { AudioEngine } from './js/audioEngine.js?v=20260225002';
 ```
 
 These must be manually bumped after edits to force browser cache invalidation. Forgetting to bump means stale code silently runs.
