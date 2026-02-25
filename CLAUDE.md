@@ -112,18 +112,30 @@ Web Audio API synth. Lazy `AudioContext` init (triggered on first `playNote` cal
 
 **Signal chain:**
 ```
-OscillatorNode (triangle) → BiquadFilter (per-note lowpass) → GainNode (envelope)
-                                                                    ↓
-HarmonicOscillator (sine, 2× freq) → BiquadFilter → GainNode → DynamicsCompressor → harmonicGain
-                                                                                           ↓
-                                                             masterGain → mainFilter (lowpass) → destination
+OscillatorNode (triangle) → noteFilter (lowpass, damping sweep) → GainNode (envelope) ─┐
+                                                                                         │
+HarmonicOscillator (sine, 2×) → BiquadFilter → GainNode → DynamicsCompressor ──────────┤
+                                                                                         ▼
+                                                                                    masterGain
+                                                                                    /    |    \
+                                            ┌── dry ──────────────────────────────┘     |     └── convolver → reverbGain ──┐
+                                            │                                            └── chorusDelay (LFO) → chorusGain ┤
+                                            └─────────────────────────── postFxBus ◄──────────────────────────────────────┘
+                                                                              │
+                                                             mainFilter (lowpass: brightness × lidPosition)
+                                                                              │
+                                                                         destination
 ```
 
 **Key design choices:**
 - `duration > 5` seconds → manual-click path (held until `stopNote` called; key stored by note name)
 - `duration ≤ 5` → automatic playback path (key stored as `noteName_startTime_random`, auto-cleans after timeout)
 - `isAutomatic` flag prevents stuck-key logic from interrupting pattern notes
-- Many synth parameters (`chorus`, `roomSize`, `damping`, `lidPosition`, `pedalResonance`) are **stored** in `this.params` but have no live signal-chain implementation — they exist so the sidebar sliders have something to read/write
+- **chorus**: wet/dry delay line with 0.7 Hz LFO modulation; `chorus` param scales wet mix (0–40%) and LFO depth
+- **roomSize**: `ConvolverNode` with a programmatically generated impulse response (0.1–2.6 s); `roomSize` scales wet mix (0–35%) and decay length
+- **damping**: per-note `noteFilter.frequency` ramps from bright → muffled during decay; depth and speed scale with `damping`
+- **lidPosition**: multiplies the main filter cutoff (0.6–1.0×); lower = darker (closed lid)
+- **pedalResonance**: when `useSustain=true`, adds a faint 2nd-harmonic sine with a 150ms delayed bloom; amplitude scales with `pedalResonance`
 - `stopNote` reads `document.getElementById('sustain')` directly — tight DOM coupling from the audio module
 
 **Supported note names:** `A0`–`C8` in scientific pitch notation. Enharmonic aliases supported (`Bb` = `A#`, `Db` = `C#`, etc.).
@@ -279,11 +291,11 @@ These must be manually bumped after edits to force browser cache invalidation. F
 
 ### Audio
 
-5. **Many AudioEngine params are no-ops** — `chorus`, `roomSize`, `damping`, `lidPosition`, `pedalResonance` are stored but not wired to any Web Audio node. The sidebar sliders move them, but audio doesn't change. Implement or remove.
+5. **`stopNote` reads DOM directly** — `document.getElementById('sustain')` inside `AudioEngine` creates coupling. Pass sustain state through `Settings` instead.
 
-6. **`stopNote` reads DOM directly** — `document.getElementById('sustain')` inside `AudioEngine` creates coupling. Pass sustain state through `Settings` instead.
+6. **Only triangle + sine waves** — no sampled audio, no per-note velocity curves beyond a linear amplitude scale. A Soundfont loader would dramatically improve realism.
 
-7. **Only triangle + sine waves** — no sampled audio, no per-note velocity curves beyond a linear amplitude scale. A Soundfont loader would dramatically improve realism.
+7. **`roomSize` slider triggers impulse regeneration** — changing `roomSize` synchronously re-generates a ~1 MB stereo buffer on the audio thread. Consider debouncing the slider callback to avoid jank during fast dragging.
 
 ### Player
 
