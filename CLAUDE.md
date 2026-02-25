@@ -54,9 +54,9 @@ InteractivePianoHelper/
     ├── alberti.js           # Alberti bass (classic low-high-mid-high arpeggio)
     ├── waltz.js             # 3/4 bass-chord-chord
     ├── hymn.js              # Chorale, both hands (leftHand + rightHand)
-    ├── classical.js         # Alberti + melody (bassClef + trebleClef)
+    ├── classical.js         # Alberti + melody (leftHand + rightHand)
     ├── swing.js             # Walking bass + comping (leftHand + rightHand)
-    ├── furelise.js          # Für Elise excerpt
+    ├── furelise.js          # Für Elise excerpt (leftHand + rightHand)
     └── ... (20 patterns total, see patterns/README.md)
 ```
 
@@ -151,7 +151,7 @@ Polling-based playback loop (20ms `setTimeout` interval). Checks elapsed time ag
 
 **Tempo changes during playback** are handled naturally — `getBeatDuration()` is read every poll cycle.
 
-**Gotcha:** The player resolves `pattern.leftHand` but **does not** recognize `bassClef`/`trebleClef` naming. Patterns using `bassClef`/`trebleClef` (e.g. `alberti.js`, `waltz.js`, `classical.js`) will fall back to their `pattern()` method for playback.
+**Gotcha:** Right-hand note entries that are chord arrays (e.g. `['C3','E3','G3']`) are passed directly to `audioEngine.playNote` — the player does not iterate them, so chords in `rightHand` may not play as expected.
 
 ### `js/settings.js` — `Settings`
 
@@ -183,7 +183,7 @@ export const mypattern = {
 };
 ```
 
-### Two-hand (left/right naming — used by Player)
+### Two-hand
 
 ```js
 export const mypattern = {
@@ -197,18 +197,7 @@ export const mypattern = {
 };
 ```
 
-### Two-hand (bass/treble naming — used by VexFlow renderer, NOT by Player)
-
-```js
-export const mypattern = {
-  name: '...',
-  bassClef: (key) => [...],
-  trebleClef: (key) => [...],
-  bassClefFingering: [...],
-  trebleClefFingering: [...],
-  timing: [...],
-};
-```
+Both the Player and the VexFlow renderer read `leftHand`/`rightHand`. There is no longer a separate `bassClef`/`trebleClef` naming — all patterns use the same fields for both playback and notation.
 
 **Key limitation:** Only 5 keys are wired: `C`, `G`, `F`, `Am`, `Dm`. Any other key selection will return `undefined` from the pattern function and produce silence. No transposition logic exists.
 
@@ -257,12 +246,10 @@ Desktop: sidebar is always visible. Mobile (≤768px): sidebar is a fixed-positi
 Defined entirely inline in `index.html` as `generateVexFlowNotation()` on `SimplePatternLoader` and `drawStaffNotation()` as a top-level function.
 
 - Renders two staves (treble + bass) at 800×300px
-- Sources `bassClef`/`trebleClef` from the pattern (NOT `leftHand`/`rightHand`)
-- Falls back gracefully: if only bass clef data exists, treble stave is left empty
+- Sources `leftHand`/`rightHand` from the pattern — same fields the Player uses
+- Falls back gracefully: if no `rightHand` data exists, treble stave is filled with rests
 - Fingering numbers shown as `VF.Annotation` modifiers
 - VexFlow errors are caught and logged silently
-
-**Inconsistency:** Patterns with `leftHand`/`rightHand` (e.g. `hymn.js`, `swing.js`) play correctly but show no notation because the VexFlow renderer only reads `bassClef`/`trebleClef`. Patterns with `bassClef`/`trebleClef` show notation but the Player ignores them and plays `pattern()` instead.
 
 ---
 
@@ -284,29 +271,29 @@ These must be manually bumped after edits to force browser cache invalidation. F
 
 1. **Three redundant pattern loaders** — `autoPatternLoader.js`, `patternDiscovery.js`, and `patternImporter.js` all do essentially the same thing. Only one path is used. Consolidate into a single loader or use true directory listing via a backend endpoint.
 
-2. **`bassClef`/`trebleClef` vs `leftHand`/`rightHand` split** — Player reads `leftHand`/`rightHand`; VexFlow renderer reads `bassClef`/`trebleClef`. Patterns must duplicate data (or have one path go unserved). Pick one naming and migrate everything.
+2. **Inline code mass in `index.html`** — `SimplePatternLoader`, `generateVexFlowNotation`, `drawStaffNotation`, `generatePhysicsControls`, mobile menu logic, and resize logic all live in a 1200-line inline `<script>`. Move to dedicated modules.
 
-3. **Inline code mass in `index.html`** — `SimplePatternLoader`, `generateVexFlowNotation`, `drawStaffNotation`, `generatePhysicsControls`, mobile menu logic, and resize logic all live in a 1200-line inline `<script>`. Move to dedicated modules.
+3. **No real auto-discovery** — `autoPatternLoader.js` probes a hardcoded list of ~50 names. Adding a new pattern requires editing the list. True auto-discovery would require a server-side directory listing endpoint.
 
-4. **No real auto-discovery** — `autoPatternLoader.js` probes a hardcoded list of ~50 names. Adding a new pattern requires editing the list. True auto-discovery would require a server-side directory listing endpoint.
-
-5. **Manual cache-busting version strings** — replace with a real build step (Vite, esbuild) or a timestamp-based import cache-buster.
+4. **Manual cache-busting version strings** — replace with a real build step (Vite, esbuild) or a timestamp-based import cache-buster.
 
 ### Audio
 
-6. **Many AudioEngine params are no-ops** — `chorus`, `roomSize`, `damping`, `lidPosition`, `pedalResonance` are stored but not wired to any Web Audio node. The sidebar sliders move them, but audio doesn't change. Implement or remove.
+5. **Many AudioEngine params are no-ops** — `chorus`, `roomSize`, `damping`, `lidPosition`, `pedalResonance` are stored but not wired to any Web Audio node. The sidebar sliders move them, but audio doesn't change. Implement or remove.
 
-7. **`stopNote` reads DOM directly** — `document.getElementById('sustain')` inside `AudioEngine` creates coupling. Pass sustain state through `Settings` instead.
+6. **`stopNote` reads DOM directly** — `document.getElementById('sustain')` inside `AudioEngine` creates coupling. Pass sustain state through `Settings` instead.
 
-8. **Only triangle + sine waves** — no sampled audio, no per-note velocity curves beyond a linear amplitude scale. A Soundfont loader would dramatically improve realism.
+7. **Only triangle + sine waves** — no sampled audio, no per-note velocity curves beyond a linear amplitude scale. A Soundfont loader would dramatically improve realism.
 
 ### Player
 
-9. **Polling loop jitter** — the 20ms `setTimeout` poll accumulates drift. Replace with `AudioContext`-time-based scheduling (`audioContext.currentTime`) for sample-accurate timing.
+8. **Polling loop jitter** — the 20ms `setTimeout` poll accumulates drift. Replace with `AudioContext`-time-based scheduling (`audioContext.currentTime`) for sample-accurate timing.
 
-10. **No quantization or swing timing** — all notes play straight. Swing patterns are labeled "swing" but play straight eighth notes.
+9. **No quantization or swing timing** — all notes play straight. Swing patterns are labeled "swing" but play straight eighth notes.
 
-11. **Key support limited to 5 keys** — `C`, `G`, `F`, `Am`, `Dm` only. Implement chromatic transposition to support all 12 keys (shift MIDI note numbers, not string lookup tables).
+10. **Key support limited to 5 keys** — `C`, `G`, `F`, `Am`, `Dm` only. Implement chromatic transposition to support all 12 keys (shift MIDI note numbers, not string lookup tables).
+
+11. **Chord arrays in `rightHand` not played** — the Player passes note entries directly to `audioEngine.playNote`; if an entry is an array (chord), it is not iterated. Left-hand chords have the same issue.
 
 ### UX
 
