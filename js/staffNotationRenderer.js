@@ -150,9 +150,14 @@ function buildMeasureNotes(VF, measureData, clef, patternLoader) {
         const isDotted = dur.endsWith('d');
         const baseDur  = isDotted ? dur.slice(0, -1) : dur;
 
+        // Rest glyph anchor: must be on/near the middle of the current clef's staff.
+        // 'b/4' = B4 = middle line of treble; 'd/3' = D3 = middle line of bass.
+        // Using 'b/4' for bass clef places rests far above the staff.
+        const restKey = clef === 'bass' ? 'd/3' : 'b/4';
+
         let sn;
         if (note === null) {
-            sn = new VF.StaveNote({ keys: ['b/4'], duration: baseDur + 'r', clef });
+            sn = new VF.StaveNote({ keys: [restKey], duration: baseDur + 'r', clef });
         } else {
             const vn   = patternLoader.convertToVexFlowNote(note, clef);
             const keys = Array.isArray(vn) ? vn : [vn];
