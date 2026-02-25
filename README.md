@@ -2,6 +2,9 @@
 
 A small, modular web app for learning and practicing piano bass/accompaniment patterns. It ships a reusable 88‑key piano UI, a simple Web Audio–based piano sound, and pattern playback. Patterns live in separate files under `patterns/` and are auto‑discovered at runtime.
 
+preview on:
+https://lyzux.github.io/InteractivePianoHelper/
+
 ## Quick Start
 
 - Prerequisites: a modern browser with ES modules. Run over HTTP (file:// won’t work due to module imports).
