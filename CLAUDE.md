@@ -46,23 +46,19 @@ InteractivePianoHelper/
 │   ├── piano.js                 # 88-key DOM piano component (Piano class)
 │   ├── player.js                # Pattern playback loop (Player class)
 │   ├── settings.js              # Tempo/sustain/key state + localStorage (Settings class)
-│   ├── simplePatternLoader.js   # SimplePatternLoader: registry + VexFlow notation + pattern auto-loader
+│   ├── simplePatternLoader.js   # SimplePatternLoader: registry + VexFlow notation + pattern loader
 │   ├── staffNotationRenderer.js # drawStaffNotation(): VexFlow two-stave rendering
 │   ├── physicsControlsPanel.js  # generatePhysicsControls(): builds sidebar sliders dynamically
 │   ├── mobileMenu.js            # initializeMobileMenu(): sidebar drawer toggle
-│   ├── pianoResizeHandler.js    # initializePianoResize(): drag-to-resize + localStorage persist
-│   ├── patternLoader.js         # PatternLoader base class: registry + ABC notation helpers
-│   ├── autoPatternLoader.js     # Dynamic import by probing a hardcoded list of names (AutoPatternLoader)
-│   ├── patternDiscovery.js      # Alternate discovery; essentially same strategy as autoPatternLoader
-│   └── patternImporter.js       # Static fallback: imports all 17 known patterns explicitly
+│   └── pianoResizeHandler.js    # initializePianoResize(): drag-to-resize + localStorage persist
 └── patterns/               # One file per accompaniment style, each a plain JS object export
+    ├── index.js             # Pattern manifest — lists all pattern IDs; edit this to add new patterns
     ├── alberti.js           # Alberti bass (classic low-high-mid-high arpeggio)
     ├── waltz.js             # 3/4 bass-chord-chord
     ├── hymn.js              # Chorale, both hands (leftHand + rightHand)
     ├── classical.js         # Alberti + melody (leftHand + rightHand)
-    ├── swing.js             # Walking bass + comping (leftHand + rightHand)
     ├── furelise.js          # Für Elise excerpt (leftHand + rightHand)
-    └── ... (20 patterns total, see patterns/README.md)
+    └── ... (20 patterns total)
 ```
 
 ---
@@ -77,8 +73,8 @@ InteractivePianoHelper/
 4. `Settings` attached to slider/checkbox/select elements; settings loaded from `localStorage`
 5. `Player` wired to `AudioEngine`, `Piano`, `Settings`
 6. `SimplePatternLoader` calls `autoLoadPatterns()`
-   - Probes ~20 known names via dynamic `import()` from `../patterns/`
-   - Falls back to a hard-coded Alberti pattern if nothing loads
+   - Reads `PATTERN_IDS` from `patterns/index.js` (the single source of truth for pattern IDs)
+   - Loads all patterns in parallel via `Promise.all` + dynamic `import()`
 7. Pattern `<select>` populated; first pattern rendered
 8. Physics (sound) controls generated dynamically into `#physicsControls`
 9. Mobile menu and piano resize wired up
@@ -98,17 +94,12 @@ index.html (boot + thin wrappers + event handlers)
   └── pianoResizeHandler.js     (DOM + localStorage)
 ```
 
-### Pattern loading (three overlapping strategies)
+### Adding a new pattern
 
-The project has three nearly-identical pattern-loading strategies. At runtime only one is invoked:
+1. Create `patterns/foo.js` — export `const foo = { name, leftHand, rightHand, timing, ... }`
+2. Add `'foo'` to the `PATTERN_IDS` array in `patterns/index.js`
 
-| Module | Strategy | When used |
-|---|---|---|
-| `autoPatternLoader.js` | Dynamic `import()` against a ~50-name list | Primary path (via `PatternLoader.autoLoadPatterns`) |
-| `patternDiscovery.js` | Same dynamic-import probe approach, 17-name list | Available but **not currently called** from index.html |
-| `patternImporter.js` | Static `Promise.all([import(...)])` for 17 known patterns | Fallback if `autoLoadPatterns` returns 0 |
-
-Adding a new pattern: create `patterns/foo.js`, export `const foo = { ... }`, and add `'foo'` to the `possiblePatterns` list in `autoPatternLoader.js`. The `patternImporter.js` fallback also needs updating if you want the static path covered.
+That's it. `SimplePatternLoader.autoLoadPatterns()` picks it up automatically on next load.
 
 ---
 
@@ -176,14 +167,6 @@ Polling-based playback loop (20ms `setTimeout` interval). Checks elapsed time ag
 ### `js/settings.js` — `Settings`
 
 Simple pub/sub over tempo, sustain, and key. Persists to `localStorage` under key `pianoHelperSettings`. `getBeatDuration()` returns `60000 / tempo` ms.
-
-### `js/patternLoader.js` — `PatternLoader`
-
-Registry (`Map<id, pattern>`) + notation helpers.
-
-**`generateABCNotation()`** — generates ABC text from a pattern. The output is never rendered in the UI (VexFlow is used for rendering instead). The ABC method has a bug: for octave 6+ it appends one `'` per octave starting from 6, missing the octave-5 case correctly but over-generating for 6+.
-
-**`generateVexFlowNotation()`** — defined as an inline method inside the `SimplePatternLoader` subclass in `index.html`, not in the base class. It builds a data object (`{ timeSignature, bassClef, trebleClef }`) consumed by `drawStaffNotation()`.
 
 ---
 
@@ -294,26 +277,18 @@ const APP_VERSION = Date.now();
 
 ## Known Design Issues & Future Optimizations
 
-### Architecture
-
-1. **Three redundant pattern loaders** — `autoPatternLoader.js`, `patternDiscovery.js`, and `patternImporter.js` all do essentially the same thing. Only one path is used. Consolidate into a single loader or use true directory listing via a backend endpoint.
-
-2. **No real auto-discovery** — `simplePatternLoader.js` probes a hardcoded list of ~20 names. Adding a new pattern requires editing the `knownPatterns` array there. True auto-discovery would require a server-side directory listing endpoint.
-
-### Audio
-
 ### Player
 
-3. **Polling loop jitter** — the 20ms `setTimeout` poll accumulates drift. Replace with `AudioContext`-time-based scheduling (`audioContext.currentTime`) for sample-accurate timing.
+1. **Polling loop jitter** — the 20ms `setTimeout` poll accumulates drift. Replace with `AudioContext`-time-based scheduling (`audioContext.currentTime`) for sample-accurate timing.
 
-4. **No quantization or swing timing** — all notes play straight. Swing patterns are labeled "swing" but play straight eighth notes.
+2. **No quantization or swing timing** — all notes play straight. Swing patterns are labeled "swing" but play straight eighth notes.
 
 ### UX
 
-5. **Debug `console.log` spam** — `piano.js` logs every mouse event with emoji. Remove before any production/public deployment.
+3. **Debug `console.log` spam** — `piano.js` logs every mouse event with emoji. Remove before any production/public deployment.
 
-6. **No keyboard (computer keyboard) input** — only mouse interaction supported; no QWERTY-to-piano mapping.
+4. **No keyboard (computer keyboard) input** — only mouse interaction supported; no QWERTY-to-piano mapping.
 
-7. **No touch support for playing notes** — mobile piano shows key highlights during pattern playback but manual touch-to-play is not implemented.
+5. **No touch support for playing notes** — mobile piano shows key highlights during pattern playback but manual touch-to-play is not implemented.
 
-8. **Settings not restored from localStorage on key/pattern change** — `Settings.load()` is called once at startup; key changes update only the in-memory state, not the `<select>` if changed programmatically.
+6. **Settings not restored from localStorage on key/pattern change** — `Settings.load()` is called once at startup; key changes update only the in-memory state, not the `<select>` if changed programmatically.

@@ -1,7 +1,7 @@
 // Simple Pattern Loader — extracted from index.html inline script
+import { PATTERN_IDS } from '../patterns/index.js';
 
 // ── MIDI Transposition Helpers ────────────────────────────────────────────────
-// Embedded here (not a separate module) to avoid static-import cache-busting issues.
 
 const _SHARP   = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const _FLAT    = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
@@ -132,10 +132,7 @@ export class SimplePatternLoader {
         // VexFlow octave mapping - no adjustment needed when clef is properly specified
         const adjustedOctave = octave;
 
-        const result = `${noteName}/${adjustedOctave}`;
-        console.log(`Converting ${note} for ${clef} clef: ${result}`);
-
-        return result;
+        return `${noteName}/${adjustedOctave}`;
     }
 
     // Convert timing to VexFlow duration
@@ -151,70 +148,17 @@ export class SimplePatternLoader {
         return 'q'; // Default to quarter note
     }
 
-    // Automatic loading of all patterns
+    // Load all patterns listed in patterns/index.js in parallel
     async autoLoadPatterns() {
-        console.log('Loading patterns automatically...');
-
-        const knownPatterns = [
-            'alberti', 'waltz', 'march', 'boogie', 'stride', 'bossa',
-            'ragtime', 'ballad', 'tango', 'habanera', 'arpeggien',
-            'lombardisch', 'chaconne', 'oktav', 'ostinato', 'pompa', 'polonaise',
-            'classical', 'hymn', 'furelise'
-        ];
-
-        let loadedCount = 0;
-        for (const patternId of knownPatterns) {
+        const timestamp = Date.now();
+        await Promise.all(PATTERN_IDS.map(async (patternId) => {
             try {
-                console.log(`Attempting to load: ${patternId}`);
-                // Cache-busting for updated pattern files
-                const timestamp = Date.now();
-                // Path is relative to js/ directory, so patterns are one level up
                 const module = await import(`../patterns/${patternId}.js?v=${timestamp}`);
                 const pattern = module[patternId];
-
-                if (pattern) {
-                    this.registerPattern(patternId, pattern);
-                    console.log(`Loaded: ${pattern.name}`);
-
-                    // Debug: Show pattern data for patterns with rests
-                    if (['polonaise', 'tango', 'bossa'].includes(patternId)) {
-                        const testNotes = pattern.pattern('C');
-                        console.log(`Debug ${patternId}:`, testNotes);
-                        console.log(`Timing ${patternId}:`, pattern.timing);
-                        console.log(`Fingering ${patternId}:`, pattern.fingering);
-                    }
-
-                    loadedCount++;
-                }
-            } catch (error) {
-                console.log(`${patternId}.js not found`);
-            }
-        }
-
-        console.log(`${loadedCount} Patterns loaded!`);
-
-        // Debug: Test rest patterns
-        this.addTestPattern();
-
-        return loadedCount > 0;
-    }
-
-    // Debug: Create test pattern with rests
-    addTestPattern() {
-        const testPattern = {
-            name: 'Test-Rests',
-            description: 'Test pattern to check rests',
-            notation: 'C3 - (Rest) - G3 - (Rest)',
-            pattern: (key) => {
-                return ['C3', null, 'G3', null];
-            },
-            timing: [1, 1, 1, 1],
-            fingering: [5, null, 3, null],
-            timeSignature: '4/4',
-            tempo: { min: 80, max: 120, default: 100 }
-        };
-
-        this.registerPattern('test-pausen', testPattern);
-        console.log('Test-Rests Pattern added');
+                if (pattern) this.registerPattern(patternId, pattern);
+            } catch (_) { /* pattern file not found — skip silently */ }
+        }));
+        console.log(`${this.patterns.size} patterns loaded`);
+        return this.patterns.size > 0;
     }
 }
