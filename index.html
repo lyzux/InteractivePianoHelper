@@ -560,12 +560,12 @@
         }
 
         function handleKeyChange() {
-            console.log('Key changed, updating notation...');
             player.stop();
             const button = document.getElementById('playStopBtn');
             button.classList.remove('playing');
             button.textContent = 'Play';
             drawStaffNotation();
+            settings.save();
         }
 
         // Setup event listeners (called after initialization)

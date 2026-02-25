@@ -51,11 +51,13 @@ export class Settings {
 
     setSustain(enabled) {
         this.sustainEnabled = enabled;
+        if (this.sustainCheckbox) this.sustainCheckbox.checked = enabled;
         this.notifyCallbacks('sustainChange', enabled);
     }
 
     setKey(key) {
         this.key = key;
+        if (this.keySelect) this.keySelect.value = key;
         this.notifyCallbacks('keyChange', key);
     }
 

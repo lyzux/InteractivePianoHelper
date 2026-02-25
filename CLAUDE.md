@@ -149,10 +149,10 @@ Renders an 88-key piano into a container div. Keys are DOM elements with `data-n
 - `mouseenter` while mouse button held → plays key (glissando support)
 - `Ctrl+click` → adds key to `heldKeys` set — note stays playing until `Ctrl` released
 - `document.mouseleave` → emergency stop all non-held notes
+- **QWERTY keyboard:** `a s d f g h j k l ;` = white keys C4–E5; `w e t y u o p` = black keys (see `KEYBOARD_MAP` constant). Key-repeat is suppressed. Input/select elements capture focus normally.
+- **Touch:** `touchstart` on a key starts the note. `touchmove` uses `elementFromPoint` to detect when the finger slides to a new key (glissando). `touchend`/`touchcancel` stop the note. Multi-touch supported via `touch.identifier`.
 
 **Flat-to-sharp lookup:** `highlightKey`/`unhighlightKey` convert `Bb3` → `A#3` etc. for DOM lookup. Only single-character flat conversions supported.
-
-**Debug logging:** ~30 `console.log` calls with emoji left in from development. These fire on every key event.
 
 ### `js/player.js` — `Player`
 
@@ -168,7 +168,7 @@ Web Audio API **lookahead scheduler** (25ms `setTimeout` poll, 150ms lookahead).
 
 ### `js/settings.js` — `Settings`
 
-Simple pub/sub over tempo, sustain, and key. Persists to `localStorage` under key `pianoHelperSettings`. `getBeatDuration()` returns `60000 / tempo` ms.
+Pub/sub over tempo, sustain, key, and swingRatio. Persists to `localStorage` under key `pianoHelperSettings`. `getBeatDuration()` returns `60000 / tempo` ms. Each setter (`setKey`, `setSustain`) also updates its DOM element directly so programmatic changes stay in sync with the UI.
 
 ---
 
@@ -279,12 +279,4 @@ const APP_VERSION = Date.now();
 
 ## Known Design Issues & Future Optimizations
 
-### UX
-
-1. **Debug `console.log` spam** — `piano.js` logs every mouse event with emoji. Remove before any production/public deployment.
-
-2. **No keyboard (computer keyboard) input** — only mouse interaction supported; no QWERTY-to-piano mapping.
-
-3. **No touch support for playing notes** — mobile piano shows key highlights during pattern playback but manual touch-to-play is not implemented.
-
-4. **Settings not restored from localStorage on key/pattern change** — `Settings.load()` is called once at startup; key changes update only the in-memory state, not the `<select>` if changed programmatically.
+No open issues currently. All previously tracked items have been resolved.
