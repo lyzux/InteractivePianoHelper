@@ -1,117 +1,104 @@
 # Interactive Piano Helper
 
-Eine modulare Web-Anwendung zum Lernen und Üben von Klavierbass-Rhythmen.
+A small, modular web app for learning and practicing piano bass/accompaniment patterns. It ships a reusable 88‑key piano UI, a simple Web Audio–based piano sound, and pattern playback. Patterns live in separate files under `patterns/` and are auto‑discovered at runtime.
 
-## Projektstruktur
+## Quick Start
+
+- Prerequisites: a modern browser with ES modules. Run over HTTP (file:// won’t work due to module imports).
+- Windows: double‑click `start-server.bat` and open http://localhost:8000
+- Python: run `python -m http.server 8000` from the repo root, then open http://localhost:8000
+- Node: run `npx http-server -p 8000`, then open http://localhost:8000
+
+## Project Structure
 
 ```
 InteractivePianoHelper/
-├── index.html              # Hauptseite
-├── css/
-│   └── styles.css          # Stylesheet
-├── js/                     # JavaScript-Module
-│   ├── audioEngine.js      # Audio-Engine für Klavierklänge
-│   ├── piano.js            # Wiederverwendbares Piano-Modul
-│   ├── settings.js         # Einstellungen (Tempo, Sustain, etc.)
-│   ├── patternLoader.js    # Lädt und verwaltet Bassline-Muster
-│   └── player.js          # Spielt Muster ab
-├── patterns/               # Einzelne Bassline-Dateien (Auto-Discovery)
-│   ├── alberti.js         # Alberti-Bass
-│   ├── waltz.js           # Walzer
-│   ├── tango.js           # Tango
-│   ├── boogie.js          # Boogie-Woogie
-│   ├── arpeggien.js       # Arpeggien
-│   └── ... (17 Patterns) # Alle automatisch erkannt!
-└── assets/                # Weitere Ressourcen (zukünftig)
+  index.html            # Main app page
+  css/
+    styles.css          # Core styles
+    mobile.css          # Mobile tweaks
+  js/
+    audioEngine.js      # Web Audio piano synth
+    piano.js            # Reusable 88‑key piano component
+    settings.js         # Tempo, sustain, key; events + localStorage
+    player.js           # Pattern playback/looping
+    patternLoader.js    # Pattern registry + helpers
+    autoPatternLoader.js# Attempts to auto‑load patterns by common names
+    patternDiscovery.js # Alternate discovery by known IDs
+    patternImporter.js  # Static import of known patterns (fallback)
+  patterns/             # Individual accompaniment patterns (auto‑loaded)
+  start-server.bat      # Simple local HTTP server helper (Windows)
+  LICENSE               # MIT License
 ```
 
-## Module
+## Features
 
-### 1. AudioEngine (`js/audioEngine.js`)
-- Erzeugt realistische Klavierklänge mit Harmonischen
-- Unterstützt Sustain-Pedal-Simulation
-- Web Audio API basiert
+- Interactive 88‑key piano with visual highlight
+- Simple, musical Web Audio piano synth with harmonics
+- Pattern playback with tempo control and sustain pedal
+- Auto‑discovery of patterns under `patterns/`
+- Optional two‑hand patterns (left/right or bass/treble)
+- VexFlow is included via CDN in `index.html` for future/staff rendering placeholders
 
-### 2. Piano (`js/piano.js`)
-- Wiederverwendbares interaktives Piano (88 Tasten)
-- Visuelle Tasten-Highlights
-- Klick-Funktionalität
-- Kann in anderen Seiten verwendet werden
+## Adding Patterns
 
-### 3. Settings (`js/settings.js`)
-- Verwaltet Tempo, Sustain, Tonart
-- Speichert Einstellungen in localStorage
-- Callback-System für Änderungen
-- Exportier-/Import-Funktionen
+Create a new `.js` file in `patterns/` and export a constant whose name matches the filename. The loader tries common names and registers what it can find.
 
-### 4. PatternLoader (`js/patternLoader.js`)
-- Lädt Bassline-Muster aus separaten Dateien
-- Generiert ABC-Notation für Notendarstellung
-- Unterstützt dynamisches Laden neuer Muster
+Minimum (legacy) shape:
 
-### 5. Player (`js/player.js`)
-- Spielt Bassline-Muster ab
-- Looping-Funktionalität
-- Synchronisation mit Piano-Visualisierung
-
-## Bassline-Muster
-
-Jede Bassline ist in einer eigenen Datei gespeichert (`patterns/*.js`) mit folgender Struktur:
-
-```javascript
-export const patternName = {
-    name: 'Anzeigename',
-    description: 'Beschreibung des Musters',
-    notation: 'Textuelle Notation',
-    pattern: (key) => [...], // Noten-Array für verschiedene Tonarten
-    timing: [...],           // Timing-Array
-    fingering: [...],        // Fingersatz-Array
-    timeSignature: '4/4',    // Taktart
-    tempo: { min: 80, max: 140, default: 120 }
+```js
+// patterns/minuet.js
+export const minuet = {
+  name: 'Minuet',
+  description: 'Simple quarter‑note pattern',
+  pattern: (key) => {
+    const map = { C: ['C3','E3','G3','E3'] };
+    return map[key];
+  },
+  timing: [1, 1, 1, 1],         // beats per note
+  fingering: [5, 3, 1, 3],      // optional
+  timeSignature: '4/4',
+  tempo: { min: 60, max: 160, default: 120 }
 };
 ```
 
-## Erweiterung
+Two‑hand options are also supported; use either left/right or bass/treble naming:
 
-### Neue Bassline hinzufügen:
-1. Erstelle neue Datei in `patterns/` (z.B. `minuet.js`)
-2. Exportiere Muster-Objekt mit obiger Struktur
-3. **Das war's!** - Vollautomatische Erkennung!
-
-**🎯 Echte Auto-Discovery:** Neue Patterns werden automatisch erkannt - keine manuelle Konfiguration!
-
-### Neue Features:
-- **ABCjs**: Bereits integriert für Notendarstellung
-- **Weitere Melodie-Module**: Settings und Piano sind wiederverwendbar
-- **Neue Seiten**: Alle Module können einzeln importiert werden
-
-## Verwendung in anderen Seiten
-
-```javascript
-// Piano in anderer Seite verwenden
-import { Piano } from './js/piano.js';
-import { AudioEngine } from './js/audioEngine.js';
-
-const audioEngine = new AudioEngine();
-const piano = new Piano('piano-container', audioEngine);
-
-// Settings wiederverwenden
-import { Settings } from './js/settings.js';
-const settings = new Settings();
-settings.init('tempo', 'tempoDisplay', 'sustain', 'key');
+```js
+export const hymn = {
+  name: 'Hymn',
+  leftHand: (key) => ['C3', ['C3','G3','C4'], 'G2', ['G2','D3','G3']],
+  rightHand: (key) => ['E4','G4','C5','G4'],
+  leftHandFingering: [5, [1,2,5], 5, [1,2,5]],
+  rightHandFingering: [1, 3, 5, 3],
+  timing: [1, 1, 1, 1],
+  timeSignature: '4/4'
+};
 ```
 
-## Technische Details
+Notes use scientific names like `C3`, `F#4`. Provide arrays for chords, and `null` for rests. The player loops patterns; if your note list is shorter than the timing list, values repeat modulo their lengths.
 
-- **ES6 Module**: Modulares JavaScript ohne Bundler
-- **Web Audio API**: Für Klang-Erzeugung
-- **ABCjs**: Für Notation-Rendering
-- **localStorage**: Für Einstellungen-Persistierung
-- **Responsive Design**: Mobile-freundlich
+Naming rules that help auto‑loading:
+- File name and exported constant should match (e.g., `alberti.js` exports `alberti`).
+- Keep IDs lowercase ASCII without spaces.
 
-## Browser-Kompatibilität
+## Modules Overview
 
-- Chrome/Edge 61+
-- Firefox 60+
-- Safari 10.1+
-- Benötigt ES6 Module Support 
+- `js/audioEngine.js`: Web Audio–based, parameterized synth (attack/release, brightness, harmonics, pedal resonance).
+- `js/piano.js`: 88‑key UI with mouse interaction and highlighting.
+- `js/settings.js`: Central tempo/sustain/key state + change callbacks.
+- `js/player.js`: Drives timed playback; supports optional two‑hand patterns.
+- `js/patternLoader.js`: Registry + ABC text generator helper. Note: ABC rendering is not wired; VexFlow CDN is present for future staff rendering.
+- `js/autoPatternLoader.js` and `js/patternDiscovery.js`: Two strategies for finding/loading patterns by name.
+- `js/patternImporter.js`: Static import fallback that registers known patterns.
+
+## Development Notes
+
+- ES modules, no bundler. Serve over HTTP for module imports to work.
+- VexFlow is included in `index.html`; wiring actual staff rendering is a good next step.
+- Console logs include some debug output; feel free to trim for production.
+
+## License
+
+MIT — see `LICENSE`.
+

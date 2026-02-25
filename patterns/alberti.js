@@ -15,8 +15,8 @@ export const alberti = {
         return patterns[key];
     },
     
-    // Bass clef - Alberti bass pattern only
-    bassClef: (key) => {
+    // Left hand - Alberti bass pattern only
+    leftHand: (key) => {
         const patterns = {
             'C': ['C3', 'G3', 'E3', 'G3'],
             'G': ['G2', 'D3', 'B2', 'D3'],
@@ -34,8 +34,8 @@ export const alberti = {
     // Legacy fingering
     fingering: [1, 5, 3, 5],
     
-    // Bass clef fingering (textbook correct)
-    bassClefFingering: [1, 5, 3, 5],
+    // Left hand fingering (textbook correct)
+    leftHandFingering: [1, 5, 3, 5],
     
     timeSignature: '4/4',
     tempo: { min: 80, max: 140, default: 120 }

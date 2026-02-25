@@ -15,8 +15,8 @@ export const classical = {
         return patterns[key];
     },
     
-    // Bass clef - Alberti bass
-    bassClef: (key) => {
+    // Left hand - Alberti bass
+    leftHand: (key) => {
         const patterns = {
             'C': ['C3', 'G3', 'E3', 'G3'],
             'G': ['G2', 'D3', 'B2', 'D3'],
@@ -27,8 +27,8 @@ export const classical = {
         return patterns[key];
     },
     
-    // Treble clef - Simple scale melody
-    trebleClef: (key) => {
+    // Right hand - Simple scale melody
+    rightHand: (key) => {
         const patterns = {
             'C': ['C5', 'D5', 'E5', 'F5'],
             'G': ['G4', 'A4', 'B4', 'C5'],
@@ -44,11 +44,11 @@ export const classical = {
     // Legacy fingering - left hand
     fingering: [1, 5, 3, 5],
     
-    // Bass clef fingering
-    bassClefFingering: [1, 5, 3, 5],
-    
-    // Treble clef fingering
-    trebleClefFingering: [1, 2, 3, 4],
+    // Left hand fingering
+    leftHandFingering: [1, 5, 3, 5],
+
+    // Right hand fingering
+    rightHandFingering: [1, 2, 3, 4],
     
     timeSignature: '4/4',
     tempo: { min: 80, max: 140, default: 110 }

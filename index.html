@@ -260,11 +260,11 @@
                 const patternData = pattern.pattern(key);
                 const timing = pattern.timing;
                 
-                // Get bass and treble clef data
-                const bassClefNotes = pattern.bassClef ? pattern.bassClef(key) : (pattern.leftHand ? pattern.leftHand(key) : patternData);
-                const trebleClefNotes = pattern.trebleClef ? pattern.trebleClef(key) : (pattern.rightHand ? pattern.rightHand(key) : null);
-                const bassClefFingering = pattern.bassClefFingering || pattern.leftHandFingering || pattern.fingering;
-                const trebleClefFingering = pattern.trebleClefFingering || pattern.rightHandFingering;
+                // Get left/right hand data for notation
+                const bassClefNotes = pattern.leftHand ? pattern.leftHand(key) : patternData;
+                const trebleClefNotes = pattern.rightHand ? pattern.rightHand(key) : null;
+                const bassClefFingering = pattern.leftHandFingering || pattern.fingering;
+                const trebleClefFingering = pattern.rightHandFingering;
                 
                 return {
                     bassClef: {

@@ -25,8 +25,8 @@ export const furelise = {
         return ['E5', 'D#5', 'E5', 'D#5', 'E5', 'B4', 'D5', 'C5', 'A4'];
     },
     
-    // Treble clef - Extended authentic melody (A and B sections)
-    trebleClef: (key) => {
+    // Right hand - Extended authentic melody (A and B sections)
+    rightHand: (key) => {
         if (key === 'Am') {
             return [
                 // A Section - Opening theme (measures 1-8)
@@ -74,8 +74,8 @@ export const furelise = {
         return transposed[key] || transposed['C'];
     },
     
-    // Bass clef - Extended authentic accompaniment
-    bassClef: (key) => {
+    // Left hand - Extended authentic accompaniment
+    leftHand: (key) => {
         if (key === 'Am') {
             return [
                 // A Section - measures 1-8
@@ -160,8 +160,8 @@ export const furelise = {
         1, 0.5, 0.25, 0.25, 0.25, 0.25, 1
     ],
     
-    // Extended authentic fingering for treble clef
-    trebleClefFingering: [
+    // Extended authentic fingering for right hand
+    rightHandFingering: [
         // A Section (measures 1-8)
         5, 4, 5, 4, 5, 2, 4, 3, 1,
         null, null, 1, 3, 1,
@@ -197,8 +197,8 @@ export const furelise = {
         2, null, null, 3, 1, 2, 1
     ],
     
-    // Bass clef fingering (left hand)
-    bassClefFingering: [
+    // Left hand fingering
+    leftHandFingering: [
         null, null, null, null, null, null, null, null, null,
         5, 2, null, null, null,
         5, 3, 2, null, null, null,

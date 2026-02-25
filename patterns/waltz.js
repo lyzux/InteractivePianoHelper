@@ -15,8 +15,8 @@ export const waltz = {
         return patterns[key];
     },
     
-    // Bass clef - Traditional waltz bass only
-    bassClef: (key) => {
+    // Left hand - Traditional waltz bass only
+    leftHand: (key) => {
         const patterns = {
             'C': ['C3', ['E3', 'G3'], ['E3', 'G3']],
             'G': ['G2', ['B2', 'D3'], ['B2', 'D3']],
@@ -27,15 +27,15 @@ export const waltz = {
         return patterns[key];
     },
     
-    // No treble clef pattern - waltz accompaniment is bass clef only
+    // No right hand pattern - waltz accompaniment is left hand only
     
     timing: [1, 1, 1], // Three quarter notes in 3/4 time
     
     // Legacy fingering
     fingering: [5, [3, 2], [3, 2]],
     
-    // Bass clef fingering with stacked chord fingering (corrected: higher notes get lower finger numbers)
-    bassClefFingering: [5, [2, 3], [2, 3]],
+    // Left hand fingering with stacked chord fingering (corrected: higher notes get lower finger numbers)
+    leftHandFingering: [5, [2, 3], [2, 3]],
     
     timeSignature: '3/4',
     tempo: { min: 120, max: 180, default: 160 }
