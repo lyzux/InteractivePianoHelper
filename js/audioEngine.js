@@ -229,18 +229,18 @@ export class AudioEngine {
         this.sustainEnabled = enabled;
     }
 
-    playNote(note, duration = 0.5, useSustain = true, velocity = 0.8) {
+    playNote(note, duration = 0.5, useSustain = true, velocity = 0.8, startTime = null) {
         this.init();
 
         if (Array.isArray(note)) {
-            note.forEach(n => this.playNote(n, duration, useSustain, velocity));
+            note.forEach(n => this.playNote(n, duration, useSustain, velocity, startTime));
             return;
         }
 
         const frequency = this.noteFrequencies[note];
         if (!frequency) return;
 
-        const now = this.audioContext.currentTime;
+        const now = startTime ?? this.audioContext.currentTime;
         const isManualClick = duration > 5;
 
         // For manual clicks, stop existing note to prevent accumulation
@@ -252,6 +252,10 @@ export class AudioEngine {
         const actualDuration = useSustain ? duration * this.params.release : duration;
 
         this.createCleanPianoNote(note, frequency, velocity, now, actualDuration, isManualClick, useSustain);
+    }
+
+    getCurrentTime() {
+        return this.audioContext ? this.audioContext.currentTime : 0;
     }
 
     stopNote(note) {

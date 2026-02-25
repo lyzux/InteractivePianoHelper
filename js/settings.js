@@ -4,6 +4,7 @@ export class Settings {
         this.tempo = 120;
         this.sustainEnabled = true;
         this.key = 'C';
+        this.swingRatio = 0.5; // 0.5 = straight, 0.75 = heavy swing
         this.callbacks = {
             tempoChange: [],
             sustainChange: [],
@@ -70,6 +71,9 @@ export class Settings {
         return this.key;
     }
 
+    getSwingRatio() { return this.swingRatio; }
+    setSwingRatio(r) { this.swingRatio = r; }
+
     getBeatDuration() {
         return 60000 / this.tempo; // milliseconds per beat
     }
@@ -118,7 +122,8 @@ export class Settings {
         return {
             tempo: this.tempo,
             sustainEnabled: this.sustainEnabled,
-            key: this.key
+            key: this.key,
+            swingRatio: this.swingRatio
         };
     }
 
@@ -132,6 +137,9 @@ export class Settings {
         }
         if (settingsData.key !== undefined) {
             this.setKey(settingsData.key);
+        }
+        if (settingsData.swingRatio !== undefined) {
+            this.setSwingRatio(settingsData.swingRatio);
         }
         this.updateDisplays();
     }

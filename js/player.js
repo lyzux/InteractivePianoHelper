@@ -37,107 +37,123 @@ function _resolveNotesP(pattern, hand, key) {
     return base.map(n => _transposeP(n, semitones, flat));
 }
 
+// ── Lookahead scheduler constants ─────────────────────────────────────────────
+const SCHEDULE_AHEAD = 0.15; // seconds to look ahead when scheduling notes
+const POLL_INTERVAL  = 25;   // ms between scheduler polls
+
 export class Player {
     constructor(audioEngine, piano, settings) {
-        this.audioEngine = audioEngine;
-        this.piano = piano;
-        this.settings = settings;
-        this.isPlaying = false;
-        this.currentTimeout = null;
-        this.noteTimeouts = [];
-        this.currentPattern = null;
-        this.currentNoteIndex = 0;
-        this.currentNotes = null;
-        this.currentTiming = null;
-        this.currentKey = null;
-        this.playStartTime = null;
-        this.noteStartTime = null;
+        this.audioEngine     = audioEngine;
+        this.piano           = piano;
+        this.settings        = settings;
+        this.isPlaying       = false;
+        this.schedulerTimer  = null;
+        this._visualTimeouts = [];
+        this.currentPattern  = null;
+        this.currentKey      = null;
+        this.leftHandNotes   = null;
+        this.rightHandNotes  = null;
+        this.currentTiming   = null;
+        this.noteIndex       = 0;
+        this.nextNoteTime    = 0; // AudioContext seconds
+        this.beatPosition    = 0; // beats, tracks swing phase
     }
 
     play(pattern, key) {
         if (this.isPlaying) return;
-        
-        this.isPlaying = true;
+        this.audioEngine.init();
+        this.isPlaying      = true;
         this.currentPattern = pattern;
-        this.currentNoteIndex = 0;
-        this.currentKey = key;
-        
-        // Resolve notes with chromatic transposition for unsupported keys
+        this.currentKey     = key;
         this.leftHandNotes  = _resolveNotesP(pattern, 'leftHand',  key);
         this.rightHandNotes = _resolveNotesP(pattern, 'rightHand', key) || null;
-        this.currentTiming = pattern.timing;
-        this.playStartTime = Date.now();
-        this.noteStartTime = Date.now();
-        
-        this.playLoop();
+        this.currentTiming  = pattern.timing;
+        this.noteIndex      = 0;
+        this.beatPosition   = 0;
+        this.nextNoteTime   = this.audioEngine.getCurrentTime();
+        this._scheduleLoop();
     }
 
-    playLoop() {
+    // Convert raw beats to seconds, applying swing to eighth notes.
+    // Swing ratio r (0.5 = straight, 0.75 = heavy swing):
+    //   downbeat eighth (even half-beat) → r × beatSec
+    //   upbeat   eighth (odd  half-beat) → (1-r) × beatSec
+    // Two consecutive swung eighths still total exactly 1 beat. ✓
+    _noteDurationSec(rawBeats) {
+        const beatSec = this.settings.getBeatDuration() / 1000;
+        const swing   = this.settings.getSwingRatio();
+        if (swing > 0.501 && rawBeats === 0.5) {
+            const halfBeat = Math.round(this.beatPosition * 2);
+            return (halfBeat % 2 === 0 ? swing : (1 - swing)) * beatSec;
+        }
+        return rawBeats * beatSec;
+    }
+
+    _scheduleLoop() {
         if (!this.isPlaying) return;
-        
-        const currentTime = Date.now();
-        const currentBeatDuration = this.settings.getBeatDuration();
-        
-        // Prüfe ob es Zeit für die nächste Note ist
-        const noteElapsed = currentTime - this.noteStartTime;
-        const requiredNoteDuration = this.currentTiming[this.currentNoteIndex % this.currentTiming.length] * currentBeatDuration;
-        
-        if (noteElapsed >= requiredNoteDuration) {
-            const noteDuration = this.currentTiming[this.currentNoteIndex % this.currentTiming.length] * (currentBeatDuration / 1000);
-            
-            // Play left hand note
-            const leftNote = this.leftHandNotes[this.currentNoteIndex];
+
+        const ctx        = this.audioEngine.audioContext;
+        const useSustain = this.settings.getSustain();
+        const maxLen     = Math.max(
+            this.leftHandNotes.length,
+            this.rightHandNotes ? this.rightHandNotes.length : 0
+        );
+
+        while (this.nextNoteTime < ctx.currentTime + SCHEDULE_AHEAD) {
+            const idx           = this.noteIndex;
+            const rawBeats      = this.currentTiming[idx % this.currentTiming.length];
+            const durSec        = this._noteDurationSec(rawBeats);
+            const startTime     = this.nextNoteTime;
+            // Delay in ms from now until this note's scheduled start, for visual sync
+            const visualMs      = Math.max(0, (startTime - ctx.currentTime) * 1000);
+            const unhighlightMs = visualMs + durSec * 900;
+
+            const leftNote = this.leftHandNotes[idx % this.leftHandNotes.length];
             if (leftNote) {
-                this.audioEngine.playNote(leftNote, noteDuration, this.settings.getSustain());
-                this.piano.highlightKey(leftNote);
-                setTimeout(() => this.piano.unhighlightKey(leftNote), noteDuration * 1000);
+                this.audioEngine.playNote(leftNote, durSec, useSustain, 0.8, startTime);
+                this._visualTimeouts.push(
+                    setTimeout(() => this.piano.highlightKey(leftNote),   visualMs),
+                    setTimeout(() => this.piano.unhighlightKey(leftNote), unhighlightMs)
+                );
             }
-            
-            // Play right hand note if it exists
-            if (this.rightHandNotes && this.currentNoteIndex < this.rightHandNotes.length) {
-                const rightNote = this.rightHandNotes[this.currentNoteIndex];
+
+            if (this.rightHandNotes) {
+                const rightNote = this.rightHandNotes[idx % this.rightHandNotes.length];
                 if (rightNote) {
-                    this.audioEngine.playNote(rightNote, noteDuration, this.settings.getSustain());
-                    this.piano.highlightKey(rightNote);
-                    setTimeout(() => this.piano.unhighlightKey(rightNote), noteDuration * 1000);
+                    this.audioEngine.playNote(rightNote, durSec, useSustain, 0.8, startTime);
+                    this._visualTimeouts.push(
+                        setTimeout(() => this.piano.highlightKey(rightNote),   visualMs),
+                        setTimeout(() => this.piano.unhighlightKey(rightNote), unhighlightMs)
+                    );
                 }
             }
-            
-            // Nächste Note vorbereiten
-            this.currentNoteIndex++;
-            const maxLength = Math.max(
-                this.leftHandNotes.length,
-                this.rightHandNotes ? this.rightHandNotes.length : 0
-            );
-            if (this.currentNoteIndex >= maxLength) {
-                this.currentNoteIndex = 0; // Loop pattern
+
+            this.beatPosition += rawBeats;
+            this.nextNoteTime += durSec;
+            if (++this.noteIndex >= maxLen) {
+                this.noteIndex    = 0;
+                this.beatPosition = 0;
             }
-            
-            this.noteStartTime = currentTime;
         }
-        
-        // Weiter im Loop (alle 20ms für sehr responsive Tempo-Änderungen)
-        this.currentTimeout = setTimeout(() => this.playLoop(), 20);
+
+        this.schedulerTimer = setTimeout(() => this._scheduleLoop(), POLL_INTERVAL);
     }
 
     stop() {
         this.isPlaying = false;
-        if (this.currentTimeout) {
-            clearTimeout(this.currentTimeout);
-            this.currentTimeout = null;
-        }
-        this.noteTimeouts.forEach(timeout => clearTimeout(timeout));
-        this.noteTimeouts = [];
-        
+        clearTimeout(this.schedulerTimer);
+        this.schedulerTimer = null;
+        this._visualTimeouts.forEach(t => clearTimeout(t));
+        this._visualTimeouts = [];
         this.piano.clearAllHighlights();
         this.currentPattern = null;
-        this.currentNoteIndex = 0;
-        this.leftHandNotes = null;
+        this.noteIndex      = 0;
+        this.leftHandNotes  = null;
         this.rightHandNotes = null;
-        this.currentTiming = null;
-        this.currentKey = null;
-        this.playStartTime = null;
-        this.noteStartTime = null;
+        this.currentTiming  = null;
+        this.currentKey     = null;
+        this.nextNoteTime   = 0;
+        this.beatPosition   = 0;
     }
 
     isCurrentlyPlaying() {

@@ -156,13 +156,15 @@ Renders an 88-key piano into a container div. Keys are DOM elements with `data-n
 
 ### `js/player.js` — `Player`
 
-Polling-based playback loop (20ms `setTimeout` interval). Checks elapsed time against beat duration; fires note when due.
+Web Audio API **lookahead scheduler** (25ms `setTimeout` poll, 150ms lookahead). Notes are scheduled into the audio graph in advance using `audioEngine.playNote(..., startTime)`, eliminating `Date.now()`-based jitter. Visual key highlights are triggered with matching `setTimeout` delays calibrated to `startTime − currentTime`.
 
-**Two-hand support:** `play()` resolves `leftHand`/`rightHand` (or falls back to `pattern`). The loop indexes both arrays simultaneously. If the arrays are different lengths, they both independently wrap modulo their own length.
+**Two-hand support:** `play()` resolves `leftHand`/`rightHand` (or falls back to `pattern`). Both arrays wrap independently at their own length; a single `noteIndex` advances through the shared timing array.
 
-**Tempo changes during playback** are handled naturally — `getBeatDuration()` is read every poll cycle.
+**Tempo changes** take effect for notes not yet scheduled (within the next 150ms); already-scheduled audio nodes play at their original timing.
 
-**Gotcha:** Right-hand note entries that are chord arrays (e.g. `['C3','E3','G3']`) are passed directly to `audioEngine.playNote` — the player does not iterate them, so chords in `rightHand` may not play as expected.
+**Swing timing:** `_noteDurationSec(rawBeats)` reads `settings.getSwingRatio()` (0.5–0.75). When swing > 0.5 and `rawBeats === 0.5`, the note's duration alternates long (`ratio × beatSec`) / short (`(1-ratio) × beatSec`) based on `beatPosition % 1`. Two consecutive swung eighth notes always sum to exactly one beat. Quarter notes and other durations are unaffected.
+
+**Ghost-highlight prevention:** `_visualTimeouts` tracks all pending `setTimeout` IDs; `stop()` cancels them all before calling `piano.clearAllHighlights()`.
 
 ### `js/settings.js` — `Settings`
 
@@ -277,18 +279,12 @@ const APP_VERSION = Date.now();
 
 ## Known Design Issues & Future Optimizations
 
-### Player
-
-1. **Polling loop jitter** — the 20ms `setTimeout` poll accumulates drift. Replace with `AudioContext`-time-based scheduling (`audioContext.currentTime`) for sample-accurate timing.
-
-2. **No quantization or swing timing** — all notes play straight. Swing patterns are labeled "swing" but play straight eighth notes.
-
 ### UX
 
-3. **Debug `console.log` spam** — `piano.js` logs every mouse event with emoji. Remove before any production/public deployment.
+1. **Debug `console.log` spam** — `piano.js` logs every mouse event with emoji. Remove before any production/public deployment.
 
-4. **No keyboard (computer keyboard) input** — only mouse interaction supported; no QWERTY-to-piano mapping.
+2. **No keyboard (computer keyboard) input** — only mouse interaction supported; no QWERTY-to-piano mapping.
 
-5. **No touch support for playing notes** — mobile piano shows key highlights during pattern playback but manual touch-to-play is not implemented.
+3. **No touch support for playing notes** — mobile piano shows key highlights during pattern playback but manual touch-to-play is not implemented.
 
-6. **Settings not restored from localStorage on key/pattern change** — `Settings.load()` is called once at startup; key changes update only the in-memory state, not the `<select>` if changed programmatically.
+4. **Settings not restored from localStorage on key/pattern change** — `Settings.load()` is called once at startup; key changes update only the in-memory state, not the `<select>` if changed programmatically.
