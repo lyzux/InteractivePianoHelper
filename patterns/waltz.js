@@ -2,41 +2,10 @@
 export const waltz = {
     name: 'Waltz',
     description: 'The classic 3/4 time with emphasis on the first beat. Bass on 1, chord on 2 and 3. Typical for Viennese waltzes and many folk songs.',
-    
-    // Legacy support
-    pattern: (key) => {
-        const patterns = {
-            'C': ['C3', ['E3', 'G3'], ['E3', 'G3']],
-            'G': ['G2', ['B2', 'D3'], ['B2', 'D3']],
-            'F': ['F3', ['A3', 'C4'], ['A3', 'C4']],
-            'Am': ['A2', ['C3', 'E3'], ['C3', 'E3']],
-            'Dm': ['D3', ['F3', 'A3'], ['F3', 'A3']]
-        };
-        return patterns[key];
-    },
-    
-    // Left hand - Traditional waltz bass only
-    leftHand: (key) => {
-        const patterns = {
-            'C': ['C3', ['E3', 'G3'], ['E3', 'G3']],
-            'G': ['G2', ['B2', 'D3'], ['B2', 'D3']],
-            'F': ['F3', ['A3', 'C4'], ['A3', 'C4']],
-            'Am': ['A2', ['C3', 'E3'], ['C3', 'E3']],
-            'Dm': ['D3', ['F3', 'A3'], ['F3', 'A3']]
-        };
-        return patterns[key];
-    },
-    
-    // No right hand pattern - waltz accompaniment is left hand only
-    
-    timing: [1, 1, 1], // Three quarter notes in 3/4 time
-    
-    // Legacy fingering
+    pattern: () => ['C3', ['E3', 'G3'], ['E3', 'G3']],
+    timing: [1, 1, 1],
     fingering: [5, [3, 2], [3, 2]],
-    
-    // Left hand fingering with stacked chord fingering (corrected: higher notes get lower finger numbers)
     leftHandFingering: [5, [2, 3], [2, 3]],
-    
     timeSignature: '3/4',
     tempo: { min: 120, max: 180, default: 160 }
 };

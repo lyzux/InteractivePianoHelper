@@ -195,9 +195,9 @@ Registry (`Map<id, pattern>`) + notation helpers.
 export const mypattern = {
   name: 'Display Name',
   description: 'What this pattern is.',
-  pattern: (key) => ({ C: ['C3','E3','G3'], G: ['G2','B2','D3'] })[key],
-  timing: [1, 1, 1],           // beats per note (relative to tempo)
-  fingering: [5, 3, 1],        // optional, shown in VexFlow
+  pattern: () => ['C3', 'E3', 'G3'],  // C major only; transposition is automatic
+  timing: [1, 1, 1],                  // beats per note (1 = quarter note at current BPM)
+  fingering: [5, 3, 1],               // optional, shown in VexFlow
   timeSignature: '3/4',
   tempo: { min: 60, max: 180, default: 120 }
 };
@@ -219,7 +219,7 @@ export const mypattern = {
 
 Both the Player and the VexFlow renderer read `leftHand`/`rightHand`. There is no longer a separate `bassClef`/`trebleClef` naming — all patterns use the same fields for both playback and notation.
 
-**Key limitation:** Only 5 keys are wired: `C`, `G`, `F`, `Am`, `Dm`. Any other key selection will return `undefined` from the pattern function and produce silence. No transposition logic exists.
+**Key transposition:** Pattern functions only need to implement the C major version. `_resolveNotes()` (in `simplePatternLoader.js`) and `_resolveNotesP()` (in `player.js`) always call `fn('C')` and transpose chromatically for all other keys. Flat keys (F, B♭, E♭, A♭, D♭, Dm) produce flat enharmonics (e.g. B♭4 instead of A♯4). Chord arrays (`['C4','E4','G4']`) are transposed element-wise. Patterns that are not transposable (e.g. `furelise`) set `nativeKey: 'Am'`; for these, `fn(key)` is called directly and returns `null` for unsupported keys (stave shown empty).
 
 **Chord notation:** `['C4','E4','G4']` inside a note array = simultaneous chord. `null` = rest.
 
@@ -265,11 +265,17 @@ Desktop: sidebar is always visible. Mobile (≤768px): sidebar is a fixed-positi
 
 `generateVexFlowNotation()` lives on `SimplePatternLoader` in `js/simplePatternLoader.js`. `drawStaffNotation()` is in `js/staffNotationRenderer.js`. Both are dynamically imported into `index.html`; a thin wrapper in the inline script calls them with the current `patternLoader` and `settings`.
 
-- Renders two staves (treble + bass) at 800×300px
-- Sources `leftHand`/`rightHand` from the pattern — same fields the Player uses
-- Falls back gracefully: if no `rightHand` data exists, treble stave is filled with rests
-- Fingering numbers shown as `VF.Annotation` modifiers
-- VexFlow errors are caught and logged silently
+- **Responsive width** — SVG width is set to `vexFlowDiv.clientWidth - 40` (subtracting CSS padding); falls back to 800 if the element has not yet laid out.
+- **Multi-measure layout** — notes are grouped into per-measure arrays using beat-count arithmetic (`bpm = numBeats × 4/beatValue`). Measures are distributed across horizontal systems (lines); the number of measures per line is `floor((width - headerWidth) / 80)`.
+- **Bar lines** — each measure is a separate `VF.Stave`; VexFlow automatically draws a right bar line at each stave boundary.
+- **Dotted notes** — VexFlow 4 separates tick count (set by the `'d'` suffix in the duration string, e.g. `'qd'`, `'8d'`) from visual rendering of the augmentation dot (requires an explicit `VF.Dot.buildAndAttach([sn], { all: true })` call). Both are needed; omitting the modifier call leaves notes visually undotted even though they occupy the correct number of ticks.
+- **Rest fill sizes** (`REST_FILL_SIZES`) exclude dotted values (1.5, 0.75) to avoid VexFlow's ambiguous `'xdr'` duration parsing for rests. Dotted rest durations are decomposed into two plain rests instead (e.g. 1.5 → quarter + eighth).
+- **Ties for cross-bar notes** — when a note duration overflows a bar line and both parts are standard VexFlow durations (0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4), the note is split into two tied `StaveNote` objects connected by `VF.StaveTie`. Cross-system ties are skipped.
+- **System headers** — first system gets clef + key sig + time sig; subsequent systems get clef + key sig only.
+- Sources `leftHand`/`rightHand` from the pattern — same fields the Player uses.
+- Falls back gracefully: if no `rightHand` data exists, treble stave shows a single whole-measure rest per measure (not individual rests per note).
+- Fingering numbers shown as `VF.Annotation` modifiers.
+- VexFlow errors are caught and logged silently.
 
 ---
 
@@ -306,9 +312,7 @@ const APP_VERSION = Date.now();
 
 6. **No quantization or swing timing** — all notes play straight. Swing patterns are labeled "swing" but play straight eighth notes.
 
-7. **Key support limited to 5 keys** — `C`, `G`, `F`, `Am`, `Dm` only. Implement chromatic transposition to support all 12 keys (shift MIDI note numbers, not string lookup tables).
-
-8. **Chord arrays in `rightHand` not played** — the Player passes note entries directly to `audioEngine.playNote`; if an entry is an array (chord), it is not iterated. Left-hand chords have the same issue.
+7. **Chord arrays not played** — the Player passes note entries directly to `audioEngine.playNote`; if an entry is an array (chord), it is not iterated. Both `leftHand` and `rightHand` chords are silently skipped.
 
 ### UX
 
@@ -318,6 +322,4 @@ const APP_VERSION = Date.now();
 
 11. **No touch support for playing notes** — mobile piano shows key highlights during pattern playback but manual touch-to-play is not implemented.
 
-12. **VexFlow fixed at 800px width** — notation overflows on narrow screens. Make width responsive.
-
-13. **Settings not restored from localStorage on key/pattern change** — `Settings.load()` is called once at startup; key changes update only the in-memory state, not the `<select>` if changed programmatically.
+12. **Settings not restored from localStorage on key/pattern change** — `Settings.load()` is called once at startup; key changes update only the in-memory state, not the `<select>` if changed programmatically.

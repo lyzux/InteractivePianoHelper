@@ -1,21 +1,203 @@
 // Staff Notation Renderer — extracted from index.html inline script
 // Renders two staves (treble + bass) using VexFlow (loaded from CDN as global `Vex`).
-// `patternLoader` and `settings` are passed in from the caller so this module
-// has no hard dependency on the page's closure variables.
+// Supports responsive width, multiple measures with bar lines, and cross-measure ties.
+// `patternLoader` and `settings` are passed in from the caller.
+
+const VALID_BEATS = new Set([0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4]);
+const REST_FILL_SIZES = [4, 3, 2, 1, 0.5, 0.25]; // descending for greedy fill; no dotted values
+const MAX_DISPLAY_MEASURES = 8; // cap long pieces; prevents overwhelming multi-line output
+
+function r3(v) {
+    return Math.round(v * 1000) / 1000;
+}
+
+/**
+ * Expand a cycling accompaniment pattern (e.g. 4-note Alberti) so it fills
+ * at least `minMeasures` complete measures.  Long patterns (pieces) are
+ * returned as-is once they already exceed the target length.
+ */
+function expandPattern(notes, timings, fingerings, bpm, minMeasures = 1) {
+    const cycleLen  = notes.length;
+    const cycleBeats = notes.reduce((s, _, i) => r3(s + timings[i % timings.length]), 0);
+    const targetBeats = Math.max(bpm * minMeasures, cycleBeats);
+
+    if (cycleBeats >= targetBeats - 0.001) {
+        return { notes: [...notes], timings: [...timings], fingerings: fingerings ? [...fingerings] : [] };
+    }
+
+    const out = { notes: [], timings: [], fingerings: [] };
+    let beat = 0;
+    let i = 0;
+    while (beat < targetBeats - 0.001) {
+        const idx  = i % cycleLen;
+        const tim  = timings[idx % timings.length];
+        out.notes.push(notes[idx]);
+        out.timings.push(tim);
+        out.fingerings.push(fingerings ? fingerings[idx % fingerings.length] : null);
+        beat = r3(beat + tim);
+        i++;
+        if (i >= cycleLen * 200) break; // safety ceiling
+    }
+    return out;
+}
+
+/**
+ * Split a note/timing stream into per-measure arrays.
+ * Notes that straddle a bar line are split into two tied notes when both
+ * parts are standard VexFlow durations.  Rests (null) are split into two
+ * separate rests without a tie.  Notes that can't be split cleanly are
+ * moved to the next measure intact.
+ */
+function groupIntoMeasures(notes, timings, fingerings, bpm) {
+    const measures = [];
+    let cur = { notes: [], timings: [], fingerings: [], tieF: [], tieB: [] };
+    let beat = 0;
+
+    function flush() {
+        if (cur.notes.length) measures.push(cur);
+        cur = { notes: [], timings: [], fingerings: [], tieF: [], tieB: [] };
+        beat = 0;
+    }
+
+    function add(note, tim, fing, tf, tb) {
+        cur.notes.push(note);
+        cur.timings.push(tim);
+        cur.fingerings.push(fing);
+        cur.tieF.push(tf);
+        cur.tieB.push(tb);
+        beat = r3(beat + tim);
+    }
+
+    for (let i = 0; i < notes.length; i++) {
+        const note   = notes[i];
+        const timing = r3(timings[i % timings.length]);
+        const fing   = fingerings ? fingerings[i % fingerings.length] : null;
+        const left   = r3(bpm - beat);
+
+        if (timing <= left + 0.001) {
+            add(note, timing, fing, false, false);
+            if (beat >= bpm - 0.001) flush();
+        } else {
+            const over = r3(timing - left);
+            if (left > 0.001 && VALID_BEATS.has(left) && VALID_BEATS.has(over)) {
+                if (note === null) {
+                    // Rests are never tied — just split into two separate rests
+                    add(null, left, null, false, false);
+                    flush();
+                    add(null, over, null, false, false);
+                } else {
+                    add(note, left, fing, true, false);
+                    flush();
+                    add(note, over, null, false, true);
+                }
+                if (beat >= bpm - 0.001) flush();
+            } else {
+                // Can't split cleanly — close current measure, put full note in next
+                flush();
+                add(note, timing, fing, false, false);
+                if (beat >= bpm - 0.001) flush();
+            }
+        }
+    }
+
+    if (cur.notes.length) flush();
+    return measures;
+}
+
+/**
+ * Fill the last beat(s) of every measure with rests so the voice is complete.
+ * Uses a greedy largest-value-first algorithm.
+ */
+function fillMeasureRests(measures, bpm) {
+    for (const m of measures) {
+        const used = m.timings.reduce((s, t) => r3(s + t), 0);
+        let remaining = r3(bpm - used);
+        if (remaining < 0.001) continue;
+        for (const sz of REST_FILL_SIZES) {
+            while (remaining >= sz - 0.001) {
+                m.notes.push(null);
+                m.timings.push(sz);
+                m.fingerings.push(null);
+                m.tieF.push(false);
+                m.tieB.push(false);
+                remaining = r3(remaining - sz);
+            }
+            if (remaining < 0.001) break;
+        }
+    }
+}
+
+/** Build VF.StaveNote objects for one measure. Returns staveNotes + tieItems arrays. */
+function buildMeasureNotes(VF, measureData, clef, patternLoader) {
+    const staveNotes = [];
+    const tieItems   = [];
+    if (!measureData || !measureData.notes.length) return { staveNotes, tieItems };
+
+    const vjust = clef === 'treble'
+        ? VF.Annotation.VerticalJustify.TOP
+        : VF.Annotation.VerticalJustify.BOTTOM;
+
+    for (let i = 0; i < measureData.notes.length; i++) {
+        const note = measureData.notes[i];
+        const tim  = measureData.timings[i];
+        const fing = measureData.fingerings[i];
+        const dur  = patternLoader.convertTimingToVexFlowDuration(tim);
+
+        // VexFlow 4: the 'd' suffix in the duration string sets the correct tick count
+        // but does NOT render the augmentation dot visually — that requires an explicit
+        // Dot modifier.  For rests we strip the 'd' to avoid 'xdr' parsing issues;
+        // REST_FILL_SIZES contains only non-dotted values so this is safe in practice.
+        const isDotted = dur.endsWith('d');
+        const baseDur  = isDotted ? dur.slice(0, -1) : dur;
+
+        let sn;
+        if (note === null) {
+            sn = new VF.StaveNote({ keys: ['b/4'], duration: baseDur + 'r', clef });
+        } else {
+            const vn   = patternLoader.convertToVexFlowNote(note, clef);
+            const keys = Array.isArray(vn) ? vn : [vn];
+            sn = new VF.StaveNote({ keys, duration: dur, clef });
+
+            if (fing != null) {
+                try {
+                    if (Array.isArray(fing)) {
+                        fing.forEach((f, fi) => {
+                            if (f != null && fi < keys.length) {
+                                const ann = new VF.Annotation(f.toString());
+                                ann.setVerticalJustification(vjust);
+                                sn.addModifier(ann, fi);
+                            }
+                        });
+                    } else {
+                        const ann = new VF.Annotation(fing.toString());
+                        ann.setVerticalJustification(vjust);
+                        sn.addModifier(ann, 0);
+                    }
+                } catch (_) { /* ignore annotation errors */ }
+            }
+        }
+
+        if (isDotted) {
+            VF.Dot.buildAndAttach([sn], { all: true });
+        }
+
+        staveNotes.push(sn);
+        if (measureData.tieF[i]) tieItems.push({ noteIndex: i, direction: 'forward' });
+        if (measureData.tieB[i]) tieItems.push({ noteIndex: i, direction: 'back' });
+    }
+
+    return { staveNotes, tieItems };
+}
 
 export function drawStaffNotation(patternLoader, settings) {
     const patternType = document.getElementById('pattern').value;
 
-    // Safe key determination
-    let key = 'C'; // Fallback
+    let key = 'C';
     if (settings && typeof settings.getKey === 'function') {
         key = settings.getKey();
     } else {
-        // Read directly from DOM if settings not yet available
-        const keySelect = document.getElementById('key');
-        if (keySelect) {
-            key = keySelect.value;
-        }
+        const ks = document.getElementById('key');
+        if (ks) key = ks.value;
     }
 
     console.log(`Drawing staff notation for pattern: ${patternType}, key: ${key}`);
@@ -23,191 +205,175 @@ export function drawStaffNotation(patternLoader, settings) {
     const notationData = patternLoader.generateVexFlowNotation(patternType, key);
     if (!notationData) return;
 
-    // Clear previous notation
     const vexFlowDiv = document.getElementById('vexflow-notation');
     vexFlowDiv.innerHTML = '';
 
-    // Check if VexFlow is loaded - version 4.x uses different namespace
     if (typeof Vex === 'undefined') {
         console.error('VexFlow is not loaded properly');
         vexFlowDiv.innerHTML = '<p>Notation library loading... Please wait.</p>';
-        // Try again in a second, passing the same dependencies through the closure
         setTimeout(() => drawStaffNotation(patternLoader, settings), 1000);
         return;
     }
 
     try {
-        // VexFlow 4.x direct access
         const VF = Vex;
 
-        // Create SVG renderer
-        const renderer = new VF.Renderer(vexFlowDiv, VF.Renderer.Backends.SVG);
-        renderer.resize(800, 300);
-        const context = renderer.getContext();
+        const W = Math.max((vexFlowDiv.clientWidth || vexFlowDiv.offsetWidth || 840) - 40, 400);
 
-        // Create treble clef stave (top)
-        const trebleStave = new VF.Stave(10, 40, 750);
-        trebleStave.addClef('treble');
-        trebleStave.addTimeSignature(notationData.timeSignature);
-        trebleStave.addKeySignature(key);
-        trebleStave.setContext(context).draw();
+        const [numBeats, beatValue] = notationData.timeSignature.split('/').map(Number);
+        const bpm = numBeats * (4 / beatValue);   // beats per measure in quarter-note units
 
-        // Create bass clef stave (bottom)
-        const bassStave = new VF.Stave(10, 140, 750);
-        bassStave.addClef('bass');
-        bassStave.addTimeSignature(notationData.timeSignature);
-        bassStave.addKeySignature(key);
-        bassStave.setContext(context).draw();
+        // ── Expand and group notes into measures ──────────────────────────────
+        const bc = notationData.bassClef;
+        const tc = notationData.trebleClef;
 
-        // Connect the staves with a brace
-        const connector = new VF.StaveConnector(trebleStave, bassStave);
-        connector.setType(VF.StaveConnector.type.BRACE);
-        connector.setContext(context).draw();
+        const bcExp = expandPattern(bc.notes, bc.timing, bc.fingering, bpm);
+        const bassMeasures = groupIntoMeasures(bcExp.notes, bcExp.timings, bcExp.fingerings, bpm);
+        fillMeasureRests(bassMeasures, bpm);
 
-        // Create notes for both hands
-        const trebleNotes = [];
-        const bassNotes = [];
-
-        // Process bass clef
-        if (notationData.bassClef) {
-            notationData.bassClef.notes.forEach((note, index) => {
-                const duration = patternLoader.convertTimingToVexFlowDuration(
-                    notationData.bassClef.timing[index % notationData.bassClef.timing.length]
-                );
-
-                if (note === null) {
-                    // Rest
-                    bassNotes.push(new VF.StaveNote({ keys: ['b/4'], duration: duration + 'r', clef: 'bass' }));
-                } else {
-                    const vexNote = patternLoader.convertToVexFlowNote(note, 'bass');
-                    if (Array.isArray(vexNote)) {
-                        // Chord
-                        const staveNote = new VF.StaveNote({ keys: vexNote, duration: duration, clef: 'bass' });
-
-                        // Add fingering annotations for chords - stacked vertically
-                        try {
-                            const fingering = notationData.bassClef.fingering[index % notationData.bassClef.fingering.length];
-                            if (fingering && Array.isArray(fingering)) {
-                                // Add each fingering number to its corresponding note in the chord
-                                fingering.forEach((finger, fingerIndex) => {
-                                    if (finger !== null && fingerIndex < vexNote.length) {
-                                        const annotation = new VF.Annotation(finger.toString());
-                                        annotation.setVerticalJustification(VF.Annotation.VerticalJustify.BOTTOM);
-                                        staveNote.addModifier(annotation, fingerIndex);
-                                    }
-                                });
-                            }
-                        } catch (e) {
-                            console.log('Annotation error:', e);
-                        }
-
-                        bassNotes.push(staveNote);
-                    } else {
-                        // Single note
-                        const staveNote = new VF.StaveNote({ keys: [vexNote], duration: duration, clef: 'bass' });
-
-                        // Add fingering annotation
-                        try {
-                            const fingering = notationData.bassClef.fingering[index % notationData.bassClef.fingering.length];
-                            if (fingering && fingering !== null && !Array.isArray(fingering)) {
-                                const annotation = new VF.Annotation(fingering.toString());
-                                annotation.setVerticalJustification(VF.Annotation.VerticalJustify.BOTTOM);
-                                staveNote.addModifier(annotation, 0);
-                            }
-                        } catch (e) {
-                            console.log('Annotation error:', e);
-                        }
-
-                        bassNotes.push(staveNote);
-                    }
-                }
-            });
-        }
-
-        // Process treble clef
-        if (notationData.trebleClef) {
-            notationData.trebleClef.notes.forEach((note, index) => {
-                const duration = patternLoader.convertTimingToVexFlowDuration(
-                    notationData.trebleClef.timing[index % notationData.trebleClef.timing.length]
-                );
-
-                if (note === null) {
-                    // Rest
-                    trebleNotes.push(new VF.StaveNote({ keys: ['b/4'], duration: duration + 'r', clef: 'treble' }));
-                } else {
-                    const vexNote = patternLoader.convertToVexFlowNote(note, 'treble');
-                    if (Array.isArray(vexNote)) {
-                        // Chord
-                        const staveNote = new VF.StaveNote({ keys: vexNote, duration: duration, clef: 'treble' });
-
-                        // Add fingering annotations for chords - stacked vertically
-                        try {
-                            const fingering = notationData.trebleClef.fingering[index % notationData.trebleClef.fingering.length];
-                            if (fingering && Array.isArray(fingering)) {
-                                // Add each fingering number to its corresponding note in the chord
-                                fingering.forEach((finger, fingerIndex) => {
-                                    if (finger !== null && fingerIndex < vexNote.length) {
-                                        const annotation = new VF.Annotation(finger.toString());
-                                        annotation.setVerticalJustification(VF.Annotation.VerticalJustify.TOP);
-                                        staveNote.addModifier(annotation, fingerIndex);
-                                    }
-                                });
-                            }
-                        } catch (e) {
-                            console.log('Annotation error:', e);
-                        }
-
-                        trebleNotes.push(staveNote);
-                    } else {
-                        // Single note
-                        const staveNote = new VF.StaveNote({ keys: [vexNote], duration: duration, clef: 'treble' });
-
-                        // Add fingering annotation
-                        try {
-                            const fingering = notationData.trebleClef.fingering[index % notationData.trebleClef.fingering.length];
-                            if (fingering && fingering !== null && !Array.isArray(fingering)) {
-                                const annotation = new VF.Annotation(fingering.toString());
-                                annotation.setVerticalJustification(VF.Annotation.VerticalJustify.TOP);
-                                staveNote.addModifier(annotation, 0);
-                            }
-                        } catch (e) {
-                            console.log('Annotation error:', e);
-                        }
-
-                        trebleNotes.push(staveNote);
-                    }
-                }
-            });
+        let trebleMeasures;
+        if (tc) {
+            const tcExp = expandPattern(tc.notes, tc.timing, tc.fingering, bpm);
+            trebleMeasures = groupIntoMeasures(tcExp.notes, tcExp.timings, tcExp.fingerings, bpm);
+            fillMeasureRests(trebleMeasures, bpm);
         } else {
-            // Fill treble staff with rests if no treble clef
-            notationData.bassClef.notes.forEach((note, index) => {
-                const duration = patternLoader.convertTimingToVexFlowDuration(
-                    notationData.bassClef.timing[index % notationData.bassClef.timing.length]
-                );
-                trebleNotes.push(new VF.StaveNote({ keys: ['b/4'], duration: duration + 'r', clef: 'treble' }));
+            // No right-hand data: one whole-measure rest per measure (greedy fill from empty)
+            trebleMeasures = bassMeasures.map(() => {
+                const m = { notes: [], timings: [], fingerings: [], tieF: [], tieB: [] };
+                fillMeasureRests([m], bpm);
+                return m;
             });
         }
 
-        // Calculate the total beats for the voice
-        const timeSignatureParts = notationData.timeSignature.split('/');
-        const numBeats = parseInt(timeSignatureParts[0]);
-        const beatValue = parseInt(timeSignatureParts[1]);
+        // Cap at MAX_DISPLAY_MEASURES so very long pieces don't overflow the page
+        const numMeasures = Math.min(
+            Math.max(bassMeasures.length, trebleMeasures.length),
+            MAX_DISPLAY_MEASURES
+        );
+        if (!numMeasures) return;
 
-        // Create voices and format
-        if (trebleNotes.length > 0) {
-            const trebleVoice = new VF.Voice({ num_beats: numBeats, beat_value: beatValue });
-            trebleVoice.setStrict(false); // Allow incomplete voices
-            trebleVoice.addTickables(trebleNotes);
-            new VF.Formatter().joinVoices([trebleVoice]).format([trebleVoice], 700);
-            trebleVoice.draw(context, trebleStave);
+        while (bassMeasures.length   < numMeasures) bassMeasures.push(  { notes: [], timings: [], fingerings: [], tieF: [], tieB: [] });
+        while (trebleMeasures.length < numMeasures) trebleMeasures.push({ notes: [], timings: [], fingerings: [], tieF: [], tieB: [] });
+
+        // ── Layout ────────────────────────────────────────────────────────────
+        const TREBLE_Y   = 40;
+        const BASS_OFF   = 100;
+        const SYS_HEIGHT = 220;
+        const HDR        = 100;
+        const CONT_HDR   = 60;
+        const MIN_MW     = 80;
+
+        const systems = [];
+        for (let i = 0; i < numMeasures; ) {
+            const hdr = systems.length === 0 ? HDR : CONT_HDR;
+            const cap = Math.max(1, Math.floor((W - hdr) / MIN_MW));
+            const cnt = Math.min(cap, numMeasures - i);
+            systems.push({ start: i, count: cnt, hdr });
+            i += cnt;
         }
 
-        if (bassNotes.length > 0) {
-            const bassVoice = new VF.Voice({ num_beats: numBeats, beat_value: beatValue });
-            bassVoice.setStrict(false); // Allow incomplete voices
-            bassVoice.addTickables(bassNotes);
-            new VF.Formatter().joinVoices([bassVoice]).format([bassVoice], 700);
-            bassVoice.draw(context, bassStave);
+        const totalH = TREBLE_Y + systems.length * SYS_HEIGHT + 40;
+
+        const renderer = new VF.Renderer(vexFlowDiv, VF.Renderer.Backends.SVG);
+        renderer.resize(W, totalH);
+        const ctx = renderer.getContext();
+
+        const tNotes = [];
+        const bNotes = [];
+        const sysOfM = [];
+
+        // ── Render each system ────────────────────────────────────────────────
+        for (let si = 0; si < systems.length; si++) {
+            const { start, count, hdr } = systems[si];
+            const trebleY = si * SYS_HEIGHT + TREBLE_Y;
+            const bassY   = trebleY + BASS_OFF;
+            const measW   = Math.floor((W - hdr) / count);
+            const isFirst = si === 0;
+
+            let firstTS = null, firstBS = null;
+
+            for (let m = 0; m < count; m++) {
+                const mi   = start + m;
+                const isM0 = m === 0;
+
+                const sX = isM0 ? 0 : hdr + m * measW;
+                const sW = isM0 ? hdr + measW : measW;
+
+                const ts = new VF.Stave(sX, trebleY, sW);
+                const bs = new VF.Stave(sX, bassY,   sW);
+
+                if (isM0) {
+                    ts.addClef('treble');
+                    bs.addClef('bass');
+                    ts.addKeySignature(key);
+                    bs.addKeySignature(key);
+                    if (isFirst) {
+                        ts.addTimeSignature(notationData.timeSignature);
+                        bs.addTimeSignature(notationData.timeSignature);
+                    }
+                    firstTS = ts;
+                    firstBS = bs;
+                }
+
+                ts.setContext(ctx).draw();
+                bs.setContext(ctx).draw();
+
+                const { staveNotes: tn, tieItems: tti } = buildMeasureNotes(VF, trebleMeasures[mi], 'treble', patternLoader);
+                const { staveNotes: bn, tieItems: bti } = buildMeasureNotes(VF, bassMeasures[mi],   'bass',   patternLoader);
+
+                const fw = Math.max(30, measW - 20);
+
+                if (tn.length) {
+                    const v = new VF.Voice({ num_beats: numBeats, beat_value: beatValue });
+                    v.setStrict(false);
+                    v.addTickables(tn);
+                    new VF.Formatter().joinVoices([v]).format([v], fw);
+                    v.draw(ctx, ts);
+                }
+
+                if (bn.length) {
+                    const v = new VF.Voice({ num_beats: numBeats, beat_value: beatValue });
+                    v.setStrict(false);
+                    v.addTickables(bn);
+                    new VF.Formatter().joinVoices([v]).format([v], fw);
+                    v.draw(ctx, bs);
+                }
+
+                tNotes.push({ staveNotes: tn, tieItems: tti });
+                bNotes.push({ staveNotes: bn, tieItems: bti });
+                sysOfM.push(si);
+            }
+
+            if (firstTS && firstBS) {
+                [VF.StaveConnector.type.BRACE, VF.StaveConnector.type.SINGLE_LEFT].forEach(type => {
+                    const c = new VF.StaveConnector(firstTS, firstBS);
+                    c.setType(type);
+                    c.setContext(ctx).draw();
+                });
+            }
+        }
+
+        // ── Draw cross-measure ties (same system only) ────────────────────────
+        const drawTies = (cur, nxt) => {
+            const fwds = cur.tieItems.filter(t => t.direction === 'forward');
+            const baks = nxt.tieItems.filter(t => t.direction === 'back');
+            for (let t = 0; t < Math.min(fwds.length, baks.length); t++) {
+                const fn = cur.staveNotes[fwds[t].noteIndex];
+                const ln = nxt.staveNotes[baks[t].noteIndex];
+                if (!fn || !ln) continue;
+                try {
+                    new VF.StaveTie({
+                        first_note: fn, last_note: ln,
+                        first_indices: [0], last_indices: [0],
+                    }).setContext(ctx).draw();
+                } catch (_) { /* ignore tie errors */ }
+            }
+        };
+
+        for (let mi = 0; mi < numMeasures - 1; mi++) {
+            if (sysOfM[mi] !== sysOfM[mi + 1]) continue;
+            drawTies(tNotes[mi], tNotes[mi + 1]);
+            drawTies(bNotes[mi], bNotes[mi + 1]);
         }
 
     } catch (error) {
