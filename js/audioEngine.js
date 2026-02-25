@@ -5,6 +5,7 @@ export class AudioEngine {
         this.masterGain = null;
         this.mainFilter = null;
         this.activeNotes = new Map(); // Track active oscillators for stopping
+        this.sustainEnabled = true;  // Mirrors the sustain checkbox; set via setSustainEnabled()
 
         // Simple piano parameters (6-12 essential controls)
         this.params = {
@@ -183,6 +184,10 @@ export class AudioEngine {
         return this.params[name] || 0;
     }
 
+    setSustainEnabled(enabled) {
+        this.sustainEnabled = enabled;
+    }
+
     playNote(note, duration = 0.5, useSustain = true, velocity = 0.8) {
         this.init();
 
@@ -213,8 +218,8 @@ export class AudioEngine {
             const noteData = this.activeNotes.get(note);
             const now = this.audioContext ? this.audioContext.currentTime : 0;
 
-            // Check sustain pedal setting
-            const sustainEnabled = document.getElementById('sustain')?.checked || false;
+            // Check sustain pedal setting (kept in sync via setSustainEnabled())
+            const sustainEnabled = this.sustainEnabled;
 
             // Adjust release times based on sustain pedal
             const fundamentalReleaseTime = sustainEnabled ? 1.5 : 0.6; // Longer with sustain

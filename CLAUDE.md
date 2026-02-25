@@ -136,7 +136,7 @@ HarmonicOscillator (sine, 2×) → BiquadFilter → GainNode → DynamicsCompres
 - **damping**: per-note `noteFilter.frequency` ramps from bright → muffled during decay; depth and speed scale with `damping`
 - **lidPosition**: multiplies the main filter cutoff (0.6–1.0×); lower = darker (closed lid)
 - **pedalResonance**: when `useSustain=true`, adds a faint 2nd-harmonic sine with a 150ms delayed bloom; amplitude scales with `pedalResonance`
-- `stopNote` reads `document.getElementById('sustain')` directly — tight DOM coupling from the audio module
+- `sustainEnabled` flag mirrors the sustain checkbox; kept in sync via `setSustainEnabled(bool)`, wired from `Settings.onSustainChange` in `index.html` — no DOM coupling inside the audio module
 
 **Supported note names:** `A0`–`C8` in scientific pitch notation. Enharmonic aliases supported (`Bb` = `A#`, `Db` = `C#`, etc.).
 
@@ -270,7 +270,7 @@ Defined entirely inline in `index.html` as `generateVexFlowNotation()` on `Simpl
 Module imports in `index.html` use version query strings:
 
 ```js
-import { AudioEngine } from './js/audioEngine.js?v=20260225002';
+import { AudioEngine } from './js/audioEngine.js?v=20260225003';
 ```
 
 These must be manually bumped after edits to force browser cache invalidation. Forgetting to bump means stale code silently runs.
@@ -291,30 +291,26 @@ These must be manually bumped after edits to force browser cache invalidation. F
 
 ### Audio
 
-5. **`stopNote` reads DOM directly** — `document.getElementById('sustain')` inside `AudioEngine` creates coupling. Pass sustain state through `Settings` instead.
-
-6. **Only triangle + sine waves** — no sampled audio, no per-note velocity curves beyond a linear amplitude scale. A Soundfont loader would dramatically improve realism.
-
-7. **`roomSize` slider triggers impulse regeneration** — changing `roomSize` synchronously re-generates a ~1 MB stereo buffer on the audio thread. Consider debouncing the slider callback to avoid jank during fast dragging.
+5. **Only triangle + sine waves** — no sampled audio, no per-note velocity curves beyond a linear amplitude scale. A Soundfont loader would dramatically improve realism.
 
 ### Player
 
-8. **Polling loop jitter** — the 20ms `setTimeout` poll accumulates drift. Replace with `AudioContext`-time-based scheduling (`audioContext.currentTime`) for sample-accurate timing.
+6. **Polling loop jitter** — the 20ms `setTimeout` poll accumulates drift. Replace with `AudioContext`-time-based scheduling (`audioContext.currentTime`) for sample-accurate timing.
 
-9. **No quantization or swing timing** — all notes play straight. Swing patterns are labeled "swing" but play straight eighth notes.
+7. **No quantization or swing timing** — all notes play straight. Swing patterns are labeled "swing" but play straight eighth notes.
 
-10. **Key support limited to 5 keys** — `C`, `G`, `F`, `Am`, `Dm` only. Implement chromatic transposition to support all 12 keys (shift MIDI note numbers, not string lookup tables).
+8. **Key support limited to 5 keys** — `C`, `G`, `F`, `Am`, `Dm` only. Implement chromatic transposition to support all 12 keys (shift MIDI note numbers, not string lookup tables).
 
-11. **Chord arrays in `rightHand` not played** — the Player passes note entries directly to `audioEngine.playNote`; if an entry is an array (chord), it is not iterated. Left-hand chords have the same issue.
+9. **Chord arrays in `rightHand` not played** — the Player passes note entries directly to `audioEngine.playNote`; if an entry is an array (chord), it is not iterated. Left-hand chords have the same issue.
 
 ### UX
 
-12. **Debug `console.log` spam** — `piano.js` logs every mouse event with emoji. Remove before any production/public deployment.
+10. **Debug `console.log` spam** — `piano.js` logs every mouse event with emoji. Remove before any production/public deployment.
 
-13. **No keyboard (computer keyboard) input** — only mouse interaction supported; no QWERTY-to-piano mapping.
+11. **No keyboard (computer keyboard) input** — only mouse interaction supported; no QWERTY-to-piano mapping.
 
-14. **No touch support for playing notes** — mobile piano shows key highlights during pattern playback but manual touch-to-play is not implemented.
+12. **No touch support for playing notes** — mobile piano shows key highlights during pattern playback but manual touch-to-play is not implemented.
 
-15. **VexFlow fixed at 800px width** — notation overflows on narrow screens. Make width responsive.
+13. **VexFlow fixed at 800px width** — notation overflows on narrow screens. Make width responsive.
 
-16. **Settings not restored from localStorage on key/pattern change** — `Settings.load()` is called once at startup; key changes update only the in-memory state, not the `<select>` if changed programmatically.
+14. **Settings not restored from localStorage on key/pattern change** — `Settings.load()` is called once at startup; key changes update only the in-memory state, not the `<select>` if changed programmatically.

@@ -398,7 +398,7 @@
 
         // Import modules (only the working ones)
         console.log('ABOUT TO IMPORT MODULES');
-        import { AudioEngine } from './js/audioEngine.js?v=20260225002';
+        import { AudioEngine } from './js/audioEngine.js?v=20260225003';
         console.log('IMPORTED AudioEngine');
         import { Piano } from './js/piano.js?v=20250824003';
         console.log('IMPORTED Piano');
@@ -447,9 +447,13 @@
             // Initialize settings
             console.log('Initializing Settings...');
             settings.init('tempo', 'tempoDisplay', 'sustain', 'key');
-            
+
             // Try to load saved settings
             settings.load();
+
+            // Bridge: keep AudioEngine in sync with Settings sustain state (no DOM coupling)
+            audioEngine.setSustainEnabled(settings.getSustain());
+            settings.onSustainChange(val => audioEngine.setSustainEnabled(val));
             
             // Debug: Test if tempo slider was found
             const tempoSlider = document.getElementById('tempo');
@@ -1037,12 +1041,19 @@
                 value.className = 'param-value';
                 value.textContent = parseFloat(slider.value).toFixed(2);
                 
+                let debounceTimer = null;
                 slider.addEventListener('input', (e) => {
                     const newValue = parseFloat(e.target.value);
                     value.textContent = newValue.toFixed(2);
                     console.log(`${param} changed to: ${newValue}`);
                     if (engine.setParam) {
-                        engine.setParam(param, newValue);
+                        if (param === 'roomSize') {
+                            // Debounce: impulse buffer generation is expensive; wait until dragging stops
+                            clearTimeout(debounceTimer);
+                            debounceTimer = setTimeout(() => engine.setParam(param, newValue), 150);
+                        } else {
+                            engine.setParam(param, newValue);
+                        }
                     }
                 });
                 
