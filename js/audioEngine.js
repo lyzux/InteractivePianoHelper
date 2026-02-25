@@ -6,9 +6,13 @@ export class AudioEngine {
         this.mainFilter = null;
         this.activeNotes = new Map(); // Track active oscillators for stopping
         this.sustainEnabled = true;  // Mirrors the sustain checkbox; set via setSustainEnabled()
+        this.sampleBuffers = new Map(); // sampleKey (e.g. 'Db4') → AudioBuffer
 
         // Simple piano parameters (6-12 essential controls)
         this.params = {
+            // Sample blend (0 = pure synth, 1 = sample dominant)
+            sampleBlend: 0.7,
+
             // Core sound parameters
             volume: 0.3,
             brightness: 0.67,      // Controls high-frequency content
@@ -116,6 +120,9 @@ export class AudioEngine {
             // postFxBus → mainFilter → destination
             this.postFxBus.connect(this.mainFilter);
             this.mainFilter.connect(this.audioContext.destination);
+
+            // Load piano samples in the background (notes play synth-only until done)
+            this._loadSamples();
         }
     }
 
@@ -159,6 +166,40 @@ export class AudioEngine {
         if (this.reverbGain) {
             this.reverbGain.gain.value = this.params.roomSize * 0.35;
         }
+    }
+
+    /** Maps any note name (including sharps) to the flat-based key used in sampleBuffers. */
+    _toSampleKey(noteName) {
+        const SHARP_TO_FLAT = { 'C#': 'Db', 'D#': 'Eb', 'F#': 'Gb', 'G#': 'Ab', 'A#': 'Bb' };
+        const m = noteName.match(/^([A-G][#b]?)(\d+)$/);
+        if (!m) return null;
+        const [, pitch, octave] = m;
+        return (SHARP_TO_FLAT[pitch] ?? pitch) + octave;
+    }
+
+    /** Fetches and decodes all 88 MP3 samples in parallel. Failed fetches are silently skipped. */
+    async _loadSamples() {
+        const BASE = './third-party/piano-mp3/';
+        const KEYS = [
+            'A0','Bb0','B0',
+            'C1','Db1','D1','Eb1','E1','F1','Gb1','G1','Ab1','A1','Bb1','B1',
+            'C2','Db2','D2','Eb2','E2','F2','Gb2','G2','Ab2','A2','Bb2','B2',
+            'C3','Db3','D3','Eb3','E3','F3','Gb3','G3','Ab3','A3','Bb3','B3',
+            'C4','Db4','D4','Eb4','E4','F4','Gb4','G4','Ab4','A4','Bb4','B4',
+            'C5','Db5','D5','Eb5','E5','F5','Gb5','G5','Ab5','A5','Bb5','B5',
+            'C6','Db6','D6','Eb6','E6','F6','Gb6','G6','Ab6','A6','Bb6','B6',
+            'C7','Db7','D7','Eb7','E7','F7','Gb7','G7','Ab7','A7','Bb7','B7',
+            'C8','Db8'
+        ];
+        await Promise.all(KEYS.map(async key => {
+            try {
+                const resp = await fetch(`${BASE}${key}.mp3`);
+                if (!resp.ok) return;
+                const buf = await this.audioContext.decodeAudioData(await resp.arrayBuffer());
+                this.sampleBuffers.set(key, buf);
+            } catch (_) { /* graceful fallback to synth-only for this note */ }
+        }));
+        console.log(`Loaded ${this.sampleBuffers.size} piano samples`);
     }
 
     setParam(name, value) {
@@ -267,6 +308,16 @@ export class AudioEngine {
                     }
                 });
             }
+
+            // Sample fades with the fundamental and stops after release
+            if (noteData.sampleLevelGain && noteData.sampleLevelGain.gain) {
+                noteData.sampleLevelGain.gain.cancelScheduledValues(now);
+                noteData.sampleLevelGain.gain.setValueAtTime(noteData.sampleLevelGain.gain.value, now);
+                noteData.sampleLevelGain.gain.exponentialRampToValueAtTime(0.001, now + fundamentalReleaseTime);
+            }
+            if (noteData.sampleSource) {
+                try { noteData.sampleSource.stop(now + fundamentalReleaseTime + 0.05); } catch (_) {}
+            }
         }
     }
 
@@ -324,6 +375,15 @@ export class AudioEngine {
                 });
             }
 
+            if (noteData.sampleLevelGain && noteData.sampleLevelGain.gain) {
+                noteData.sampleLevelGain.gain.cancelScheduledValues(currentTime);
+                noteData.sampleLevelGain.gain.setValueAtTime(noteData.sampleLevelGain.gain.value, currentTime);
+                noteData.sampleLevelGain.gain.exponentialRampToValueAtTime(0.001, currentTime + 0.01);
+            }
+            if (noteData.sampleSource) {
+                try { noteData.sampleSource.stop(currentTime + 0.02); } catch (_) {}
+            }
+
             this.activeNotes.delete(key);
         });
     }
@@ -363,8 +423,13 @@ export class AudioEngine {
         noteFilter.connect(gain);
         gain.connect(this.masterGain);
 
+        // Determine if a sample is available to blend in
+        const sampleKey = this._toSampleKey(noteName);
+        const hasSample = this.params.sampleBlend > 0.001 && this.sampleBuffers.has(sampleKey);
+
         // Envelope with sustain (no automatic fade for long notes)
-        const amplitude = 0.3 * velocity;
+        // Synth amplitude is reduced when a sample is present (sample fills the gap)
+        const amplitude = 0.3 * velocity * (hasSample ? (1 - this.params.sampleBlend * 0.75) : 1.0);
         const attackTime = this.params.attack;
         const warmthBoost = this.params.warmth;
         const sustainLevel = amplitude * 0.7;
@@ -402,6 +467,26 @@ export class AudioEngine {
             harmonicOscillators = harmOscs;
         }
 
+        // Sample path: AudioBufferSourceNode → sampleLevelGain → masterGain (parallel to synth)
+        // The sample preserves its natural piano attack; we only schedule a fade on sampleLevelGain.
+        let sampleSource = null, sampleLevelGain = null;
+        if (hasSample) {
+            sampleSource = this.audioContext.createBufferSource();
+            sampleSource.buffer = this.sampleBuffers.get(sampleKey);
+            sampleLevelGain = this.audioContext.createGain();
+            const sampleAmp = this.params.sampleBlend * 0.5 * velocity;
+            sampleLevelGain.gain.setValueAtTime(sampleAmp, startTime);
+            sampleSource.connect(sampleLevelGain);
+            sampleLevelGain.connect(this.masterGain);
+            // start() must be called before stop() — calling stop() on an unstarted
+            // AudioBufferSourceNode throws InvalidStateError per the Web Audio spec.
+            sampleSource.start(startTime);
+            if (!isManualClick) {
+                sampleLevelGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+                sampleSource.stop(startTime + duration + 0.05);
+            }
+        }
+
         // Pedal resonance: sympathetic string bloom when sustain is engaged.
         // Adds a faint 2nd-harmonic sine that blooms in ~150ms then fades, simulating
         // other strings resonating sympathetically with the sustain pedal held down.
@@ -430,6 +515,8 @@ export class AudioEngine {
             gain: gain,
             harmonicGains: harmonicGains,
             harmonicOscillators: harmonicOscillators,
+            sampleSource: sampleSource,
+            sampleLevelGain: sampleLevelGain,
             startTime: startTime,
             duration: duration,
             originalNoteName: noteName,

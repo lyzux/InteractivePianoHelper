@@ -26,6 +26,7 @@ export function generatePhysicsControls(engine) {
     console.log('Generating physics controls...');
 
     const paramDefs = {
+        sampleBlend:    { min: 0,     max: 1,   step: 0.01,  label: 'Sample Blend' },
         volume:         { min: 0,     max: 1,   step: 0.01,  label: 'Volume' },
         brightness:     { min: 0,     max: 1,   step: 0.01,  label: 'Brightness' },
         warmth:         { min: 0,     max: 1,   step: 0.01,  label: 'Warmth' },

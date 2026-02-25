@@ -124,7 +124,7 @@ OscillatorNode (triangle) → noteFilter (lowpass, damping sweep) → GainNode (
                                                                                          │
 HarmonicOscillator (sine, 2×) → BiquadFilter → GainNode → DynamicsCompressor ──────────┤
                                                                                          ▼
-                                                                                    masterGain
+AudioBufferSourceNode (MP3 sample) → sampleLevelGain ──────────────────────────► masterGain
                                                                                     /    |    \
                                             ┌── dry ──────────────────────────────┘     |     └── convolver → reverbGain ──┐
                                             │                                            └── chorusDelay (LFO) → chorusGain ┤
@@ -144,6 +144,7 @@ HarmonicOscillator (sine, 2×) → BiquadFilter → GainNode → DynamicsCompres
 - **lidPosition**: multiplies the main filter cutoff (0.6–1.0×); lower = darker (closed lid)
 - **pedalResonance**: when `useSustain=true`, adds a faint 2nd-harmonic sine with a 150ms delayed bloom; amplitude scales with `pedalResonance`
 - `sustainEnabled` flag mirrors the sustain checkbox; kept in sync via `setSustainEnabled(bool)`, wired from `Settings.onSustainChange` in `index.html` — no DOM coupling inside the audio module
+- **sampleBlend**: 88 MP3 samples from `third-party/piano-mp3/` are loaded into `sampleBuffers` at `init()` time. For each note, an `AudioBufferSourceNode` feeds `sampleLevelGain → masterGain` in parallel with the synth path. `sampleBlend` (0–1) scales the sample amplitude up while scaling the synth amplitude down (`synthScale = 1 - sampleBlend × 0.75`). At `sampleBlend = 0` the sample path is completely bypassed. Samples use flat-note naming (`Db4.mp3`); sharp inputs are mapped via `_toSampleKey()`.
 
 **Supported note names:** `A0`–`C8` in scientific pitch notation. Enharmonic aliases supported (`Bb` = `A#`, `Db` = `C#`, etc.).
 
@@ -301,20 +302,18 @@ const APP_VERSION = Date.now();
 
 ### Audio
 
-3. **Only triangle + sine waves** — no sampled audio, no per-note velocity curves beyond a linear amplitude scale. A Soundfont loader would dramatically improve realism.
-
 ### Player
 
-4. **Polling loop jitter** — the 20ms `setTimeout` poll accumulates drift. Replace with `AudioContext`-time-based scheduling (`audioContext.currentTime`) for sample-accurate timing.
+3. **Polling loop jitter** — the 20ms `setTimeout` poll accumulates drift. Replace with `AudioContext`-time-based scheduling (`audioContext.currentTime`) for sample-accurate timing.
 
-5. **No quantization or swing timing** — all notes play straight. Swing patterns are labeled "swing" but play straight eighth notes.
+4. **No quantization or swing timing** — all notes play straight. Swing patterns are labeled "swing" but play straight eighth notes.
 
 ### UX
 
-6. **Debug `console.log` spam** — `piano.js` logs every mouse event with emoji. Remove before any production/public deployment.
+5. **Debug `console.log` spam** — `piano.js` logs every mouse event with emoji. Remove before any production/public deployment.
 
-7. **No keyboard (computer keyboard) input** — only mouse interaction supported; no QWERTY-to-piano mapping.
+6. **No keyboard (computer keyboard) input** — only mouse interaction supported; no QWERTY-to-piano mapping.
 
-8. **No touch support for playing notes** — mobile piano shows key highlights during pattern playback but manual touch-to-play is not implemented.
+7. **No touch support for playing notes** — mobile piano shows key highlights during pattern playback but manual touch-to-play is not implemented.
 
-9. **Settings not restored from localStorage on key/pattern change** — `Settings.load()` is called once at startup; key changes update only the in-memory state, not the `<select>` if changed programmatically.
+8. **Settings not restored from localStorage on key/pattern change** — `Settings.load()` is called once at startup; key changes update only the in-memory state, not the `<select>` if changed programmatically.
