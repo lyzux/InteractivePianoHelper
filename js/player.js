@@ -46,10 +46,11 @@ export class Player {
         this.audioEngine     = audioEngine;
         this.piano           = piano;
         this.settings        = settings;
-        this.isPlaying       = false;
-        this.schedulerTimer  = null;
-        this._visualTimeouts = [];
-        this.currentPattern  = null;
+        this.isPlaying        = false;
+        this.schedulerTimer   = null;
+        this._visualTimeouts  = [];
+        this.onNoteHighlight  = null; // callback(noteIndex) fired when a note is visually highlighted
+        this.currentPattern   = null;
         this.currentKey      = null;
         this.leftHandNotes   = null;
         this.rightHandNotes  = null;
@@ -114,6 +115,14 @@ export class Player {
                 this._visualTimeouts.push(
                     setTimeout(() => this.piano.highlightKey(leftNote),   visualMs),
                     setTimeout(() => this.piano.unhighlightKey(leftNote), unhighlightMs)
+                );
+            }
+
+            // Fire notation highlight callback once per note position
+            if (this.onNoteHighlight) {
+                const notifIdx = idx;
+                this._visualTimeouts.push(
+                    setTimeout(() => { if (this.onNoteHighlight) this.onNoteHighlight(notifIdx); }, visualMs)
                 );
             }
 

@@ -127,6 +127,13 @@
                 max-height: 400px;
             }
         }
+
+        /* VexFlow note highlight during playback */
+        .vf-note-highlight path,
+        .vf-note-highlight text {
+            fill: #F6A510 !important;
+            stroke: #F6A510 !important;
+        }
     </style>
 </head>
 <body>
@@ -273,8 +280,31 @@
         // Thin wrappers so existing call sites don't need to pass dependencies.
         // They close over the module-level `patternLoader`, `settings`, and
         // `audioEngine` vars that are assigned by the async boot IIFE below.
-        function drawStaffNotation() { _drawStaffNotation(patternLoader, settings); }
+        function drawStaffNotation() {
+            currentNotationMaps = _drawStaffNotation(patternLoader, settings);
+        }
         function generatePhysicsControls() { _generatePhysicsControls(window.audioEngine || audioEngine); }
+
+        // ── Notation note highlighting ─────────────────────────────────────────
+        let currentNotationMaps = null;  // { leftMap, rightMap, leftLen, rightLen }
+        let activeHighlightEls  = [];    // SVGElements currently carrying vf-note-highlight
+
+        function clearNotationHighlights() {
+            for (const el of activeHighlightEls) el.classList.remove('vf-note-highlight');
+            activeHighlightEls = [];
+        }
+
+        function highlightNotationNote(noteIndex) {
+            if (!currentNotationMaps) return;
+            clearNotationHighlights();
+            const { leftMap, rightMap, leftLen, rightLen } = currentNotationMaps;
+            // Maps store a single SVGElement per pattern position (first occurrence only)
+            const els = [];
+            if (leftLen  > 0) { const e = leftMap.get(noteIndex  % leftLen);  if (e) els.push(e); }
+            if (rightLen > 0) { const e = rightMap.get(noteIndex % rightLen); if (e) els.push(e); }
+            for (const el of els) el.classList.add('vf-note-highlight');
+            activeHighlightEls = els;
+        }
 
         // Asynchronous initialization
         async function initializeApp() {
@@ -393,7 +423,10 @@
                 
                 // Make audioEngine globally accessible
                 window.audioEngine = audioEngine;
-                
+
+                // Wire notation note highlighting
+                player.onNoteHighlight = highlightNotationNote;
+
                 // Generate physics controls now that audioEngine is available
                 generatePhysicsControls();
                 
@@ -532,6 +565,7 @@
             if (player.isCurrentlyPlaying()) {
                 // Currently playing - stop it
                 player.stop();
+                clearNotationHighlights();
                 button.classList.remove('playing');
                 button.textContent = 'Play';
             } else {
@@ -553,6 +587,7 @@
 
         function handlePatternChange() {
             player.stop();
+            clearNotationHighlights();
             const button = document.getElementById('playStopBtn');
             button.classList.remove('playing');
             button.textContent = 'Play';
@@ -561,6 +596,7 @@
 
         function handleKeyChange() {
             player.stop();
+            clearNotationHighlights();
             const button = document.getElementById('playStopBtn');
             button.classList.remove('playing');
             button.textContent = 'Play';
