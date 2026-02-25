@@ -37,19 +37,24 @@ Open http://localhost:8000.
 
 ```
 InteractivePianoHelper/
-├── index.html              # Single-page app; all wiring, VexFlow rendering, and physics controls inline
+├── index.html                   # Single-page app entry point; boot sequence, event wiring, emergency fallback
 ├── css/
-│   ├── styles.css          # Core styles (piano keys, controls, layout)
-│   └── mobile.css          # Mobile overrides + resize-handle styles
+│   ├── styles.css               # Core styles (piano keys, controls, layout)
+│   └── mobile.css               # Mobile overrides + resize-handle styles
 ├── js/
-│   ├── audioEngine.js      # Web Audio API synth (AudioEngine class)
-│   ├── piano.js            # 88-key DOM piano component (Piano class)
-│   ├── player.js           # Pattern playback loop (Player class)
-│   ├── settings.js         # Tempo/sustain/key state + localStorage (Settings class)
-│   ├── patternLoader.js    # Pattern registry + ABC/VexFlow notation helpers (PatternLoader class)
-│   ├── autoPatternLoader.js# Dynamic import by probing a hardcoded list of names (AutoPatternLoader)
-│   ├── patternDiscovery.js # Alternate discovery; essentially same strategy as autoPatternLoader
-│   └── patternImporter.js  # Static fallback: imports all 17 known patterns explicitly
+│   ├── audioEngine.js           # Web Audio API synth (AudioEngine class)
+│   ├── piano.js                 # 88-key DOM piano component (Piano class)
+│   ├── player.js                # Pattern playback loop (Player class)
+│   ├── settings.js              # Tempo/sustain/key state + localStorage (Settings class)
+│   ├── simplePatternLoader.js   # SimplePatternLoader: registry + VexFlow notation + pattern auto-loader
+│   ├── staffNotationRenderer.js # drawStaffNotation(): VexFlow two-stave rendering
+│   ├── physicsControlsPanel.js  # generatePhysicsControls(): builds sidebar sliders dynamically
+│   ├── mobileMenu.js            # initializeMobileMenu(): sidebar drawer toggle
+│   ├── pianoResizeHandler.js    # initializePianoResize(): drag-to-resize + localStorage persist
+│   ├── patternLoader.js         # PatternLoader base class: registry + ABC notation helpers
+│   ├── autoPatternLoader.js     # Dynamic import by probing a hardcoded list of names (AutoPatternLoader)
+│   ├── patternDiscovery.js      # Alternate discovery; essentially same strategy as autoPatternLoader
+│   └── patternImporter.js       # Static fallback: imports all 17 known patterns explicitly
 └── patterns/               # One file per accompaniment style, each a plain JS object export
     ├── alberti.js           # Alberti bass (classic low-high-mid-high arpeggio)
     ├── waltz.js             # 3/4 bass-chord-chord
@@ -66,28 +71,31 @@ InteractivePianoHelper/
 
 ### Boot sequence (`index.html` `<script type="module">`)
 
-1. `AudioEngine` instantiated (lazy — `AudioContext` only created on first note)
-2. `Piano` built inside `#piano` div (DOM construction + event listeners)
-3. `Settings` attached to slider/checkbox/select elements; settings loaded from `localStorage`
-4. `Player` wired to `AudioEngine`, `Piano`, `Settings`
-5. `SimplePatternLoader` (inline subclass of `PatternLoader`) calls `autoLoadPatterns()`
-   - Internally uses `AutoPatternLoader` → probes ~50 known names via dynamic `import()`
-   - Falls back to `patternImporter.js` (static explicit imports) if zero patterns load
-   - Falls back to a hard-coded Alberti pattern if everything fails
-6. Pattern `<select>` populated; first pattern rendered
-7. Physics (sound) controls generated dynamically into `#physicsControls`
-8. Piano resize handle wired up
+1. All 9 JS modules loaded in parallel via `Promise.all([...dynamic imports...])` with a single `APP_VERSION = Date.now()` cache-buster
+2. `AudioEngine` instantiated (lazy — `AudioContext` only created on first note)
+3. `Piano` built inside `#piano` div (DOM construction + event listeners)
+4. `Settings` attached to slider/checkbox/select elements; settings loaded from `localStorage`
+5. `Player` wired to `AudioEngine`, `Piano`, `Settings`
+6. `SimplePatternLoader` calls `autoLoadPatterns()`
+   - Probes ~20 known names via dynamic `import()` from `../patterns/`
+   - Falls back to a hard-coded Alberti pattern if nothing loads
+7. Pattern `<select>` populated; first pattern rendered
+8. Physics (sound) controls generated dynamically into `#physicsControls`
+9. Mobile menu and piano resize wired up
 
 ### Module dependency graph
 
 ```
-index.html
-  ├── AudioEngine   (standalone)
-  ├── Piano         → AudioEngine (passed in)
-  ├── Settings      (standalone, reads DOM IDs)
-  ├── Player        → AudioEngine, Piano, Settings
-  └── PatternLoader → AutoPatternLoader → patterns/*.js
-                   └── patternImporter.js → patterns/*.js (fallback)
+index.html (boot + thin wrappers + event handlers)
+  ├── audioEngine.js            (standalone)
+  ├── piano.js                → audioEngine (passed in)
+  ├── settings.js               (standalone, reads DOM IDs)
+  ├── player.js               → audioEngine, piano, settings
+  ├── simplePatternLoader.js    (dynamic imports ../patterns/*.js)
+  ├── staffNotationRenderer.js  (reads global Vex from CDN; params: patternLoader, settings)
+  ├── physicsControlsPanel.js   (param: engine)
+  ├── mobileMenu.js             (DOM only)
+  └── pianoResizeHandler.js     (DOM + localStorage)
 ```
 
 ### Pattern loading (three overlapping strategies)
@@ -255,7 +263,7 @@ Desktop: sidebar is always visible. Mobile (≤768px): sidebar is a fixed-positi
 
 ## VexFlow Notation Rendering
 
-Defined entirely inline in `index.html` as `generateVexFlowNotation()` on `SimplePatternLoader` and `drawStaffNotation()` as a top-level function.
+`generateVexFlowNotation()` lives on `SimplePatternLoader` in `js/simplePatternLoader.js`. `drawStaffNotation()` is in `js/staffNotationRenderer.js`. Both are dynamically imported into `index.html`; a thin wrapper in the inline script calls them with the current `patternLoader` and `settings`.
 
 - Renders two staves (treble + bass) at 800×300px
 - Sources `leftHand`/`rightHand` from the pattern — same fields the Player uses
@@ -267,13 +275,14 @@ Defined entirely inline in `index.html` as `generateVexFlowNotation()` on `Simpl
 
 ## Cache Busting
 
-Module imports in `index.html` use version query strings:
+All modules are loaded via a single `Promise.all` at the top of the inline script using a computed version:
 
 ```js
-import { AudioEngine } from './js/audioEngine.js?v=20260225003';
+const APP_VERSION = Date.now();
+// all imports: import(`./js/foo.js?v=${APP_VERSION}`)
 ```
 
-These must be manually bumped after edits to force browser cache invalidation. Forgetting to bump means stale code silently runs.
+`Date.now()` changes on every page load, so the browser always fetches fresh modules — no manual bumping needed. For a production deployment, replace `Date.now()` with a fixed build timestamp string to allow caching between loads.
 
 ---
 
@@ -283,34 +292,32 @@ These must be manually bumped after edits to force browser cache invalidation. F
 
 1. **Three redundant pattern loaders** — `autoPatternLoader.js`, `patternDiscovery.js`, and `patternImporter.js` all do essentially the same thing. Only one path is used. Consolidate into a single loader or use true directory listing via a backend endpoint.
 
-2. **Inline code mass in `index.html`** — `SimplePatternLoader`, `generateVexFlowNotation`, `drawStaffNotation`, `generatePhysicsControls`, mobile menu logic, and resize logic all live in a 1200-line inline `<script>`. Move to dedicated modules.
-
-3. **No real auto-discovery** — `autoPatternLoader.js` probes a hardcoded list of ~50 names. Adding a new pattern requires editing the list. True auto-discovery would require a server-side directory listing endpoint.
-
-4. **Manual cache-busting version strings** — replace with a real build step (Vite, esbuild) or a timestamp-based import cache-buster.
+2. **No real auto-discovery** — `simplePatternLoader.js` probes a hardcoded list of ~20 names. Adding a new pattern requires editing the `knownPatterns` array there. True auto-discovery would require a server-side directory listing endpoint.
 
 ### Audio
 
-5. **Only triangle + sine waves** — no sampled audio, no per-note velocity curves beyond a linear amplitude scale. A Soundfont loader would dramatically improve realism.
+3. **Only triangle + sine waves** — no sampled audio, no per-note velocity curves beyond a linear amplitude scale. A Soundfont loader would dramatically improve realism.
+
+4. **Room-Size Slider bug** when changing the room size slider while the player is playing a note the note or notes that are played during dragging the slider never get released.
 
 ### Player
 
-6. **Polling loop jitter** — the 20ms `setTimeout` poll accumulates drift. Replace with `AudioContext`-time-based scheduling (`audioContext.currentTime`) for sample-accurate timing.
+5. **Polling loop jitter** — the 20ms `setTimeout` poll accumulates drift. Replace with `AudioContext`-time-based scheduling (`audioContext.currentTime`) for sample-accurate timing.
 
-7. **No quantization or swing timing** — all notes play straight. Swing patterns are labeled "swing" but play straight eighth notes.
+6. **No quantization or swing timing** — all notes play straight. Swing patterns are labeled "swing" but play straight eighth notes.
 
-8. **Key support limited to 5 keys** — `C`, `G`, `F`, `Am`, `Dm` only. Implement chromatic transposition to support all 12 keys (shift MIDI note numbers, not string lookup tables).
+7. **Key support limited to 5 keys** — `C`, `G`, `F`, `Am`, `Dm` only. Implement chromatic transposition to support all 12 keys (shift MIDI note numbers, not string lookup tables).
 
-9. **Chord arrays in `rightHand` not played** — the Player passes note entries directly to `audioEngine.playNote`; if an entry is an array (chord), it is not iterated. Left-hand chords have the same issue.
+8. **Chord arrays in `rightHand` not played** — the Player passes note entries directly to `audioEngine.playNote`; if an entry is an array (chord), it is not iterated. Left-hand chords have the same issue.
 
 ### UX
 
-10. **Debug `console.log` spam** — `piano.js` logs every mouse event with emoji. Remove before any production/public deployment.
+9. **Debug `console.log` spam** — `piano.js` logs every mouse event with emoji. Remove before any production/public deployment.
 
-11. **No keyboard (computer keyboard) input** — only mouse interaction supported; no QWERTY-to-piano mapping.
+10. **No keyboard (computer keyboard) input** — only mouse interaction supported; no QWERTY-to-piano mapping.
 
-12. **No touch support for playing notes** — mobile piano shows key highlights during pattern playback but manual touch-to-play is not implemented.
+11. **No touch support for playing notes** — mobile piano shows key highlights during pattern playback but manual touch-to-play is not implemented.
 
-13. **VexFlow fixed at 800px width** — notation overflows on narrow screens. Make width responsive.
+12. **VexFlow fixed at 800px width** — notation overflows on narrow screens. Make width responsive.
 
-14. **Settings not restored from localStorage on key/pattern change** — `Settings.load()` is called once at startup; key changes update only the in-memory state, not the `<select>` if changed programmatically.
+13. **Settings not restored from localStorage on key/pattern change** — `Settings.load()` is called once at startup; key changes update only the in-memory state, not the `<select>` if changed programmatically.
