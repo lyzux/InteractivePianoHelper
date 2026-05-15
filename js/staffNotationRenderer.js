@@ -16,6 +16,23 @@ const BASS_OFFSET = 92;
 const SYSTEM_HEADER_WIDTH = 112;
 const MIN_MEASURE_WIDTH = 96;
 const PAGE_GRID_GAP = 32;
+const KEY_SIGNATURE_BY_FIFTHS = new Map([
+    [-7, 'Cb'],
+    [-6, 'Gb'],
+    [-5, 'Db'],
+    [-4, 'Ab'],
+    [-3, 'Eb'],
+    [-2, 'Bb'],
+    [-1, 'F'],
+    [0, 'C'],
+    [1, 'G'],
+    [2, 'D'],
+    [3, 'A'],
+    [4, 'E'],
+    [5, 'B'],
+    [6, 'F#'],
+    [7, 'C#']
+]);
 
 function scaleScoreSheet(sheetView, pageGrid) {
     const availableWidth = sheetView.clientWidth || pageGrid.offsetWidth;
@@ -111,6 +128,22 @@ function fillMeasureRests(measures, bpm) {
     }
 }
 
+function pushRestSegments(measure, duration) {
+    let remaining = r3(duration);
+    for (const sz of REST_FILL_SIZES) {
+        while (remaining >= sz - 0.001) {
+            measure.notes.push(null);
+            measure.timings.push(sz);
+            measure.fingerings.push(null);
+            measure.tieF.push(false);
+            measure.tieB.push(false);
+            measure.eventIds.push(null);
+            remaining = r3(remaining - sz);
+        }
+        if (remaining < 0.001) break;
+    }
+}
+
 function buildMeasureNotes(VF, measureData, clef, patternLoader) {
     const staveNotes = [];
     const tieItems = [];
@@ -186,6 +219,61 @@ function buildHandStream(sequence, hand) {
     return stream;
 }
 
+function buildMeasureFromEvents(sequence, measure, hand) {
+    const renderedMeasure = emptyMeasure();
+    const events = sequence.events
+        .filter(event => event.measureIndex === measure.measureIndex && event.hands?.[hand])
+        .sort((a, b) => a.startBeat - b.startBeat || (a.sourceIndex || 0) - (b.sourceIndex || 0));
+    let cursor = 0;
+
+    events.forEach((event, index) => {
+        const localStart = r3(event.startBeat - measure.startBeat);
+        const gap = r3(localStart - cursor);
+        if (gap > 0.001) pushRestSegments(renderedMeasure, gap);
+
+        const payload = event.hands[hand];
+        const nextLocalStart = events[index + 1]
+            ? r3(events[index + 1].startBeat - measure.startBeat)
+            : null;
+        const durationUntilNext = nextLocalStart !== null && nextLocalStart > localStart + 0.001
+            ? r3(nextLocalStart - localStart)
+            : event.durationBeats;
+        const renderedDuration = Math.max(0.001, Math.min(event.durationBeats, durationUntilNext));
+        renderedMeasure.notes.push(handNote(payload));
+        renderedMeasure.timings.push(renderedDuration);
+        renderedMeasure.fingerings.push(payload.fingering);
+        renderedMeasure.tieF.push(payload.tie === 'start' || payload.tie === 'continue');
+        renderedMeasure.tieB.push(payload.tie === 'stop' || payload.tie === 'continue');
+        renderedMeasure.eventIds.push(payload.isRest ? null : event.id);
+        cursor = Math.max(cursor, r3(localStart + renderedDuration));
+    });
+
+    const remaining = r3(measure.durationBeats - cursor);
+    if (remaining > 0.001) pushRestSegments(renderedMeasure, remaining);
+    return renderedMeasure;
+}
+
+function measureTimeSignatureParts(measure, fallbackTimeSignature) {
+    const signature = measure?.timeSignature || fallbackTimeSignature || '4/4';
+    const [numBeats, beatValue] = signature.split('/').map(Number);
+    return {
+        timeSignature: signature,
+        numBeats: Number.isFinite(numBeats) ? numBeats : 4,
+        beatValue: Number.isFinite(beatValue) ? beatValue : 4,
+        beatsPerMeasure: Number.isFinite(numBeats) && Number.isFinite(beatValue)
+            ? numBeats * (4 / beatValue)
+            : 4
+    };
+}
+
+function vexKeyFromMeasure(measure, fallbackKey) {
+    const fifths = measure?.keySignature?.fifths;
+    if (Number.isInteger(fifths) && KEY_SIGNATURE_BY_FIFTHS.has(fifths)) {
+        return KEY_SIGNATURE_BY_FIFTHS.get(fifths);
+    }
+    return fallbackKey || 'C';
+}
+
 export function buildScoreMeasures(sequence) {
     if (!sequence?.events?.length || !sequence.timeSignature) {
         return {
@@ -195,6 +283,29 @@ export function buildScoreMeasures(sequence) {
             numBeats: 0,
             beatValue: 0,
             beatsPerMeasure: 0
+        };
+    }
+
+    const musicXmlMeasures = sequence.sourceType === 'musicxml' && Array.isArray(sequence.measures)
+        ? sequence.measures
+        : null;
+    if (musicXmlMeasures?.length) {
+        const measureMetadata = musicXmlMeasures.map((measure, index) => ({
+            ...measure,
+            measureIndex: Number.isInteger(measure.measureIndex) ? measure.measureIndex : index,
+            ...measureTimeSignatureParts(measure, sequence.timeSignature)
+        }));
+        const bassMeasures = measureMetadata.map(measure => buildMeasureFromEvents(sequence, measure, 'left'));
+        const trebleMeasures = measureMetadata.map(measure => buildMeasureFromEvents(sequence, measure, 'right'));
+        const first = measureMetadata[0] || measureTimeSignatureParts(null, sequence.timeSignature);
+        return {
+            bassMeasures,
+            trebleMeasures,
+            measureCount: measureMetadata.length,
+            numBeats: first.numBeats,
+            beatValue: first.beatValue,
+            beatsPerMeasure: first.beatsPerMeasure,
+            measureMetadata
         };
     }
 
@@ -234,7 +345,17 @@ export function buildScoreMeasures(sequence) {
     while (bassMeasures.length < measureCount) bassMeasures.push(emptyMeasure());
     while (trebleMeasures.length < measureCount) trebleMeasures.push(emptyMeasure());
 
-    return { bassMeasures, trebleMeasures, measureCount, numBeats, beatValue, beatsPerMeasure };
+    const measureMetadata = Array.from({ length: measureCount }, (_, measureIndex) => ({
+        measureIndex,
+        measureNumber: measureIndex + 1,
+        timeSignature: sequence.timeSignature,
+        numBeats,
+        beatValue,
+        beatsPerMeasure,
+        keySignature: null
+    }));
+
+    return { bassMeasures, trebleMeasures, measureCount, numBeats, beatValue, beatsPerMeasure, measureMetadata };
 }
 
 export function planScorePages(measureCount, options = {}) {
@@ -474,6 +595,12 @@ export function drawStaffNotation(patternLoader, settings, sequence = null) {
                     const isFirstMeasure = m === 0;
                     const staveX = PAGE_MARGIN_X + (isFirstMeasure ? 0 : SYSTEM_HEADER_WIDTH + m * measureWidth);
                     const staveWidth = isFirstMeasure ? SYSTEM_HEADER_WIDTH + measureWidth : measureWidth;
+                    const measureMeta = scoreMeasures.measureMetadata?.[measureIndex] || {};
+                    const previousMeasureMeta = scoreMeasures.measureMetadata?.[measureIndex - 1] || null;
+                    const currentTimeSignature = measureMeta.timeSignature || notationData.timeSignature;
+                    const previousTimeSignature = previousMeasureMeta?.timeSignature || null;
+                    const currentKey = vexKeyFromMeasure(measureMeta, scoreKey);
+                    const previousKey = previousMeasureMeta ? vexKeyFromMeasure(previousMeasureMeta, scoreKey) : null;
 
                     const trebleStave = new VF.Stave(staveX, trebleY, staveWidth);
                     const bassStave = new VF.Stave(staveX, bassY, staveWidth);
@@ -481,14 +608,21 @@ export function drawStaffNotation(patternLoader, settings, sequence = null) {
                     if (isFirstMeasure) {
                         trebleStave.addClef('treble');
                         bassStave.addClef('bass');
-                        trebleStave.addKeySignature(scoreKey);
-                        bassStave.addKeySignature(scoreKey);
-                        if (isFirstSystem) {
-                            trebleStave.addTimeSignature(notationData.timeSignature);
-                            bassStave.addTimeSignature(notationData.timeSignature);
-                        }
+                        trebleStave.addKeySignature(currentKey);
+                        bassStave.addKeySignature(currentKey);
+                        trebleStave.addTimeSignature(currentTimeSignature);
+                        bassStave.addTimeSignature(currentTimeSignature);
                         firstTrebleStave = trebleStave;
                         firstBassStave = bassStave;
+                    } else {
+                        if (currentKey !== previousKey) {
+                            trebleStave.addKeySignature(currentKey);
+                            bassStave.addKeySignature(currentKey);
+                        }
+                        if (currentTimeSignature !== previousTimeSignature) {
+                            trebleStave.addTimeSignature(currentTimeSignature);
+                            bassStave.addTimeSignature(currentTimeSignature);
+                        }
                     }
 
                     trebleStave.setContext(ctx).draw();
@@ -510,8 +644,8 @@ export function drawStaffNotation(patternLoader, settings, sequence = null) {
 
                     if (treble.staveNotes.length) {
                         const voice = new VF.Voice({
-                            num_beats: scoreMeasures.numBeats,
-                            beat_value: scoreMeasures.beatValue
+                            num_beats: measureMeta.numBeats || scoreMeasures.numBeats,
+                            beat_value: measureMeta.beatValue || scoreMeasures.beatValue
                         });
                         voice.setStrict(false);
                         voice.addTickables(treble.staveNotes);
@@ -521,8 +655,8 @@ export function drawStaffNotation(patternLoader, settings, sequence = null) {
 
                     if (bass.staveNotes.length) {
                         const voice = new VF.Voice({
-                            num_beats: scoreMeasures.numBeats,
-                            beat_value: scoreMeasures.beatValue
+                            num_beats: measureMeta.numBeats || scoreMeasures.numBeats,
+                            beat_value: measureMeta.beatValue || scoreMeasures.beatValue
                         });
                         voice.setStrict(false);
                         voice.addTickables(bass.staveNotes);

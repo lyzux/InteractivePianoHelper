@@ -34,6 +34,58 @@ const MULTIPART_FIXTURE = `<?xml version="1.0" encoding="UTF-8"?>
   </part>
 </score-partwise>`;
 
+const VARIABLE_METER_FIXTURE = `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list>
+    <score-part id="P1"><part-name>Piano</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>4</duration><staff>1</staff></note>
+    </measure>
+    <measure number="2">
+      <attributes><time><beats>3</beats><beat-type>4</beat-type></time></attributes>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>3</duration><staff>1</staff></note>
+    </measure>
+    <measure number="3">
+      <attributes><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <note><pitch><step>E</step><octave>4</octave></pitch><duration>4</duration><staff>1</staff></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+const UNSUPPORTED_DOUBLE_SHARP_FIXTURE = `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list>
+    <score-part id="P1"><part-name>Piano</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <note><pitch><step>F</step><alter>2</alter><octave>4</octave></pitch><duration>1</duration><staff>1</staff></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+const UNSUPPORTED_LYRIC_FIXTURE = `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list>
+    <score-part id="P1"><part-name>Piano</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <note>
+        <pitch><step>C</step><octave>4</octave></pitch>
+        <duration>1</duration>
+        <staff>1</staff>
+        <lyric><text>la</text></lyric>
+      </note>
+    </measure>
+  </part>
+</score-partwise>`;
+
 function adaptFixture(xml = ACCEPTED_FIXTURE) {
     const parsed = parseMusicXmlText(xml, {
         sourceId: 'fixture-score',
@@ -138,6 +190,35 @@ test('accepted fixtures remain fatal-free through canonical and MusicXML validat
 
     assert.equal(hasFatalDiagnostics(canonicalDiagnostics), false);
     assert.equal(hasFatalDiagnostics(musicXmlDiagnostics), false);
+});
+
+test('validates variable meter events against measure metadata', () => {
+    const result = adaptFixture(VARIABLE_METER_FIXTURE);
+
+    assert.equal(result.ok, true);
+    assert.deepEqual(fatalCodes(result.diagnostics), []);
+    assert.deepEqual(result.sequence.measures.map(measure => measure.timeSignature), ['4/4', '3/4', '4/4']);
+    assert.deepEqual(result.sequence.events.map(event => event.startBeat), [0, 4, 7]);
+    assert.equal(hasFatalDiagnostics(validateResolvedSequence(result.sequence, {
+        sourceId: result.sequence.sourceId,
+        sourceType: 'musicxml'
+    })), false);
+});
+
+test('rejects unsupported accidentals instead of silently changing pitch', () => {
+    const result = adaptFixture(UNSUPPORTED_DOUBLE_SHARP_FIXTURE);
+
+    assert.equal(result.ok, false);
+    assert.equal(result.sequence, null);
+    assert.ok(fatalCodes(result.diagnostics).includes('MUSICXML_ACCIDENTAL_UNSUPPORTED'));
+});
+
+test('rejects deferred note-level features in strict mode', () => {
+    const result = adaptFixture(UNSUPPORTED_LYRIC_FIXTURE);
+
+    assert.equal(result.ok, false);
+    assert.equal(result.sequence, null);
+    assert.ok(fatalCodes(result.diagnostics).includes('MUSICXML_ELEMENT_UNSUPPORTED'));
 });
 
 test('rejects unsupported multi-part MusicXML instead of silently skipping parts', () => {

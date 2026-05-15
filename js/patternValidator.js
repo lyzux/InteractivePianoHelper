@@ -463,6 +463,29 @@ export function validateResolvedSequence(sequence, options = {}) {
     let previousStart = -Infinity;
     let durationTotal = 0;
     const measureBeats = sequence.beatsPerMeasure || beatsPerMeasure(sequence.timeSignature);
+    const measureMetadata = Array.isArray(sequence.measures)
+        ? sequence.measures.map((measure, index) => ({
+            ...measure,
+            measureIndex: Number.isInteger(measure?.measureIndex) ? measure.measureIndex : index
+        })).filter(measure =>
+            Number.isFinite(measure?.startBeat)
+            && Number.isFinite(measure?.durationBeats)
+            && measure.durationBeats > 0
+            && Number.isInteger(measure.measureIndex)
+        )
+        : [];
+
+    function expectedMeasureForEvent(event) {
+        if (!measureMetadata.length || !Number.isFinite(event.startBeat)) return null;
+        return measureMetadata.find((measure, index) => {
+            const startsInside = event.startBeat >= measure.startBeat - ROUND_TOLERANCE;
+            const measureEnd = measure.startBeat + measure.durationBeats;
+            const endsInside = index === measureMetadata.length - 1
+                ? event.startBeat <= measureEnd + ROUND_TOLERANCE
+                : event.startBeat < measureEnd - ROUND_TOLERANCE;
+            return startsInside && endsInside;
+        }) || null;
+    }
 
     sequence.events.forEach((event, index) => {
         const eventPath = `events[${index}]`;
@@ -506,14 +529,19 @@ export function validateResolvedSequence(sequence, options = {}) {
             durationTotal = roundBeat(durationTotal + event.durationBeats);
         }
 
-        const expectedMeasureIndex = Math.floor((event.startBeat || 0) / measureBeats);
-        const expectedBeatInMeasure = roundBeat((event.startBeat || 0) % measureBeats);
+        const expectedMeasure = expectedMeasureForEvent(event);
+        const expectedMeasureIndex = expectedMeasure
+            ? expectedMeasure.measureIndex
+            : Math.floor((event.startBeat || 0) / measureBeats);
+        const expectedBeatInMeasure = expectedMeasure
+            ? roundBeat((event.startBeat || 0) - expectedMeasure.startBeat)
+            : roundBeat((event.startBeat || 0) % measureBeats);
         if (event.measureIndex !== expectedMeasureIndex) {
             pushDiagnostic(diagnostics, context, {
                 severity: 'error',
                 code: 'EVENT_MEASURE_INVALID',
                 path: `${eventPath}.measureIndex`,
-                message: 'Canonical measureIndex must match startBeat and beatsPerMeasure.'
+                message: 'Canonical measureIndex must match startBeat and measure metadata.'
             });
         }
         if (Math.abs((event.beatInMeasure ?? NaN) - expectedBeatInMeasure) > ROUND_TOLERANCE) {
@@ -521,7 +549,7 @@ export function validateResolvedSequence(sequence, options = {}) {
                 severity: 'error',
                 code: 'EVENT_BEAT_INVALID',
                 path: `${eventPath}.beatInMeasure`,
-                message: 'Canonical beatInMeasure must match startBeat and beatsPerMeasure.'
+                message: 'Canonical beatInMeasure must match startBeat and measure metadata.'
             });
         }
 

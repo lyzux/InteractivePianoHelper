@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 import { resolvePatternSequence } from '../js/canonicalPatternResolver.js';
+import { adaptMusicXmlDocumentToCanonical } from '../js/musicXmlCanonicalAdapter.js';
+import { parseMusicXmlText } from '../js/musicXmlParser.js';
 import { SimplePatternLoader } from '../js/simplePatternLoader.js';
 import { buildScoreMeasures, planScorePages } from '../js/staffNotationRenderer.js';
 import { furelise } from '../patterns/furelise.js';
@@ -48,6 +50,38 @@ test('keeps short patterns on the sheet rendering path', () => {
     assert.equal(score.measureCount, 1);
     assert.ok(pages.length >= 1);
     assert.deepEqual(coveredMeasures(pages), [0]);
+});
+
+test('builds imported score measures from MusicXML measure metadata', () => {
+    const xml = fs.readFileSync(new URL('./fixtures/tiny-score.musicxml', import.meta.url), 'utf8');
+    const parsed = parseMusicXmlText(xml, {
+        sourceId: 'tiny-score',
+        filename: 'tiny-score.musicxml'
+    });
+    const adapted = adaptMusicXmlDocumentToCanonical(parsed.document, {
+        sourceId: 'tiny-score',
+        filename: 'tiny-score.musicxml',
+        descriptor: parsed.descriptor
+    });
+    const score = buildScoreMeasures(adapted.sequence);
+
+    assert.equal(adapted.ok, true);
+    assert.equal(score.measureCount, 2);
+    assert.deepEqual(score.measureMetadata.map(measure => measure.timeSignature), ['4/4', '3/4']);
+    assert.deepEqual(score.measureMetadata.map(measure => measure.beatsPerMeasure), [4, 3]);
+    assert.equal(score.measureMetadata[0].keySignature.fifths, 1);
+    assert.equal(score.trebleMeasures[1].timings.reduce((sum, timing) => sum + timing, 0), 3);
+    assert.equal(score.bassMeasures[1].timings.reduce((sum, timing) => sum + timing, 0), 3);
+});
+
+test('renderer source honors per-measure meter and key metadata for imported scores', () => {
+    const rendererSource = fs.readFileSync(new URL('../js/staffNotationRenderer.js', import.meta.url), 'utf8');
+
+    assert.match(rendererSource, /measureMetadata/);
+    assert.match(rendererSource, /currentTimeSignature/);
+    assert.match(rendererSource, /currentKey/);
+    assert.match(rendererSource, /KEY_SIGNATURE_BY_FIFTHS/);
+    assert.doesNotMatch(rendererSource, /addTimeSignature\(notationData\.timeSignature\)/);
 });
 
 test('score display source contracts stay wired', () => {

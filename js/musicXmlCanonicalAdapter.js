@@ -20,6 +20,18 @@ const DEFAULT_SOURCE_ID = 'musicxml-import';
 const DEFAULT_PAGE_SIZE = Object.freeze({ width: 1190, height: 1683 });
 const DEFAULT_PAGE_MARGINS = Object.freeze({ left: 56, right: 56, top: 56, bottom: 56 });
 const ROUND_TOLERANCE = 0.001;
+const SUPPORTED_NOTE_CHILDREN = new Set([
+    'pitch',
+    'rest',
+    'duration',
+    'voice',
+    'type',
+    'staff',
+    'chord',
+    'tie',
+    'accidental',
+    'dot'
+]);
 
 function roundBeat(value) {
     return Math.round(value * 1000) / 1000;
@@ -233,6 +245,17 @@ function pushUnsupportedDiagnosticIfNeeded(child, diagnostics, context, path) {
 }
 
 function validateNoteElement(noteElement, diagnostics, context, path, divisions) {
+    noteElement.children.forEach((child, index) => {
+        if (!SUPPORTED_NOTE_CHILDREN.has(child.name)) {
+            diagnostics.push(diagnostic(context, {
+                severity: 'error',
+                code: 'MUSICXML_ELEMENT_UNSUPPORTED',
+                path: `${path}.${child.name}[${index}]`,
+                message: `Unsupported MusicXML note element "${child.name}" cannot be imported in strict mode.`
+            }));
+        }
+    });
+
     if (firstChild(noteElement, 'grace')) {
         diagnostics.push(diagnostic(context, {
             severity: 'error',
@@ -256,6 +279,18 @@ function validateNoteElement(noteElement, diagnostics, context, path, divisions)
             path,
             message: 'Only pitched notes and rests are supported.'
         }));
+    }
+    const alterText = childText(noteElement, 'pitch.alter');
+    if (alterText !== '') {
+        const alter = Number(alterText);
+        if (!Number.isFinite(alter) || ![-1, 0, 1].includes(alter)) {
+            diagnostics.push(diagnostic(context, {
+                severity: 'error',
+                code: 'MUSICXML_ACCIDENTAL_UNSUPPORTED',
+                path: `${path}.pitch.alter`,
+                message: 'Only natural, sharp, and flat accidentals are supported by strict import.'
+            }));
+        }
     }
     const duration = Number(childText(noteElement, 'duration'));
     if (!Number.isFinite(duration) || duration <= 0 || !Number.isFinite(divisions) || divisions <= 0) {
@@ -411,6 +446,7 @@ function convertDocument(document, context) {
             .map(([key]) => key);
 
         measures.push({
+            measureIndex,
             measureNumber,
             partId,
             partName: partNames.get(partId) || partId,
