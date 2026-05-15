@@ -3,6 +3,8 @@ import { PATTERN_IDS } from '../patterns/index.js';
 import { resolvePatternSequence } from './canonicalPatternResolver.js';
 import { createDiagnostic, validatePatternForRegistration } from './patternValidator.js';
 
+const MUSICXML_SOURCE_TYPE = 'musicxml';
+
 export class SimplePatternLoader {
     constructor() {
         this.patterns = new Map();
@@ -90,17 +92,79 @@ export class SimplePatternLoader {
         return this.patterns.get(id);
     }
 
+    registerImportedSource(id, record, options = {}) {
+        const sourceType = options.sourceType || record?.sourceType || MUSICXML_SOURCE_TYPE;
+        const diagnostics = Array.isArray(record?.diagnostics)
+            ? record.diagnostics.map(diagnostic => createDiagnostic({
+                ...diagnostic,
+                sourceId: diagnostic.sourceId || id,
+                sourceType: diagnostic.sourceType || sourceType
+            }))
+            : [];
+        const importedRecord = {
+            ...record,
+            id,
+            sourceId: id,
+            sourceType,
+            name: record?.name || record?.title || id,
+            title: record?.title || record?.name || id,
+            displayMode: record?.displayMode || 'score',
+            libraryType: record?.libraryType || 'complete-score',
+            isCompleteScore: record?.isCompleteScore !== false,
+            isImported: true,
+            diagnostics
+        };
+
+        this.patterns.set(id, importedRecord);
+        this.rejectedSources.delete(id);
+        this.validationResults.set(id, {
+            id,
+            sourceType,
+            diagnostics
+        });
+
+        return { ok: true, record: importedRecord, diagnostics };
+    }
+
+    unregisterImportedSource(id) {
+        const source = this.patterns.get(id) || this.rejectedSources.get(id) || this.validationResults.get(id);
+        if (source && source.sourceType !== MUSICXML_SOURCE_TYPE) {
+            return { ok: false, id, reason: 'not-imported' };
+        }
+
+        this.patterns.delete(id);
+        this.rejectedSources.delete(id);
+        this.validationResults.delete(id);
+
+        return { ok: true, id };
+    }
+
     getAllPatterns() {
         return Array.from(this.patterns.entries()).map(([id, pattern]) => ({
             id, ...pattern
         }));
     }
 
-    getPatternOptions() {
-        return this.getAllPatterns().map(pattern => ({
+    getPatternOptions(options = {}) {
+        const patterns = options.completeScoresOnly
+            ? this.getAllPatterns().filter(pattern => this.isCompleteScoreSource(pattern))
+            : this.getAllPatterns();
+
+        return patterns.map(pattern => ({
             value: pattern.id,
-            label: pattern.name
+            label: pattern.name,
+            sourceType: pattern.sourceType || 'pattern'
         }));
+    }
+
+    isCompleteScoreSource(pattern) {
+        return pattern?.isCompleteScore === true
+            || pattern?.libraryType === 'complete-score'
+            || pattern?.displayMode === 'score';
+    }
+
+    getCompleteScoreOptions() {
+        return this.getPatternOptions({ completeScoresOnly: true });
     }
 
     getRejectedSources() {
@@ -193,6 +257,9 @@ export class SimplePatternLoader {
     resolvePatternSequence(patternId, key) {
         const pattern = this.getPattern(patternId);
         if (!pattern) return null;
+        if (pattern.sourceType === MUSICXML_SOURCE_TYPE) {
+            return pattern.sequence || null;
+        }
         return resolvePatternSequence(pattern, { patternId, key });
     }
 
