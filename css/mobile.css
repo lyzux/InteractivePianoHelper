@@ -204,13 +204,12 @@
     }
 
     .score-page-grid {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 16px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
     }
 
-    .score-page,
     .score-page-grid.single-page {
-        width: 100%;
+        grid-template-columns: minmax(0, 1fr);
     }
     
     /* Piano keyboard fixed to bottom with exactly 1/4 viewport height */

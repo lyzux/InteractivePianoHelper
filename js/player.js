@@ -38,6 +38,22 @@ export class Player {
         this._scheduleLoop();
     }
 
+    setLoopEnabled(enabled) {
+        this.loopEnabled = enabled === true;
+        if (!this.isPlaying || !this.loopEnabled || this.noteIndex < this.sequenceEvents.length) {
+            return;
+        }
+
+        clearTimeout(this.schedulerTimer);
+        this.schedulerTimer = null;
+        this.noteIndex = 0;
+        this.beatPosition = 0;
+
+        const ctx = this.audioEngine.audioContext;
+        const delayMs = Math.max(0, (this.nextNoteTime - ctx.currentTime) * 1000);
+        this.schedulerTimer = setTimeout(() => this._scheduleLoop(), delayMs);
+    }
+
     // Convert raw beats to seconds, applying swing to eighth notes.
     // Swing ratio r (0.5 = straight, 0.75 = heavy swing):
     //   downbeat eighth (even half-beat) → r × beatSec

@@ -61,11 +61,15 @@ test('score display source contracts stay wired', () => {
 
     assert.doesNotMatch(indexHtml, /select\s+id="key"/);
     assert.match(indexHtml, /id="loopPlayback"/);
+    assert.match(indexHtml, /loopToggle\.addEventListener\('change'/);
+    assert.match(indexHtml, /player\.setLoopEnabled\(event\.target\.checked === true\)/);
     assert.match(indexHtml, /player\.play\(sequence, \{ loop \}\)/);
     assert.match(playerSource, /play\(sequence, \{ loop = false \} = \{\}\)/);
+    assert.match(playerSource, /setLoopEnabled\(enabled\)/);
     assert.doesNotMatch(rendererSource, /MAX_DISPLAY_MEASURES/);
     assert.match(cssSource, /\.score-page-grid/);
     assert.match(cssSource, /\.score-page/);
+    assert.match(cssSource, /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
     assert.match(cssSource, /aspect-ratio:\s*210 \/ 297/);
 });
 

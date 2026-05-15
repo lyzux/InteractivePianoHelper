@@ -641,6 +641,15 @@
         function setupEventListeners() {
             document.getElementById('playStopBtn').addEventListener('click', handlePlayStop);
             document.getElementById('pattern').addEventListener('change', handlePatternChange);
+
+            const loopToggle = document.getElementById('loopPlayback');
+            if (loopToggle) {
+                loopToggle.addEventListener('change', (event) => {
+                    if (player?.setLoopEnabled) {
+                        player.setLoopEnabled(event.target.checked === true);
+                    }
+                });
+            }
             
             // Direct tempo slider event listener (fallback)
             const tempoSlider = document.getElementById('tempo');
