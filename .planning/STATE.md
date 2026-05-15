@@ -3,21 +3,21 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 05
-status: executing
-last_updated: "2026-05-15T14:53:58.893Z"
+status: complete
+last_updated: "2026-05-15T15:05:28.342Z"
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 16
-  completed_plans: 15
-  percent: 94
+  completed_plans: 16
+  percent: 100
 ---
 
 # Project State: Interactive Piano Helper
 
 **Initialized:** 2026-05-15
 **Current Phase:** 05
-**Status:** Executing Phase 05
+**Status:** Phase 05 Complete
 
 ## Project Reference
 
@@ -35,7 +35,7 @@ See: `.planning/ROADMAP.md`
 **Phase 2:** Score Display Modes - completed
 **Phase 3:** Pattern Validation And Feedback - completed
 **Phase 4:** MusicXML-Ready Foundation - completed
-**Phase 5:** MusicXML Import And Practice UX - in progress; 05-05 practice range/auto-follow controls complete
+**Phase 5:** MusicXML Import And Practice UX - completed; 05-06 browser smoke and regression coverage complete
 
 ## Codebase Reference
 
@@ -56,8 +56,8 @@ Important files:
 
 ### Last Session
 
-- Stopped at: Completed 05-05-PLAN.md
-- Resume from: Phase 05 Plan 06
+- Stopped at: Completed 05-06-PLAN.md
+- Resume from: None
 
 ### Decisions
 
@@ -74,6 +74,9 @@ Important files:
 - 05-04 uses Für Elise as the default complete-score built-in library entry after clear storage.
 - 05-05 uses explicit Range mode as the accessible non-Shift alternative while preserving plain click for future score interactions.
 - 05-05 auto-follow pauses on manual scroll intent and resumes from Resume follow or playback restart.
+- 05-06 uses shared MusicXML fixture files as parser, adapter, and browser-smoke source data.
+- 05-06 rejects unsupported MusicXML measure children during parse validation so unsupported imports cannot reach registration or playback.
+- 05-06 browser smoke asserts DOM behavior and playback cleanup rather than brittle full SVG snapshots.
 
 ### Performance Metrics
 
@@ -84,6 +87,7 @@ Important files:
 | 05 | 03 | 7 min | 3 | 8 |
 | 05 | 04 | 35 min | 3 | 8 |
 | 05 | 05 | 12 min | 3 | 9 |
+| 05 | 06 | 8 min | 3 | 7 |
 
 ### Key Constraints
 
@@ -95,7 +99,7 @@ Important files:
 
 - Pattern data is still executable JavaScript, but it is now validated before selection.
 - Long notation is now paginated by the Phase 2 renderer; human browser smoke remains the main residual visual check.
-- MusicXML import is now visible in the score library, restored from IndexedDB, rendered through the imported-score renderer, and practiceable with selected range playback plus auto-follow controls.
+- MusicXML import is now covered by fixture-backed parser/adapter tests and integrated browser smoke for import, persistence, rendering, range playback, auto-follow, cleanup, removal, and built-in score practice behavior.
 
 ---
 *State initialized: 2026-05-15*
