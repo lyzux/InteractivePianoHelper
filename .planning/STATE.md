@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 05
 status: executing
-last_updated: "2026-05-15T14:38:35.004Z"
+last_updated: "2026-05-15T14:53:58.893Z"
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 16
-  completed_plans: 14
-  percent: 88
+  completed_plans: 15
+  percent: 94
 ---
 
 # Project State: Interactive Piano Helper
@@ -35,7 +35,7 @@ See: `.planning/ROADMAP.md`
 **Phase 2:** Score Display Modes - completed
 **Phase 3:** Pattern Validation And Feedback - completed
 **Phase 4:** MusicXML-Ready Foundation - completed
-**Phase 5:** MusicXML Import And Practice UX - in progress; 05-04 interactive import/library rendering complete
+**Phase 5:** MusicXML Import And Practice UX - in progress; 05-05 practice range/auto-follow controls complete
 
 ## Codebase Reference
 
@@ -56,8 +56,8 @@ Important files:
 
 ### Last Session
 
-- Stopped at: Completed 05-04-PLAN.md
-- Resume from: Phase 05 Plan 05
+- Stopped at: Completed 05-05-PLAN.md
+- Resume from: Phase 05 Plan 06
 
 ### Decisions
 
@@ -72,6 +72,8 @@ Important files:
 - 05-04 imports register only after strict parse/adapt and IndexedDB save succeed.
 - 05-04 routes imported MusicXML through renderMusicXmlScore while built-ins stay on drawStaffNotation.
 - 05-04 uses Für Elise as the default complete-score built-in library entry after clear storage.
+- 05-05 uses explicit Range mode as the accessible non-Shift alternative while preserving plain click for future score interactions.
+- 05-05 auto-follow pauses on manual scroll intent and resumes from Resume follow or playback restart.
 
 ### Performance Metrics
 
@@ -81,6 +83,7 @@ Important files:
 | 05 | 02 | 4 min | 3 | 4 |
 | 05 | 03 | 7 min | 3 | 8 |
 | 05 | 04 | 35 min | 3 | 8 |
+| 05 | 05 | 12 min | 3 | 9 |
 
 ### Key Constraints
 
@@ -92,7 +95,7 @@ Important files:
 
 - Pattern data is still executable JavaScript, but it is now validated before selection.
 - Long notation is now paginated by the Phase 2 renderer; human browser smoke remains the main residual visual check.
-- MusicXML import is now visible in the score library, restored from IndexedDB, and rendered through the imported-score renderer; range-selection integration remains for 05-05.
+- MusicXML import is now visible in the score library, restored from IndexedDB, rendered through the imported-score renderer, and practiceable with selected range playback plus auto-follow controls.
 
 ---
 *State initialized: 2026-05-15*

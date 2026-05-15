@@ -49,9 +49,9 @@
 
 ### Practice UX
 
-- **PRAC-01**: User can loop a selected measure range.
+- [x] **PRAC-01**: User can loop a selected measure range.
 - [x] **PRAC-02**: User can start playback from a selected measure or note.
-- **PRAC-03**: Notation auto-scrolls to the current system during score playback.
+- [x] **PRAC-03**: Notation auto-scrolls to the current system during score playback.
 
 ## Out of Scope
 
@@ -86,7 +86,7 @@
 | XML-03 | Phase 5 | Complete |
 | XML-04 | Phase 5 | Complete |
 | XML-05 | Phase 5 | Complete |
-| PRAC-01 | Phase 5 | Pending |
+| PRAC-01 | Phase 5 | Complete |
 | PRAC-02 | Phase 5 | Complete |
 | PRAC-03 | Phase 5 | Complete |
 
