@@ -195,12 +195,22 @@
     
     .staff-notation {
         margin-bottom: 20px;
-        padding: 10px;
+        padding: 16px 8px;
     }
     
     #vexflow-notation {
         min-height: 150px;
-        padding: 5px;
+        padding-bottom: calc(25vh + 32px);
+    }
+
+    .score-page-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
+    }
+
+    .score-page,
+    .score-page-grid.single-page {
+        width: 100%;
     }
     
     /* Piano keyboard fixed to bottom with exactly 1/4 viewport height */

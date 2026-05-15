@@ -1,31 +1,37 @@
-// Staff Notation Renderer — extracted from index.html inline script
-// Renders two staves (treble + bass) using VexFlow (loaded from CDN as global `Vex`).
-// Supports responsive width, multiple measures with bar lines, and cross-measure ties.
-// `patternLoader` and `settings` are passed in from the caller.
+// Score page renderer - VexFlow score-page renderer.
+// Renders canonical event sequences as A4-like pages and returns event-ID maps
+// for playback highlighting.
 
 const VALID_BEATS = new Set([0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4]);
-const REST_FILL_SIZES = [4, 3, 2, 1, 0.5, 0.25]; // descending for greedy fill; no dotted values
-const MAX_DISPLAY_MEASURES = 8; // cap long pieces; prevents overwhelming multi-line output
+const REST_FILL_SIZES = [4, 3, 2, 1, 0.5, 0.25];
+
+export const PAGE_WIDTH = 794;
+export const PAGE_HEIGHT = 1123;
+export const PAGE_MARGIN_X = 48;
+export const PAGE_MARGIN_Y = 56;
+export const SYSTEM_GAP = 32;
+
+const SYSTEM_HEIGHT = 190;
+const BASS_OFFSET = 92;
+const SYSTEM_HEADER_WIDTH = 112;
+const MIN_MEASURE_WIDTH = 96;
 
 function r3(v) {
     return Math.round(v * 1000) / 1000;
 }
 
-/**
- * Split a note/timing stream into per-measure arrays.
- * Notes that straddle a bar line are split into two tied notes when both
- * parts are standard VexFlow durations.  Rests (null) are split into two
- * separate rests without a tie.  Notes that can't be split cleanly are
- * moved to the next measure intact.
- */
+function emptyMeasure() {
+    return { notes: [], timings: [], fingerings: [], tieF: [], tieB: [], eventIds: [] };
+}
+
 function groupIntoMeasures(notes, timings, fingerings, bpm, eventIds = []) {
     const measures = [];
-    let cur = { notes: [], timings: [], fingerings: [], tieF: [], tieB: [], eventIds: [] };
+    let cur = emptyMeasure();
     let beat = 0;
 
     function flush() {
         if (cur.notes.length) measures.push(cur);
-        cur = { notes: [], timings: [], fingerings: [], tieF: [], tieB: [], eventIds: [] };
+        cur = emptyMeasure();
         beat = 0;
     }
 
@@ -40,11 +46,11 @@ function groupIntoMeasures(notes, timings, fingerings, bpm, eventIds = []) {
     }
 
     for (let i = 0; i < notes.length; i++) {
-        const note   = notes[i];
+        const note = notes[i];
         const timing = r3(timings[i % timings.length]);
-        const fing   = fingerings ? fingerings[i % fingerings.length] : null;
+        const fing = fingerings ? fingerings[i % fingerings.length] : null;
         const eventId = eventIds[i] || null;
-        const left   = r3(bpm - beat);
+        const left = r3(bpm - beat);
 
         if (timing <= left + 0.001) {
             add(note, timing, fing, false, false, eventId);
@@ -53,7 +59,6 @@ function groupIntoMeasures(notes, timings, fingerings, bpm, eventIds = []) {
             const over = r3(timing - left);
             if (left > 0.001 && VALID_BEATS.has(left) && VALID_BEATS.has(over)) {
                 if (note === null) {
-                    // Rests are never tied — just split into two separate rests
                     add(null, left, null, false, false, null);
                     flush();
                     add(null, over, null, false, false, null);
@@ -64,7 +69,6 @@ function groupIntoMeasures(notes, timings, fingerings, bpm, eventIds = []) {
                 }
                 if (beat >= bpm - 0.001) flush();
             } else {
-                // Can't split cleanly — close current measure, put full note in next
                 flush();
                 add(note, timing, fing, false, false, eventId);
                 if (beat >= bpm - 0.001) flush();
@@ -76,10 +80,6 @@ function groupIntoMeasures(notes, timings, fingerings, bpm, eventIds = []) {
     return measures;
 }
 
-/**
- * Fill the last beat(s) of every measure with rests so the voice is complete.
- * Uses a greedy largest-value-first algorithm.
- */
 function fillMeasureRests(measures, bpm) {
     for (const m of measures) {
         const used = m.timings.reduce((s, t) => r3(s + t), 0);
@@ -100,11 +100,10 @@ function fillMeasureRests(measures, bpm) {
     }
 }
 
-/** Build VF.StaveNote objects for one measure. Returns staveNotes, tieItems, and eventIds arrays. */
 function buildMeasureNotes(VF, measureData, clef, patternLoader) {
-    const staveNotes   = [];
-    const tieItems     = [];
-    const eventIds     = [];
+    const staveNotes = [];
+    const tieItems = [];
+    const eventIds = [];
     if (!measureData || !measureData.notes.length) return { staveNotes, tieItems, eventIds };
 
     const vjust = clef === 'treble'
@@ -113,28 +112,19 @@ function buildMeasureNotes(VF, measureData, clef, patternLoader) {
 
     for (let i = 0; i < measureData.notes.length; i++) {
         const note = measureData.notes[i];
-        const tim  = measureData.timings[i];
+        const tim = measureData.timings[i];
         const fing = measureData.fingerings[i];
-        const dur  = patternLoader.convertTimingToVexFlowDuration(tim);
-
-        // VexFlow 4: the 'd' suffix in the duration string sets the correct tick count
-        // but does NOT render the augmentation dot visually — that requires an explicit
-        // Dot modifier.  For rests we strip the 'd' to avoid 'xdr' parsing issues;
-        // REST_FILL_SIZES contains only non-dotted values so this is safe in practice.
+        const dur = patternLoader.convertTimingToVexFlowDuration(tim);
         const isDotted = dur.endsWith('d');
-        const baseDur  = isDotted ? dur.slice(0, -1) : dur;
-
-        // Rest glyph anchor: must be on/near the middle of the current clef's staff.
-        // 'b/4' = B4 = middle line of treble; 'd/3' = D3 = middle line of bass.
-        // Using 'b/4' for bass clef places rests far above the staff.
+        const baseDur = isDotted ? dur.slice(0, -1) : dur;
         const restKey = clef === 'bass' ? 'd/3' : 'b/4';
 
         let sn;
         if (note === null) {
             sn = new VF.StaveNote({ keys: [restKey], duration: baseDur + 'r', clef });
         } else {
-            const vn   = patternLoader.convertToVexFlowNote(note, clef);
-            const keys = Array.isArray(vn) ? vn : [vn];
+            const vexNote = patternLoader.convertToVexFlowNote(note, clef);
+            const keys = Array.isArray(vexNote) ? vexNote : [vexNote];
             sn = new VF.StaveNote({ keys, duration: dur, clef });
 
             if (fing != null) {
@@ -156,9 +146,7 @@ function buildMeasureNotes(VF, measureData, clef, patternLoader) {
             }
         }
 
-        if (isDotted) {
-            VF.Dot.buildAndAttach([sn], { all: true });
-        }
+        if (isDotted) VF.Dot.buildAndAttach([sn], { all: true });
 
         staveNotes.push(sn);
         eventIds.push(note === null ? null : (measureData.eventIds?.[i] || null));
@@ -187,223 +175,293 @@ function buildHandStream(sequence, hand) {
     return stream;
 }
 
-export function drawStaffNotation(patternLoader, settings, sequence = null) {
-    const patternType = document.getElementById('pattern').value;
-
-    let key = 'C';
-    if (settings && typeof settings.getKey === 'function') {
-        key = settings.getKey();
-    } else {
-        const ks = document.getElementById('key');
-        if (ks) key = ks.value;
+export function buildScoreMeasures(sequence) {
+    if (!sequence?.events?.length || !sequence.timeSignature) {
+        return {
+            bassMeasures: [],
+            trebleMeasures: [],
+            measureCount: 0,
+            numBeats: 0,
+            beatValue: 0,
+            beatsPerMeasure: 0
+        };
     }
 
-    console.log(`Drawing staff notation for pattern: ${patternType}, key: ${key}`);
+    const [numBeats, beatValue] = sequence.timeSignature.split('/').map(Number);
+    const beatsPerMeasure = numBeats * (4 / beatValue);
+    const bassStream = buildHandStream(sequence, 'left');
+    const trebleStream = buildHandStream(sequence, 'right');
 
+    const bassMeasures = groupIntoMeasures(
+        bassStream.notes,
+        bassStream.timings,
+        bassStream.fingerings,
+        beatsPerMeasure,
+        bassStream.eventIds
+    );
+    fillMeasureRests(bassMeasures, beatsPerMeasure);
+
+    let trebleMeasures;
+    if (trebleStream.notes.length) {
+        trebleMeasures = groupIntoMeasures(
+            trebleStream.notes,
+            trebleStream.timings,
+            trebleStream.fingerings,
+            beatsPerMeasure,
+            trebleStream.eventIds
+        );
+        fillMeasureRests(trebleMeasures, beatsPerMeasure);
+    } else {
+        trebleMeasures = bassMeasures.map(() => {
+            const measure = emptyMeasure();
+            fillMeasureRests([measure], beatsPerMeasure);
+            return measure;
+        });
+    }
+
+    const measureCount = Math.max(bassMeasures.length, trebleMeasures.length);
+    while (bassMeasures.length < measureCount) bassMeasures.push(emptyMeasure());
+    while (trebleMeasures.length < measureCount) trebleMeasures.push(emptyMeasure());
+
+    return { bassMeasures, trebleMeasures, measureCount, numBeats, beatValue, beatsPerMeasure };
+}
+
+export function planScorePages(measureCount, options = {}) {
+    if (!measureCount || measureCount < 1) return [];
+
+    const pageWidth = options.pageWidth || PAGE_WIDTH;
+    const pageHeight = options.pageHeight || PAGE_HEIGHT;
+    const marginX = options.marginX || PAGE_MARGIN_X;
+    const marginY = options.marginY || PAGE_MARGIN_Y;
+    const systemGap = options.systemGap || SYSTEM_GAP;
+    const minMeasureWidth = options.minMeasureWidth || MIN_MEASURE_WIDTH;
+    const systemHeight = options.systemHeight || SYSTEM_HEIGHT;
+    const headerWidth = options.headerWidth || SYSTEM_HEADER_WIDTH;
+
+    const systemWidth = pageWidth - marginX * 2;
+    const measuresPerSystem = Math.max(
+        1,
+        Math.floor((systemWidth - headerWidth) / minMeasureWidth)
+    );
+    const systemsPerPage = Math.max(
+        1,
+        Math.floor((pageHeight - marginY * 2 + systemGap) / (systemHeight + systemGap))
+    );
+
+    const pages = [];
+    let nextMeasure = 0;
+    while (nextMeasure < measureCount) {
+        const page = { pageIndex: pages.length, systems: [] };
+        for (let s = 0; s < systemsPerPage && nextMeasure < measureCount; s++) {
+            const count = Math.min(measuresPerSystem, measureCount - nextMeasure);
+            page.systems.push({
+                systemIndex: s,
+                start: nextMeasure,
+                count,
+                end: nextMeasure + count - 1
+            });
+            nextMeasure += count;
+        }
+        pages.push(page);
+    }
+
+    return pages;
+}
+
+function appendHighlightedElement(eventHighlightMap, eventId, staveNote) {
+    if (!eventId) return;
+    const el = staveNote.attrs?.id ? document.getElementById(`vf-${staveNote.attrs.id}`) : null;
+    if (!el) return;
+    if (!eventHighlightMap.has(eventId)) eventHighlightMap.set(eventId, []);
+    eventHighlightMap.get(eventId).push(el);
+}
+
+function drawSystemConnectors(VF, ctx, firstTrebleStave, firstBassStave) {
+    if (!firstTrebleStave || !firstBassStave) return;
+    [VF.StaveConnector.type.BRACE, VF.StaveConnector.type.SINGLE_LEFT].forEach(type => {
+        const connector = new VF.StaveConnector(firstTrebleStave, firstBassStave);
+        connector.setType(type);
+        connector.setContext(ctx).draw();
+    });
+}
+
+function drawSameSystemTies(VF, ctx, current, next) {
+    const forwards = current.tieItems.filter(t => t.direction === 'forward');
+    const backs = next.tieItems.filter(t => t.direction === 'back');
+    for (let t = 0; t < Math.min(forwards.length, backs.length); t++) {
+        const firstNote = current.staveNotes[forwards[t].noteIndex];
+        const lastNote = next.staveNotes[backs[t].noteIndex];
+        if (!firstNote || !lastNote) continue;
+        try {
+            new VF.StaveTie({
+                first_note: firstNote,
+                last_note: lastNote,
+                first_indices: [0],
+                last_indices: [0]
+            }).setContext(ctx).draw();
+        } catch (_) { /* ignore tie errors */ }
+    }
+}
+
+export function drawStaffNotation(patternLoader, settings, sequence = null) {
+    const patternType = document.getElementById('pattern')?.value;
     const vexFlowDiv = document.getElementById('vexflow-notation');
     vexFlowDiv.innerHTML = '';
 
-    const notationData = sequence || patternLoader.resolvePatternSequence(patternType, key);
+    const notationData = sequence || patternLoader.resolvePatternSequenceForDisplay?.(patternType);
     if (!notationData || !notationData.isKeySupported || !notationData.events.length) {
-        const msg = notationData?.unsupportedReason || 'No notation available for this pattern.';
-        vexFlowDiv.innerHTML = `<p>${msg}</p>`;
+        vexFlowDiv.innerHTML = '<div class="score-empty"><h4>This score cannot be displayed.</h4></div>';
         return null;
     }
 
     if (typeof Vex === 'undefined') {
         console.error('VexFlow is not loaded properly');
-        vexFlowDiv.innerHTML = '<p>Notation library loading... Please wait.</p>';
-        setTimeout(() => drawStaffNotation(patternLoader, settings), 1000);
+        vexFlowDiv.innerHTML = '<div class="score-empty"><h4>Loading sheet music...</h4></div>';
+        setTimeout(() => drawStaffNotation(patternLoader, settings, sequence), 1000);
         return null;
     }
 
-    const eventHighlightMap = new Map(); // eventId → SVGElement[]
+    const eventHighlightMap = new Map();
 
     try {
         const VF = Vex;
-
-        const W = Math.max((vexFlowDiv.clientWidth || vexFlowDiv.offsetWidth || 840) - 40, 400);
-
-        const [numBeats, beatValue] = notationData.timeSignature.split('/').map(Number);
-        const bpm = numBeats * (4 / beatValue);   // beats per measure in quarter-note units
-
-        // ── Group canonical events into measures ──────────────────────────────
-        const bc = buildHandStream(notationData, 'left');
-        const tc = buildHandStream(notationData, 'right');
-
-        const bassMeasures = groupIntoMeasures(bc.notes, bc.timings, bc.fingerings, bpm, bc.eventIds);
-        fillMeasureRests(bassMeasures, bpm);
-
-        let trebleMeasures;
-        if (tc.notes.length) {
-            trebleMeasures = groupIntoMeasures(tc.notes, tc.timings, tc.fingerings, bpm, tc.eventIds);
-            fillMeasureRests(trebleMeasures, bpm);
-        } else {
-            // No right-hand data: one whole-measure rest per measure (greedy fill from empty)
-            trebleMeasures = bassMeasures.map(() => {
-                const m = { notes: [], timings: [], fingerings: [], tieF: [], tieB: [], eventIds: [] };
-                fillMeasureRests([m], bpm);
-                return m;
-            });
+        const scoreMeasures = buildScoreMeasures(notationData);
+        if (!scoreMeasures.measureCount) {
+            vexFlowDiv.innerHTML = '<div class="score-empty"><h4>No score loaded</h4><p>Select a piece to view its sheet music.</p></div>';
+            return null;
         }
 
-        // Cap at MAX_DISPLAY_MEASURES so very long pieces don't overflow the page
-        const numMeasures = Math.min(
-            Math.max(bassMeasures.length, trebleMeasures.length),
-            MAX_DISPLAY_MEASURES
-        );
-        if (!numMeasures) return null;
+        const pages = planScorePages(scoreMeasures.measureCount);
+        const scoreKey = notationData.selectedKey || notationData.nativeKey || 'C';
+        const sheetView = document.createElement('div');
+        sheetView.className = 'score-sheet-view';
+        const pageGrid = document.createElement('div');
+        pageGrid.className = pages.length === 1 ? 'score-page-grid single-page' : 'score-page-grid';
+        sheetView.appendChild(pageGrid);
+        vexFlowDiv.appendChild(sheetView);
 
-        while (bassMeasures.length   < numMeasures) bassMeasures.push(  { notes: [], timings: [], fingerings: [], tieF: [], tieB: [], eventIds: [] });
-        while (trebleMeasures.length < numMeasures) trebleMeasures.push({ notes: [], timings: [], fingerings: [], tieF: [], tieB: [], eventIds: [] });
+        pages.forEach(pagePlan => {
+            const pageEl = document.createElement('div');
+            pageEl.className = 'score-page';
+            pageEl.dataset.page = String(pagePlan.pageIndex + 1);
+            pageGrid.appendChild(pageEl);
 
-        // ── Layout ────────────────────────────────────────────────────────────
-        const TREBLE_Y   = 40;
-        const BASS_OFF   = 100;
-        const SYS_HEIGHT = 220;
-        const HDR        = 100;
-        const CONT_HDR   = 60;
-        const MIN_MW     = 80;
+            const renderer = new VF.Renderer(pageEl, VF.Renderer.Backends.SVG);
+            renderer.resize(PAGE_WIDTH, PAGE_HEIGHT);
+            const svg = pageEl.querySelector('svg');
+            if (svg) {
+                svg.setAttribute('viewBox', `0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}`);
+                svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+            }
+            const ctx = renderer.getContext();
 
-        const systems = [];
-        for (let i = 0; i < numMeasures; ) {
-            const hdr = systems.length === 0 ? HDR : CONT_HDR;
-            const cap = Math.max(1, Math.floor((W - hdr) / MIN_MW));
-            const cnt = Math.min(cap, numMeasures - i);
-            systems.push({ start: i, count: cnt, hdr });
-            i += cnt;
-        }
+            const tNotes = [];
+            const bNotes = [];
+            const systemByMeasure = new Map();
+            let globalSystemIndex = pagePlan.pageIndex * 1000;
 
-        const totalH = TREBLE_Y + systems.length * SYS_HEIGHT + 40;
+            pagePlan.systems.forEach((system, pageSystemIndex) => {
+                const trebleY = PAGE_MARGIN_Y + pageSystemIndex * (SYSTEM_HEIGHT + SYSTEM_GAP);
+                const bassY = trebleY + BASS_OFFSET;
+                const systemWidth = PAGE_WIDTH - PAGE_MARGIN_X * 2;
+                const measureWidth = Math.floor((systemWidth - SYSTEM_HEADER_WIDTH) / system.count);
+                const isFirstSystem = pagePlan.pageIndex === 0 && pageSystemIndex === 0;
 
-        const renderer = new VF.Renderer(vexFlowDiv, VF.Renderer.Backends.SVG);
-        renderer.resize(W, totalH);
-        const ctx = renderer.getContext();
+                let firstTrebleStave = null;
+                let firstBassStave = null;
 
-        const tNotes = [];
-        const bNotes = [];
-        const sysOfM = [];
+                for (let m = 0; m < system.count; m++) {
+                    const measureIndex = system.start + m;
+                    const isFirstMeasure = m === 0;
+                    const staveX = PAGE_MARGIN_X + (isFirstMeasure ? 0 : SYSTEM_HEADER_WIDTH + m * measureWidth);
+                    const staveWidth = isFirstMeasure ? SYSTEM_HEADER_WIDTH + measureWidth : measureWidth;
 
-        // ── Render each system ────────────────────────────────────────────────
-        for (let si = 0; si < systems.length; si++) {
-            const { start, count, hdr } = systems[si];
-            const trebleY = si * SYS_HEIGHT + TREBLE_Y;
-            const bassY   = trebleY + BASS_OFF;
-            const measW   = Math.floor((W - hdr) / count);
-            const isFirst = si === 0;
+                    const trebleStave = new VF.Stave(staveX, trebleY, staveWidth);
+                    const bassStave = new VF.Stave(staveX, bassY, staveWidth);
 
-            let firstTS = null, firstBS = null;
-
-            for (let m = 0; m < count; m++) {
-                const mi   = start + m;
-                const isM0 = m === 0;
-
-                const sX = isM0 ? 0 : hdr + m * measW;
-                const sW = isM0 ? hdr + measW : measW;
-
-                const ts = new VF.Stave(sX, trebleY, sW);
-                const bs = new VF.Stave(sX, bassY,   sW);
-
-                if (isM0) {
-                    ts.addClef('treble');
-                    bs.addClef('bass');
-                    ts.addKeySignature(key);
-                    bs.addKeySignature(key);
-                    if (isFirst) {
-                        ts.addTimeSignature(notationData.timeSignature);
-                        bs.addTimeSignature(notationData.timeSignature);
+                    if (isFirstMeasure) {
+                        trebleStave.addClef('treble');
+                        bassStave.addClef('bass');
+                        trebleStave.addKeySignature(scoreKey);
+                        bassStave.addKeySignature(scoreKey);
+                        if (isFirstSystem) {
+                            trebleStave.addTimeSignature(notationData.timeSignature);
+                            bassStave.addTimeSignature(notationData.timeSignature);
+                        }
+                        firstTrebleStave = trebleStave;
+                        firstBassStave = bassStave;
                     }
-                    firstTS = ts;
-                    firstBS = bs;
+
+                    trebleStave.setContext(ctx).draw();
+                    bassStave.setContext(ctx).draw();
+
+                    const treble = buildMeasureNotes(
+                        VF,
+                        scoreMeasures.trebleMeasures[measureIndex],
+                        'treble',
+                        patternLoader
+                    );
+                    const bass = buildMeasureNotes(
+                        VF,
+                        scoreMeasures.bassMeasures[measureIndex],
+                        'bass',
+                        patternLoader
+                    );
+                    const formatWidth = Math.max(30, measureWidth - 20);
+
+                    if (treble.staveNotes.length) {
+                        const voice = new VF.Voice({
+                            num_beats: scoreMeasures.numBeats,
+                            beat_value: scoreMeasures.beatValue
+                        });
+                        voice.setStrict(false);
+                        voice.addTickables(treble.staveNotes);
+                        new VF.Formatter().joinVoices([voice]).format([voice], formatWidth);
+                        voice.draw(ctx, trebleStave);
+                    }
+
+                    if (bass.staveNotes.length) {
+                        const voice = new VF.Voice({
+                            num_beats: scoreMeasures.numBeats,
+                            beat_value: scoreMeasures.beatValue
+                        });
+                        voice.setStrict(false);
+                        voice.addTickables(bass.staveNotes);
+                        new VF.Formatter().joinVoices([voice]).format([voice], formatWidth);
+                        voice.draw(ctx, bassStave);
+                    }
+
+                    bass.staveNotes.forEach((note, noteIndex) => {
+                        appendHighlightedElement(eventHighlightMap, bass.eventIds[noteIndex], note);
+                    });
+                    treble.staveNotes.forEach((note, noteIndex) => {
+                        appendHighlightedElement(eventHighlightMap, treble.eventIds[noteIndex], note);
+                    });
+
+                    tNotes[measureIndex] = treble;
+                    bNotes[measureIndex] = bass;
+                    systemByMeasure.set(measureIndex, globalSystemIndex + pageSystemIndex);
                 }
 
-                ts.setContext(ctx).draw();
-                bs.setContext(ctx).draw();
+                drawSystemConnectors(VF, ctx, firstTrebleStave, firstBassStave);
+            });
 
-                const { staveNotes: tn, tieItems: tti, eventIds: tei } = buildMeasureNotes(VF, trebleMeasures[mi], 'treble', patternLoader);
-                const { staveNotes: bn, tieItems: bti, eventIds: bei } = buildMeasureNotes(VF, bassMeasures[mi],   'bass',   patternLoader);
-
-                const fw = Math.max(30, measW - 20);
-
-                if (tn.length) {
-                    const v = new VF.Voice({ num_beats: numBeats, beat_value: beatValue });
-                    v.setStrict(false);
-                    v.addTickables(tn);
-                    new VF.Formatter().joinVoices([v]).format([v], fw);
-                    v.draw(ctx, ts);
-                }
-
-                if (bn.length) {
-                    const v = new VF.Voice({ num_beats: numBeats, beat_value: beatValue });
-                    v.setStrict(false);
-                    v.addTickables(bn);
-                    new VF.Formatter().joinVoices([v]).format([v], fw);
-                    v.draw(ctx, bs);
-                }
-
-                // Collect SVG elements for canonical event highlight maps.
-                for (let ni = 0; ni < bn.length; ni++) {
-                    const eventId = bei[ni];
-                    if (!eventId) continue;
-                    const el = bn[ni].attrs?.id ? document.getElementById(`vf-${bn[ni].attrs.id}`) : null;
-                    if (!el) continue;
-                    if (!eventHighlightMap.has(eventId)) eventHighlightMap.set(eventId, []);
-                    eventHighlightMap.get(eventId).push(el);
-                }
-                for (let ni = 0; ni < tn.length; ni++) {
-                    const eventId = tei[ni];
-                    if (!eventId) continue;
-                    const el = tn[ni].attrs?.id ? document.getElementById(`vf-${tn[ni].attrs.id}`) : null;
-                    if (!el) continue;
-                    if (!eventHighlightMap.has(eventId)) eventHighlightMap.set(eventId, []);
-                    eventHighlightMap.get(eventId).push(el);
-                }
-
-                tNotes.push({ staveNotes: tn, tieItems: tti });
-                bNotes.push({ staveNotes: bn, tieItems: bti });
-                sysOfM.push(si);
+            for (let measureIndex = 0; measureIndex < scoreMeasures.measureCount - 1; measureIndex++) {
+                if (!systemByMeasure.has(measureIndex) || !systemByMeasure.has(measureIndex + 1)) continue;
+                if (systemByMeasure.get(measureIndex) !== systemByMeasure.get(measureIndex + 1)) continue;
+                drawSameSystemTies(VF, ctx, tNotes[measureIndex], tNotes[measureIndex + 1]);
+                drawSameSystemTies(VF, ctx, bNotes[measureIndex], bNotes[measureIndex + 1]);
             }
-
-            if (firstTS && firstBS) {
-                [VF.StaveConnector.type.BRACE, VF.StaveConnector.type.SINGLE_LEFT].forEach(type => {
-                    const c = new VF.StaveConnector(firstTS, firstBS);
-                    c.setType(type);
-                    c.setContext(ctx).draw();
-                });
-            }
-        }
-
-        // ── Draw cross-measure ties (same system only) ────────────────────────
-        const drawTies = (cur, nxt) => {
-            const fwds = cur.tieItems.filter(t => t.direction === 'forward');
-            const baks = nxt.tieItems.filter(t => t.direction === 'back');
-            for (let t = 0; t < Math.min(fwds.length, baks.length); t++) {
-                const fn = cur.staveNotes[fwds[t].noteIndex];
-                const ln = nxt.staveNotes[baks[t].noteIndex];
-                if (!fn || !ln) continue;
-                try {
-                    new VF.StaveTie({
-                        first_note: fn, last_note: ln,
-                        first_indices: [0], last_indices: [0],
-                    }).setContext(ctx).draw();
-                } catch (_) { /* ignore tie errors */ }
-            }
-        };
-
-        for (let mi = 0; mi < numMeasures - 1; mi++) {
-            if (sysOfM[mi] !== sysOfM[mi + 1]) continue;
-            drawTies(tNotes[mi], tNotes[mi + 1]);
-            drawTies(bNotes[mi], bNotes[mi + 1]);
-        }
+        });
 
         return {
             eventMap: eventHighlightMap,
             sequence: notationData,
+            pages
         };
-
     } catch (error) {
         console.error('VexFlow rendering error:', error);
-        document.getElementById('vexflow-notation').innerHTML = '<p>Error rendering notation</p>';
+        document.getElementById('vexflow-notation').innerHTML = '<div class="score-empty"><h4>Unable to render this score.</h4></div>';
         return null;
     }
 }
