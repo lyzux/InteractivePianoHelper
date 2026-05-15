@@ -9,6 +9,7 @@ const DEFAULT_SOURCE_ID = 'musicxml-import';
 const XML_DECLARATION_PATTERN = /^<\?xml[\s\S]*?\?>\s*/i;
 const SELF_CLOSING_PATTERN = /\/\s*>$/;
 const TAG_PATTERN = /<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<!\[CDATA\[[\s\S]*?\]\]>|<!DOCTYPE[\s\S]*?>|<\/?[^>]+>/gi;
+const SUPPORTED_MEASURE_CHILDREN = new Set(['attributes', 'print', 'note', 'backup', 'forward', 'barline']);
 
 function normalizeText(value, fallback = '') {
     return typeof value === 'string' && value.trim() ? value.trim() : fallback;
@@ -329,6 +330,16 @@ function validateSupportedStructure(document, context) {
                 message: 'Strict import requires measures to contain note, backup, or forward data.'
             }));
         }
+
+        measure.children.forEach((child, childIndex) => {
+            if (SUPPORTED_MEASURE_CHILDREN.has(child.name)) return;
+            diagnostics.push(diagnostic(context, {
+                severity: 'error',
+                code: 'MUSICXML_ELEMENT_UNSUPPORTED',
+                path: `score-partwise.part[0].measure[${index}].${child.name}[${childIndex}]`,
+                message: `Unsupported MusicXML element "${child.name}" cannot be imported in strict mode.`
+            }));
+        });
     });
 
     return diagnostics;
