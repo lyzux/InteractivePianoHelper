@@ -204,10 +204,12 @@ button.playing {
 }
 
 .score-sheet-view {
-    --score-page-max-width: 860px;
-    --score-page-gap: clamp(8px, 1.6vw, 32px);
+    --score-page-gap: 32px;
+    --score-scale: 1;
     width: 100%;
     overflow: hidden;
+    display: flex;
+    justify-content: center;
 }
 
 .score-sheet-view.single-page {
@@ -216,23 +218,23 @@ button.playing {
 
 .score-page-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, 794px);
     gap: var(--score-page-gap);
     justify-content: center;
     align-items: start;
-    width: min(100%, calc(var(--score-page-max-width) * 2 + var(--score-page-gap)));
-    margin: 0 auto;
+    width: calc(794px * 2 + var(--score-page-gap));
+    transform: scale(var(--score-scale));
+    transform-origin: top center;
 }
 
 .score-page-grid.single-page {
-    grid-template-columns: minmax(0, min(100%, 794px));
-    width: min(100%, 794px);
+    grid-template-columns: 794px;
+    width: 794px;
 }
 
 .score-page {
-    width: 100%;
-    max-width: var(--score-page-max-width);
-    aspect-ratio: 210 / 297;
+    width: 794px;
+    height: 1123px;
     background: #ffffff;
     border: 1px solid #d8dee6;
     box-shadow: 0 12px 32px rgba(31, 41, 51, 0.18);

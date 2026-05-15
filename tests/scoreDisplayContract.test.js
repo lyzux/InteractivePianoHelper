@@ -70,11 +70,14 @@ test('score display source contracts stay wired', () => {
     assert.match(cssSource, /\.score-page-grid/);
     assert.match(cssSource, /\.score-page/);
     assert.match(cssSource, /\.score-sheet-view\.single-page/);
-    assert.match(cssSource, /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+    assert.match(cssSource, /--score-scale:\s*1/);
+    assert.match(cssSource, /grid-template-columns:\s*repeat\(2,\s*794px\)/);
+    assert.match(cssSource, /transform:\s*scale\(var\(--score-scale\)\)/);
     assert.match(cssSource, /body\.sound-panel-expanded \.container/);
-    assert.match(cssSource, /aspect-ratio:\s*210 \/ 297/);
+    assert.match(cssSource, /height:\s*1123px/);
     assert.match(cssSource, /\.score-sheet-view\s*\{[\s\S]*overflow:\s*hidden/);
     assert.match(rendererSource, /score-sheet-view single-page/);
+    assert.match(rendererSource, /scaleScoreSheet\(sheetView,\s*pageGrid\)/);
     assert.match(rendererSource, /const pages = planScorePages\(scoreMeasures\.measureCount\)/);
     assert.match(rendererSource, /renderer\.resize\(PAGE_WIDTH,\s*PAGE_HEIGHT\)/);
     assert.doesNotMatch(rendererSource, /responsivePageLayout/);

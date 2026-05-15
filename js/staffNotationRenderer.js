@@ -15,6 +15,17 @@ const SYSTEM_HEIGHT = 190;
 const BASS_OFFSET = 92;
 const SYSTEM_HEADER_WIDTH = 112;
 const MIN_MEASURE_WIDTH = 96;
+const PAGE_GRID_GAP = 32;
+
+function scaleScoreSheet(sheetView, pageGrid) {
+    const availableWidth = sheetView.clientWidth || pageGrid.offsetWidth;
+    const intrinsicWidth = pageGrid.classList.contains('single-page')
+        ? PAGE_WIDTH
+        : PAGE_WIDTH * 2 + PAGE_GRID_GAP;
+    const scale = Math.min(1, availableWidth / intrinsicWidth);
+    pageGrid.style.setProperty('--score-scale', scale.toString());
+    sheetView.style.height = `${Math.ceil(pageGrid.offsetHeight * scale)}px`;
+}
 
 function r3(v) {
     return Math.round(v * 1000) / 1000;
@@ -453,6 +464,8 @@ export function drawStaffNotation(patternLoader, settings, sequence = null) {
                 drawSameSystemTies(VF, ctx, bNotes[measureIndex], bNotes[measureIndex + 1]);
             }
         });
+
+        scaleScoreSheet(sheetView, pageGrid);
 
         return {
             eventMap: eventHighlightMap,
