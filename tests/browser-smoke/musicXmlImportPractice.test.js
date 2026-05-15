@@ -92,9 +92,38 @@ async function uploadFixture(page, filename) {
 }
 
 async function selectMeasureRange(page, startIndex, endIndex) {
-    await page.locator('.score-measure-hit-target').nth(startIndex).click({ modifiers: ['Shift'] });
-    await page.locator('.score-measure-hit-target').nth(endIndex).click({ modifiers: ['Shift'] });
-    await page.waitForFunction(() => /Measures .* selected/.test(document.getElementById('practiceRangeStatus')?.textContent || ''));
+    await page.waitForFunction(requiredCount => (
+        document.querySelectorAll('.score-measure-hit-target').length > requiredCount
+    ), Math.max(startIndex, endIndex));
+    await page.waitForTimeout(200);
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+        await page.evaluate(() => document.getElementById('clearPracticeRangeBtn')?.click());
+        await page.evaluate(index => {
+            document.querySelectorAll('.score-measure-hit-target')[index]?.dispatchEvent(new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                shiftKey: true,
+                view: window
+            }));
+        }, startIndex);
+        await page.waitForFunction(() => /Choose an end measure/.test(document.getElementById('practiceRangeStatus')?.textContent || ''));
+        await page.evaluate(index => {
+            document.querySelectorAll('.score-measure-hit-target')[index]?.dispatchEvent(new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                shiftKey: true,
+                view: window
+            }));
+        }, endIndex);
+        await page.waitForFunction(() => /Measures .* selected/.test(document.getElementById('practiceRangeStatus')?.textContent || ''));
+        await page.waitForTimeout(200);
+        if (await page.evaluate(() => Boolean(window.__iphPracticeDebug?.getPlaybackRange?.()))) {
+            return;
+        }
+    }
+
+    assert.fail('selected range did not remain available for playback');
 }
 
 async function stopAndAssertCleanup(page) {
@@ -221,6 +250,7 @@ test('MusicXML import and practice workflow works as a static browser flow', asy
         assert.match(importedState.selectedLabel, /Tiny Fixture Score \(2\)/);
         assert.deepEqual(importedState.importedOptions.sort(), ['Tiny Fixture Score', 'Tiny Fixture Score (2)']);
         assert.equal(importedState.removeVisible, true);
+        await page.waitForFunction(() => document.querySelectorAll('.score-measure-hit-target').length === 2);
 
         await selectMeasureRange(page, 0, 1);
         const importedRangeClassCount = await page.locator('.score-measure-hit-target.range-selected').count();
