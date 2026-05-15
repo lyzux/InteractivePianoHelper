@@ -104,6 +104,26 @@ Naming rules that help auto‑loading:
 - Short pedagogical patterns remain supported through the current validated pattern source path.
 - Console logs include some debug output; feel free to trim for production.
 
+## Automated Checks
+
+Run the fast Node contract suite:
+
+```bash
+npm test
+```
+
+Run the browser smoke check:
+
+```bash
+npm run test:smoke
+```
+
+The smoke test uses Playwright and serves the static app on `127.0.0.1`. On this development image Playwright's managed Chromium download does not support Ubuntu 26.04, so the test uses a Chromium-compatible system browser such as `/usr/bin/google-chrome`. If your browser lives elsewhere, set:
+
+```bash
+PLAYWRIGHT_CHROMIUM_EXECUTABLE=/path/to/chrome npm run test:smoke
+```
+
 ## Phase 02 score display smoke check
 
 Serve the static app from the repo root:
