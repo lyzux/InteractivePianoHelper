@@ -8,7 +8,7 @@
 
 | Phase | Name | Goal | Requirements | Status |
 |-------|------|------|--------------|--------|
-| 1 | Canonical Pattern Event Pipeline | Make simple patterns play and display from the same event sequence | MODEL-01, MODEL-02, MODEL-03, SYNC-01 | Pending |
+| 1 | Canonical Pattern Event Pipeline | Make simple patterns play and display from the same event sequence | MODEL-01, MODEL-02, MODEL-03, SYNC-01 | Completed |
 | 2 | Score Display Modes | Separate loop preview from score display and render full pieces reliably | SYNC-02, SYNC-03, SCORE-01, SCORE-02, SCORE-03 | Pending |
 | 3 | Pattern Validation And Feedback | Validate existing pattern data and surface clear errors | VAL-01, VAL-02, VAL-03, TEST-01 | Pending |
 | 4 | MusicXML-Ready Foundation | Prepare the score model for MusicXML while adding browser smoke coverage | XML-01, XML-02, TEST-02 | Pending |
@@ -21,7 +21,7 @@
 **Mode:** mvp
 **UI hint:** yes
 **Requirements:** MODEL-01, MODEL-02, MODEL-03, SYNC-01
-**Plans:** 0 plans
+**Plans:** 2 plans
 
 **Success Criteria**:
 1. A shared resolver produces canonical events with start beat, duration, hand, notes, rests, chords, fingering, time signature, source index, and native-key metadata.
@@ -31,7 +31,8 @@
 5. Existing built-in accompaniment patterns still play audibly as before.
 
 Plans:
-- [ ] TBD
+- [x] 01-01 Canonical resolver and unit test foundation
+- [x] 01-02 Playback and notation consume canonical events
 
 ### Phase 2: Score Display Modes
 
@@ -114,10 +115,10 @@ Plans:
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MODEL-01 | Phase 1 | Pending |
-| MODEL-02 | Phase 1 | Pending |
-| MODEL-03 | Phase 1 | Pending |
-| SYNC-01 | Phase 1 | Pending |
+| MODEL-01 | Phase 1 | Completed |
+| MODEL-02 | Phase 1 | Completed |
+| MODEL-03 | Phase 1 | Completed |
+| SYNC-01 | Phase 1 | Completed |
 | SYNC-02 | Phase 2 | Pending |
 | SYNC-03 | Phase 2 | Pending |
 | SCORE-01 | Phase 2 | Pending |
