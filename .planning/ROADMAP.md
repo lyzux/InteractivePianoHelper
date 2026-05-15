@@ -67,7 +67,7 @@ Plans:
 **UI hint:** yes
 **Requirements:** VAL-01, VAL-02, VAL-03, TEST-01
 **Depends on:** Phase 1, Phase 2
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 **Success Criteria**:
 1. Pattern loading validates required fields, note names, playable range, rests, chords, timings, time signatures, fingerings, and native-key behavior.
@@ -77,7 +77,9 @@ Plans:
 5. Existing valid built-in patterns pass validation.
 
 Plans:
-- [ ] TBD
+- [ ] `03-01-PLAN.md` — Validator core and diagnostic fixtures (Wave 1)
+- [ ] `03-02-PLAN.md` — Loader validation gate and source corrections (Wave 2, depends on 03-01)
+- [ ] `03-03-PLAN.md` — User feedback and regression contracts (Wave 3, depends on 03-01 and 03-02)
 
 ### Phase 4: MusicXML-Ready Foundation
 
