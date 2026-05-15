@@ -100,6 +100,8 @@ Naming rules that help auto‑loading:
 
 - ES modules, no bundler. Serve over HTTP for module imports to work.
 - VexFlow is included in `index.html` and used for the current sheet music renderer.
+- MusicXML import is future work. The canonical adapter target is documented in `docs/MUSICXML-ADAPTER.md`; future MusicXML sources must adapt into the same validated score sequence used by playback and notation.
+- Short pedagogical patterns remain supported through the current validated pattern source path.
 - Console logs include some debug output; feel free to trim for production.
 
 ## Phase 02 score display smoke check
@@ -120,7 +122,7 @@ Then open http://localhost:8000 and verify:
 - Play with Loop enabled repeats after the complete score sequence.
 - Notation highlights follow playback on later pages, not only the first page.
 
-MusicXML import and pattern validation are not implemented yet; this smoke check covers the current built-in score display path.
+MusicXML import is not implemented yet; this smoke check covers the current validated built-in score display path.
 
 ## License
 
