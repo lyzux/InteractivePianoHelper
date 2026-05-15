@@ -6,7 +6,7 @@ Selected renderer path: **vexflow-adapter**.
 
 The current VexFlow page renderer remains the Phase 5 rendering base because it already runs as static browser code, emits SVG pages, uses the app-owned canonical event sequence for playback highlights, and preserves the existing `.score-sheet-view`, `.score-page-grid`, and `.score-page` sheet semantics. OpenSheetMusicDisplay remains a possible future spike, but this gate does not add it because the current adapter can satisfy the immediate interactive hooks without a new dependency or build path.
 
-Imported MusicXML rendering must enter production through `renderMusicXmlScore` in `js/musicXmlScoreRenderer.js`. Import UI plans should not call `drawStaffNotation()` directly.
+Imported MusicXML rendering must enter production through `renderMusicXmlScore` and `clearMusicXmlScoreRender` in `js/musicXmlScoreRenderer.js`. Import UI plans should not call `drawStaffNotation()` directly. The facade returns `{ eventMap, measureMap, sequence, pages }`, preserving the current `.score-sheet-view`, `.score-page-grid`, and `.score-page` DOM contract while hiding the renderer choice from future import UI code.
 
 ## Gate Matrix
 
@@ -26,4 +26,5 @@ Imported MusicXML rendering must enter production through `renderMusicXmlScore` 
 - Static image rendering is not accepted.
 - MusicXML payloads are inert text/data only.
 - The renderer facade must return `eventMap`, `measureMap`, `sequence`, and `pages`.
+- `js/musicXmlScoreRenderer.js` is the only production rendering entry point for imported scores.
 - Page content may scale inside the viewport but must not reflow into unrelated page/system layouts.
