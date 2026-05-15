@@ -45,6 +45,10 @@ function setAttribute(element, name, value) {
     if (typeof element?.setAttribute === 'function') element.setAttribute(name, String(value));
 }
 
+function removeAttribute(element, name) {
+    if (typeof element?.removeAttribute === 'function') element.removeAttribute(name);
+}
+
 function getDatasetNumber(element, key, fallback) {
     const raw = element?.dataset?.[key];
     const number = Number(raw);
@@ -237,6 +241,7 @@ export class ProfessionalMusicXmlRenderer {
         this.noteHandlers = new Set();
         this.domListeners = [];
         this.highlightedElements = new Set();
+        this.highlightOriginalAttributes = new WeakMap();
         this.rangeElements = new Set();
         this.resetState();
     }
@@ -357,6 +362,12 @@ export class ProfessionalMusicXmlRenderer {
                 setDatasetValue(element, 'highlighted', 'true');
                 this.highlightedElements.add(element);
                 asElementList(element, 'path, rect, text').forEach(shape => {
+                    if (!this.highlightOriginalAttributes.has(shape)) {
+                        this.highlightOriginalAttributes.set(shape, {
+                            fill: shape.getAttribute?.('fill'),
+                            stroke: shape.getAttribute?.('stroke')
+                        });
+                    }
                     setAttribute(shape, 'fill', color);
                     setAttribute(shape, 'stroke', color);
                 });
@@ -368,6 +379,20 @@ export class ProfessionalMusicXmlRenderer {
         for (const element of this.highlightedElements) {
             removeClass(element, 'professional-musicxml-highlight');
             if (element?.dataset) delete element.dataset.highlighted;
+            asElementList(element, 'path, rect, text').forEach(shape => {
+                const original = this.highlightOriginalAttributes.get(shape) || {};
+                if (original.fill === null || original.fill === undefined) {
+                    removeAttribute(shape, 'fill');
+                } else {
+                    setAttribute(shape, 'fill', original.fill);
+                }
+                if (original.stroke === null || original.stroke === undefined) {
+                    removeAttribute(shape, 'stroke');
+                } else {
+                    setAttribute(shape, 'stroke', original.stroke);
+                }
+                this.highlightOriginalAttributes.delete(shape);
+            });
         }
         this.highlightedElements.clear();
     }
@@ -416,6 +441,7 @@ export class ProfessionalMusicXmlRenderer {
         for (const element of this.rangeElements) {
             removeClass(element, 'professional-musicxml-range', 'range-selected', 'range-boundary');
             if (element?.dataset) delete element.dataset.rangeSelected;
+            removeAttribute(element, 'data-range-color');
         }
         this.rangeElements.clear();
     }

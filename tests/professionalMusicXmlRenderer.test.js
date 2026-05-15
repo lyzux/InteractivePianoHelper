@@ -96,6 +96,14 @@ class FakeElement {
         return this.attributes.get(name) || null;
     }
 
+    removeAttribute(name) {
+        this.attributes.delete(name);
+        if (name.startsWith('data-')) {
+            const key = name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+            delete this.dataset[key];
+        }
+    }
+
     addEventListener(type, handler) {
         if (!this.listeners.has(type)) this.listeners.set(type, new Set());
         this.listeners.get(type).add(handler);
@@ -257,7 +265,9 @@ test('supports measure clicks note clicks highlights ranges and cleanup', async 
     renderer.clearHighlights();
     renderer.clearRange();
     assert.equal(firstNote.classList.contains('professional-musicxml-highlight'), false);
+    assert.equal(firstNote.querySelectorAll('path')[0].getAttribute('fill'), null);
     assert.equal(firstMeasure.classList.contains('professional-musicxml-range'), false);
+    assert.equal(firstMeasure.getAttribute('data-range-color'), null);
 
     renderer.destroy();
     assert.equal(container.children.length, 0);
