@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 05
 status: executing
-last_updated: "2026-05-15T14:07:19.438Z"
+last_updated: "2026-05-15T14:13:58.547Z"
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 16
-  completed_plans: 11
-  percent: 69
+  completed_plans: 12
+  percent: 75
 ---
 
 # Project State: Interactive Piano Helper
@@ -35,7 +35,7 @@ See: `.planning/ROADMAP.md`
 **Phase 2:** Score Display Modes - completed
 **Phase 3:** Pattern Validation And Feedback - completed
 **Phase 4:** MusicXML-Ready Foundation - completed
-**Phase 5:** MusicXML Import And Practice UX - in progress; 05-01 renderer/storage gate complete
+**Phase 5:** MusicXML Import And Practice UX - in progress; 05-02 strict import/library core complete
 
 ## Codebase Reference
 
@@ -56,20 +56,24 @@ Important files:
 
 ### Last Session
 
-- Stopped at: Completed 05-01-PLAN.md
-- Resume from: Phase 05 Plan 02
+- Stopped at: Completed 05-02-PLAN.md
+- Resume from: Phase 05 Plan 03
 
 ### Decisions
 
 - 05-01 selected the existing VexFlow adapter path for Phase 5 imported score rendering instead of adding OSMD now.
 - 05-01 persists imported MusicXML payloads as inert text records in IndexedDB, not localStorage or executable modules.
 - 05-01 requires future import UI to call `js/musicXmlScoreRenderer.js` instead of rendering imported scores directly.
+- 05-02 accepts only strict score-partwise MusicXML and rejects unsupported import structure with source-scoped diagnostics.
+- 05-02 registers imported MusicXML as inert complete-score loader records, not executable pattern modules.
+- 05-02 exposes complete-score filtering while preserving built-in short pattern APIs internally.
 
 ### Performance Metrics
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 05 | 01 | 4 min | 3 | 5 |
+| 05 | 02 | 4 min | 3 | 4 |
 
 ### Key Constraints
 

@@ -43,8 +43,8 @@
 
 ### MusicXML Import
 
-- **XML-03**: User can import a MusicXML file for complete sheet music display.
-- **XML-04**: MusicXML import validates file structure, supported durations, notes, rests, chords, ties, accidentals, clefs, key signatures, and time signatures.
+- [x] **XML-03**: User can import a MusicXML file for complete sheet music display.
+- [x] **XML-04**: MusicXML import validates file structure, supported durations, notes, rests, chords, ties, accidentals, clefs, key signatures, and time signatures.
 - **XML-05**: Imported MusicXML scores can be played back through the existing piano and highlighted on the keyboard.
 
 ### Practice UX
@@ -84,7 +84,7 @@
 | TEST-01 | Phase 3 | Completed |
 | TEST-02 | Phase 4 | Complete |
 | XML-03 | Phase 5 | Complete |
-| XML-04 | Phase 5 | Pending |
+| XML-04 | Phase 5 | Complete |
 | XML-05 | Phase 5 | Complete |
 | PRAC-01 | Phase 5 | Pending |
 | PRAC-02 | Phase 5 | Pending |
