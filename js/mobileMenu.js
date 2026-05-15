@@ -5,7 +5,6 @@ const SOUND_PANEL_STORAGE_KEY = 'soundPanelExpanded';
 
 export function initializeMobileMenu() {
     const panelToggle = document.getElementById('mobileMenuToggle');
-    const panelCloseBtn = document.getElementById('mobileCloseBtn');
     const physicsSidebar = document.getElementById('physicsSidebar');
     const mobileOverlay = document.getElementById('mobileOverlay');
 
@@ -15,6 +14,8 @@ export function initializeMobileMenu() {
         physicsSidebar.classList.toggle('is-collapsed', !isExpanded);
         panelToggle.setAttribute('aria-expanded', String(isExpanded));
         panelToggle.title = isExpanded ? 'Hide piano controls' : 'Show piano controls';
+        const label = panelToggle.querySelector('.sound-panel-label');
+        if (label) label.textContent = isExpanded ? 'Hide' : 'Sound';
         localStorage.setItem(SOUND_PANEL_STORAGE_KEY, isExpanded ? 'true' : 'false');
 
         if (mobileOverlay) {
@@ -28,10 +29,6 @@ export function initializeMobileMenu() {
     panelToggle.addEventListener('click', () => {
         setPanelExpanded(physicsSidebar.classList.contains('is-collapsed'));
     });
-
-    if (panelCloseBtn) {
-        panelCloseBtn.addEventListener('click', () => setPanelExpanded(false));
-    }
 
     if (mobileOverlay) {
         mobileOverlay.addEventListener('click', () => setPanelExpanded(false));

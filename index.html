@@ -106,7 +106,7 @@
         .sound-panel-toggle {
             position: fixed;
             top: 96px;
-            right: 0;
+            right: 12px;
             z-index: 1004;
             display: inline-flex;
             align-items: center;
@@ -122,14 +122,13 @@
         }
 
         .sound-panel-toggle[aria-expanded="true"] {
-            right: min(390px, calc(100vw - 56px));
+            right: calc(min(390px, calc(100vw - 56px)) + 12px);
         }
 
         .sound-panel-toggle .material-icons {
             font-size: 20px;
         }
 
-        .panel-collapse-btn,
         .piano-keyboard-toggle {
             display: inline-flex;
             align-items: center;
@@ -143,7 +142,6 @@
             box-shadow: none;
         }
 
-        .panel-collapse-btn:hover,
         .piano-keyboard-toggle:hover {
             transform: none;
             box-shadow: 0 4px 12px rgba(31, 41, 51, 0.18);
@@ -278,15 +276,12 @@
             
             <button class="sound-panel-toggle" id="mobileMenuToggle" aria-controls="physicsSidebar" aria-expanded="false" title="Piano controls">
                 <span class="material-icons">tune</span>
-                <span>Sound</span>
+                <span class="sound-panel-label">Sound</span>
             </button>
             
             <div class="physics-sidebar is-collapsed" id="physicsSidebar">
                 <div class="sidebar-header">
                     <h3>Piano Controls</h3>
-                    <button class="panel-collapse-btn" id="mobileCloseBtn" aria-label="Hide piano controls">
-                        <span class="material-icons">chevron_right</span>
-                    </button>
                 </div>
                 <div id="physicsControls">
                     <!-- Physics controls will be generated here -->

@@ -195,11 +195,9 @@ button.playing {
 }
 
 .score-sheet-view {
-    --score-page-min-width: 620px;
     --score-page-max-width: 860px;
-    --score-page-gap: clamp(18px, 2vw, 36px);
+    --score-page-gap: clamp(8px, 1.6vw, 32px);
     width: 100%;
-    min-width: calc(var(--score-page-min-width) * 2 + var(--score-page-gap));
 }
 
 .score-sheet-view.single-page {
@@ -208,7 +206,7 @@ button.playing {
 
 .score-page-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(var(--score-page-min-width), 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--score-page-gap);
     justify-content: center;
     align-items: start;

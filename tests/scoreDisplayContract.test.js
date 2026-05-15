@@ -69,9 +69,8 @@ test('score display source contracts stay wired', () => {
     assert.doesNotMatch(rendererSource, /MAX_DISPLAY_MEASURES/);
     assert.match(cssSource, /\.score-page-grid/);
     assert.match(cssSource, /\.score-page/);
-    assert.match(cssSource, /--score-page-min-width:\s*620px/);
     assert.match(cssSource, /\.score-sheet-view\.single-page/);
-    assert.match(cssSource, /grid-template-columns:\s*repeat\(2,\s*minmax\(var\(--score-page-min-width\),\s*1fr\)\)/);
+    assert.match(cssSource, /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
     assert.match(cssSource, /width:\s*calc\(100vw - clamp\(24px,\s*4vw,\s*64px\)\)/);
     assert.match(cssSource, /aspect-ratio:\s*210 \/ 297/);
     assert.match(rendererSource, /score-sheet-view single-page/);
@@ -87,13 +86,16 @@ test('sound panel and bottom keyboard state contracts stay wired', () => {
     ].join('\n');
 
     assert.match(indexHtml, /class="sound-panel-toggle"/);
+    assert.match(indexHtml, /class="sound-panel-label"/);
     assert.match(indexHtml, /class="physics-sidebar is-collapsed"/);
+    assert.doesNotMatch(indexHtml, /id="mobileCloseBtn"/);
     assert.match(indexHtml, /id="pianoKeyboardToggle"/);
     assert.match(indexHtml, /id="pianoKeyboardContent"/);
 
     assert.match(mobileMenuSource, /SOUND_PANEL_STORAGE_KEY = 'soundPanelExpanded'/);
     assert.match(mobileMenuSource, /physicsSidebar\.classList\.toggle\('is-collapsed'/);
     assert.match(mobileMenuSource, /localStorage\.setItem\(SOUND_PANEL_STORAGE_KEY/);
+    assert.match(mobileMenuSource, /label\.textContent = isExpanded \? 'Hide' : 'Sound'/);
 
     assert.match(pianoResizeSource, /PIANO_EXPANDED_STORAGE_KEY = 'pianoKeyboardExpanded'/);
     assert.match(pianoResizeSource, /localStorage\.getItem\(PIANO_EXPANDED_STORAGE_KEY\) !== 'false'/);
