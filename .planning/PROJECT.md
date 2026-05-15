@@ -6,6 +6,8 @@ Interactive Piano Helper is a browser-only piano learning app for exploring acco
 
 The next stage is to make it feel trustworthy as a notation-backed learning tool: visible notes, played notes, validation, and score-like material should agree and fail clearly.
 
+The current frontier is professional MusicXML rendering. Phase 5 proved import, storage, playback, and practice controls, but real MuseScore exports showed that a simplified app-owned VexFlow reconstruction is not enough for full page-fidelity MusicXML display.
+
 ## Core Value
 
 Displayed notation and playback must describe the same musical events so learners can trust what they see, hear, and play.
@@ -31,6 +33,8 @@ Displayed notation and playback must describe the same musical events so learner
 - [ ] Show clear user-facing errors or guidance for unsupported keys and invalid pattern data.
 - [ ] Prepare the architecture for MusicXML import by introducing an internal score/event model that both notation and playback can consume.
 - [ ] Add focused regression tests around transposition, timing, notation grouping, validation, and playback/notation synchronization.
+- [ ] Evaluate and integrate a professional MusicXML renderer module, with OSMD as the preferred candidate and Verovio retained as fallback/comparison.
+- [ ] Add a curated MusicXML compatibility fixture suite using the cuthbertLab MIT test suite as the preferred source and LilyPond's collated tests as coverage guidance.
 
 ### Out of Scope
 
@@ -68,6 +72,8 @@ The user explicitly values the current sound generation and piano interaction. I
 | Prioritize canonical notation/playback sequence | Fixes the trust problem where visible notes and played notes can diverge | — Pending |
 | Support two input directions over time: validated short patterns and MusicXML for pieces | MusicXML is best for complete sheet music, but compact accompaniment patterns are still useful | — Pending |
 | Avoid full framework rewrite | Current architecture is small and understandable; the core issue is model consistency | — Pending |
+| Prefer a dedicated professional renderer for full MusicXML | Real MuseScore exports exceed the practical scope of app-owned VexFlow reconstruction | Phase 6 planned |
+| Use curated MusicXML fixtures instead of ad hoc samples | Renderer trust needs repeatable coverage across voices, chords, layout, directions, and compressed files | Phase 6 planned |
 
 ## Evolution
 

@@ -13,6 +13,7 @@
 | 3 | Pattern Validation And Feedback | Validate existing pattern data and surface clear errors | VAL-01, VAL-02, VAL-03, TEST-01 | Completed |
 | 4 | MusicXML-Ready Foundation | Prepare the score model for MusicXML while adding browser smoke coverage | XML-01, XML-02, TEST-02 | Completed |
 | 5 | MusicXML Import And Practice UX | Import MusicXML scores and add practice controls for score playback | XML-03, XML-04, XML-05, PRAC-01, PRAC-02, PRAC-03 | Completed |
+| 6 | Professional MusicXML Renderer | Evaluate and integrate a professional, page-faithful, interactive MusicXML renderer | XML-06, XML-07, XML-08, TEST-03 | Planned |
 
 ## Phases
 
@@ -142,6 +143,26 @@ Plans:
 **Wave 6** *(blocked on Wave 5 completion)*
 - [x] `05-06-PLAN.md` — Browser smoke and regression coverage
 
+### Phase 6: Professional MusicXML Renderer
+
+**Goal:** Replace the simplified imported-score rendering path with a professional, page-faithful MusicXML renderer module that supports interactive SVG/DOM notes, playback highlighting, range selection, click events, and curated MusicXML compatibility testing.
+**Mode:** mvp
+**UI hint:** yes
+**Requirements:** XML-06, XML-07, XML-08, TEST-03
+**Depends on:** Phase 5
+**Plans:** 1 plan drafted
+
+**Success Criteria**:
+1. OSMD is evaluated as the preferred renderer against real MuseScore exports, curated MusicXML suite fixtures, static-hosting constraints, interactivity, performance, and license obligations.
+2. Verovio and the current VexFlow reconstruction are documented as comparison/fallback paths before the renderer decision is finalized.
+3. The app owns a stable renderer facade for MusicXML pages, note/measure click mapping, playback highlighting, range selection, timing bridge, and teardown.
+4. Imported MusicXML rendering preserves page/system layout far more faithfully than the Phase 5 reconstruction and avoids app-owned reflow of encoded pages.
+5. A curated MusicXML fixture suite strategy is integrated into automated tests, using the cuthbertLab MIT MusicXML Test Suite as the preferred source and LilyPond documentation as coverage reference.
+
+Plans:
+**Wave 1**
+- [ ] `06-01-PLAN.md` — Renderer decision spike, facade contract, and MusicXML test-suite strategy
+
 ## Coverage
 
 | Requirement | Phase | Status |
@@ -168,5 +189,9 @@ Plans:
 | PRAC-01 | Phase 5 | Complete |
 | PRAC-02 | Phase 5 | Complete |
 | PRAC-03 | Phase 5 | Complete |
+| XML-06 | Phase 6 | Planned |
+| XML-07 | Phase 6 | Planned |
+| XML-08 | Phase 6 | Planned |
+| TEST-03 | Phase 6 | Planned |
 
-**Coverage:** 22 / 22 requirements mapped.
+**Coverage:** 26 / 26 requirements mapped.

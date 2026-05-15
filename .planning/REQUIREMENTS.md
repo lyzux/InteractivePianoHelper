@@ -53,6 +53,16 @@
 - [x] **PRAC-02**: User can start playback from a selected measure or note.
 - [x] **PRAC-03**: Notation auto-scrolls to the current system during score playback.
 
+### Professional MusicXML Rendering
+
+- [ ] **XML-06**: Imported MusicXML scores render through a professional page-faithful renderer module rather than the simplified app-owned VexFlow reconstruction.
+- [ ] **XML-07**: The MusicXML renderer exposes app-owned APIs for note/measure click events, playback highlighting, range marking, timing/cursor mapping, page metadata, and lifecycle cleanup.
+- [ ] **XML-08**: Renderer dependency choice is documented with license, static-hosting, performance, interactivity, and fallback analysis, with OSMD evaluated first and Verovio retained as a fallback comparison.
+
+### MusicXML Compatibility Testing
+
+- [ ] **TEST-03**: A curated MusicXML fixture suite is integrated into automated tests, using the cuthbertLab MIT MusicXML Test Suite as the preferred source and LilyPond's collated tests as coverage guidance.
+
 ## Out of Scope
 
 | Feature | Reason |
@@ -62,6 +72,7 @@
 | Full framework rewrite | The main issue is model consistency, validation, and notation robustness, not lack of a framework. |
 | Backend/server-side MusicXML conversion | The app should remain static unless future requirements justify a backend. |
 | MusicXML-only replacement of all current patterns | Short pedagogical accompaniment patterns should remain easy to author and maintain. |
+| App-owned full MusicXML engraving engine | Mature MusicXML page rendering should come from a dedicated renderer module; the app should own integration APIs, not every engraving rule. |
 
 ## Traceability
 
@@ -89,12 +100,16 @@
 | PRAC-01 | Phase 5 | Complete |
 | PRAC-02 | Phase 5 | Complete |
 | PRAC-03 | Phase 5 | Complete |
+| XML-06 | Phase 6 | Planned |
+| XML-07 | Phase 6 | Planned |
+| XML-08 | Phase 6 | Planned |
+| TEST-03 | Phase 6 | Planned |
 
 **Coverage:**
-- Requirements: 22 total
-- Mapped to phases: 22
+- Requirements: 26 total
+- Mapped to phases: 26
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-14*
-*Last updated: 2026-05-15 after backlog promotion to Phase 5*
+*Last updated: 2026-05-15 after Phase 6 renderer exploration*
