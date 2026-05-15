@@ -45,12 +45,12 @@
 
 - [x] **XML-03**: User can import a MusicXML file for complete sheet music display.
 - [x] **XML-04**: MusicXML import validates file structure, supported durations, notes, rests, chords, ties, accidentals, clefs, key signatures, and time signatures.
-- **XML-05**: Imported MusicXML scores can be played back through the existing piano and highlighted on the keyboard.
+- [x] **XML-05**: Imported MusicXML scores can be played back through the existing piano and highlighted on the keyboard.
 
 ### Practice UX
 
 - **PRAC-01**: User can loop a selected measure range.
-- **PRAC-02**: User can start playback from a selected measure or note.
+- [x] **PRAC-02**: User can start playback from a selected measure or note.
 - **PRAC-03**: Notation auto-scrolls to the current system during score playback.
 
 ## Out of Scope
@@ -87,7 +87,7 @@
 | XML-04 | Phase 5 | Complete |
 | XML-05 | Phase 5 | Complete |
 | PRAC-01 | Phase 5 | Pending |
-| PRAC-02 | Phase 5 | Pending |
+| PRAC-02 | Phase 5 | Complete |
 | PRAC-03 | Phase 5 | Complete |
 
 **Coverage:**
