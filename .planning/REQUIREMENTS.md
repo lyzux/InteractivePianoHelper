@@ -31,8 +31,8 @@
 
 ### MusicXML Readiness
 
-- [ ] **XML-01**: Architecture supports a future MusicXML adapter into the canonical score model.
-- [ ] **XML-02**: Current short pedagogical patterns remain supported; MusicXML is added for complete pieces, not forced as the only format.
+- [x] **XML-01**: Architecture supports a future MusicXML adapter into the canonical score model.
+- [x] **XML-02**: Current short pedagogical patterns remain supported; MusicXML is added for complete pieces, not forced as the only format.
 
 ### Regression Safety
 
@@ -79,8 +79,8 @@
 | VAL-01 | Phase 3 | Completed |
 | VAL-02 | Phase 3 | Completed |
 | VAL-03 | Phase 3 | Completed |
-| XML-01 | Phase 4 | Pending |
-| XML-02 | Phase 4 | Pending |
+| XML-01 | Phase 4 | Complete |
+| XML-02 | Phase 4 | Complete |
 | TEST-01 | Phase 3 | Completed |
 | TEST-02 | Phase 4 | Pending |
 

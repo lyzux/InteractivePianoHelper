@@ -11,7 +11,7 @@
 | 1 | Canonical Pattern Event Pipeline | Make simple patterns play and display from the same event sequence | MODEL-01, MODEL-02, MODEL-03, SYNC-01 | Completed |
 | 2 | Score Display Modes | Separate loop preview from score display and render full pieces reliably | SYNC-02, SYNC-03, SCORE-01, SCORE-02, SCORE-03 | Completed |
 | 3 | Pattern Validation And Feedback | Validate existing pattern data and surface clear errors | VAL-01, VAL-02, VAL-03, TEST-01 | Completed |
-| 4 | MusicXML-Ready Foundation | Prepare the score model for MusicXML while adding browser smoke coverage | XML-01, XML-02, TEST-02 | Pending |
+| 4 | MusicXML-Ready Foundation | Prepare the score model for MusicXML while adding browser smoke coverage | XML-01, XML-02, TEST-02 | In Progress |
 
 ## Phases
 
@@ -99,7 +99,7 @@ Plans:
 
 Plans:
 **Wave 1**
-- [ ] `04-01-PLAN.md` — MusicXML adapter contract and documentation
+- [x] `04-01-PLAN.md` — MusicXML adapter contract and documentation
 
 **Wave 2** *(blocked on Wave 1 completion; critical browser tooling gate)*
 - [ ] `04-02-PLAN.md` — Browser smoke coverage
