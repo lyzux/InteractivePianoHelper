@@ -167,6 +167,7 @@
     .staff-notation {
         margin-bottom: 20px;
         padding: 16px 8px;
+        width: calc(100vw - 16px);
     }
     
     #vexflow-notation {
@@ -175,7 +176,7 @@
     }
 
     .score-page-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(var(--score-page-min-width), 1fr));
         gap: 10px;
     }
 

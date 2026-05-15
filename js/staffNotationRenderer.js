@@ -334,7 +334,7 @@ export function drawStaffNotation(patternLoader, settings, sequence = null) {
         const pages = planScorePages(scoreMeasures.measureCount);
         const scoreKey = notationData.selectedKey || notationData.nativeKey || 'C';
         const sheetView = document.createElement('div');
-        sheetView.className = 'score-sheet-view';
+        sheetView.className = pages.length === 1 ? 'score-sheet-view single-page' : 'score-sheet-view';
         const pageGrid = document.createElement('div');
         pageGrid.className = pages.length === 1 ? 'score-page-grid single-page' : 'score-page-grid';
         sheetView.appendChild(pageGrid);

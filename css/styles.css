@@ -8,19 +8,20 @@
 
 body {
     font-family: 'Libre Baskerville', 'Times New Roman', Georgia, serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #ebe8df;
     min-height: 100vh;
-    padding: 20px;
+    padding: 0;
     color: #333;
 }
 
 .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    background: rgba(255, 255, 255, 0.95);
-    border-radius: 20px;
-    padding: 30px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    background: #f8f7f3;
+    border-radius: 0;
+    padding: 24px clamp(16px, 2.4vw, 40px);
+    box-shadow: none;
 }
 
 h1 {
@@ -161,11 +162,14 @@ button.playing {
 
 .staff-notation {
     background: #f4f1ea;
-    padding: 24px;
+    padding: 24px clamp(12px, 2vw, 32px);
     border-radius: 0;
     margin-bottom: 30px;
     box-shadow: none;
-    overflow-x: hidden;
+    overflow-x: auto;
+    width: calc(100vw - clamp(24px, 4vw, 64px));
+    margin-left: 50%;
+    transform: translateX(-50%);
 }
 
 .staff-notation h3 {
@@ -187,19 +191,28 @@ button.playing {
     padding: 0 0 180px;
     border: none;
     text-align: left;
+    overflow-x: auto;
 }
 
 .score-sheet-view {
+    --score-page-min-width: 620px;
+    --score-page-max-width: 860px;
+    --score-page-gap: clamp(18px, 2vw, 36px);
     width: 100%;
+    min-width: calc(var(--score-page-min-width) * 2 + var(--score-page-gap));
+}
+
+.score-sheet-view.single-page {
+    min-width: 0;
 }
 
 .score-page-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 32px;
+    grid-template-columns: repeat(2, minmax(var(--score-page-min-width), 1fr));
+    gap: var(--score-page-gap);
     justify-content: center;
     align-items: start;
-    width: min(100%, 1620px);
+    width: min(100%, calc(var(--score-page-max-width) * 2 + var(--score-page-gap)));
     margin: 0 auto;
 }
 
@@ -210,7 +223,7 @@ button.playing {
 
 .score-page {
     width: 100%;
-    max-width: 794px;
+    max-width: var(--score-page-max-width);
     aspect-ratio: 210 / 297;
     background: #ffffff;
     border: 1px solid #d8dee6;
