@@ -55,13 +55,13 @@
 
 ### Professional MusicXML Rendering
 
-- [ ] **XML-06**: Imported MusicXML scores render through a professional page-faithful renderer module rather than the simplified app-owned VexFlow reconstruction.
-- [ ] **XML-07**: The MusicXML renderer exposes app-owned APIs for note/measure click events, playback highlighting, range marking, timing/cursor mapping, page metadata, and lifecycle cleanup.
-- [ ] **XML-08**: Renderer dependency choice is documented with license, static-hosting, performance, interactivity, and fallback analysis, with OSMD evaluated first and Verovio retained as a fallback comparison.
+- [x] **XML-06**: Imported MusicXML scores render through a professional page-faithful renderer module rather than the simplified app-owned VexFlow reconstruction.
+- [x] **XML-07**: The MusicXML renderer exposes app-owned APIs for note/measure click events, playback highlighting, range marking, timing/cursor mapping, page metadata, and lifecycle cleanup.
+- [x] **XML-08**: Renderer dependency choice is documented with license, static-hosting, performance, interactivity, and fallback analysis, with OSMD evaluated first and Verovio retained as a fallback comparison.
 
 ### MusicXML Compatibility Testing
 
-- [ ] **TEST-03**: A curated MusicXML fixture suite is integrated into automated tests, using the cuthbertLab MIT MusicXML Test Suite as the preferred source and LilyPond's collated tests as coverage guidance.
+- [x] **TEST-03**: A curated MusicXML fixture suite is integrated into automated tests, using the cuthbertLab MIT MusicXML Test Suite as the preferred source and LilyPond's collated tests as coverage guidance.
 
 ## Out of Scope
 
@@ -100,10 +100,10 @@
 | PRAC-01 | Phase 5 | Complete |
 | PRAC-02 | Phase 5 | Complete |
 | PRAC-03 | Phase 5 | Complete |
-| XML-06 | Phase 6 | Planned |
-| XML-07 | Phase 6 | Planned |
-| XML-08 | Phase 6 | Planned |
-| TEST-03 | Phase 6 | Planned |
+| XML-06 | Phase 6 | Completed |
+| XML-07 | Phase 6 | Completed |
+| XML-08 | Phase 6 | Completed |
+| TEST-03 | Phase 6 | Completed |
 
 **Coverage:**
 - Requirements: 26 total
@@ -112,4 +112,4 @@
 
 ---
 *Requirements defined: 2026-05-14*
-*Last updated: 2026-05-15 after Phase 6 renderer exploration*
+*Last updated: 2026-05-15 after Phase 6 completion*

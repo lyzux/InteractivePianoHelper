@@ -13,7 +13,7 @@
 | 3 | Pattern Validation And Feedback | Validate existing pattern data and surface clear errors | VAL-01, VAL-02, VAL-03, TEST-01 | Completed |
 | 4 | MusicXML-Ready Foundation | Prepare the score model for MusicXML while adding browser smoke coverage | XML-01, XML-02, TEST-02 | Completed |
 | 5 | MusicXML Import And Practice UX | Import MusicXML scores and add practice controls for score playback | XML-03, XML-04, XML-05, PRAC-01, PRAC-02, PRAC-03 | Completed |
-| 6 | Professional MusicXML Renderer | Evaluate and integrate a professional, page-faithful, interactive MusicXML renderer | XML-06, XML-07, XML-08, TEST-03 | Planned |
+| 6 | Professional MusicXML Renderer | Evaluate and integrate a professional, page-faithful, interactive MusicXML renderer | XML-06, XML-07, XML-08, TEST-03 | Completed |
 
 ## Phases
 
@@ -150,7 +150,7 @@ Plans:
 **UI hint:** yes
 **Requirements:** XML-06, XML-07, XML-08, TEST-03
 **Depends on:** Phase 5
-**Plans:** 1 plan drafted
+**Plans:** 1 plan complete
 
 **Success Criteria**:
 1. OSMD is evaluated as the preferred renderer against real MuseScore exports, curated MusicXML suite fixtures, static-hosting constraints, interactivity, performance, and license obligations.
@@ -161,7 +161,7 @@ Plans:
 
 Plans:
 **Wave 1**
-- [ ] `06-01-PLAN.md` — Renderer decision spike, facade contract, and MusicXML test-suite strategy
+- [x] `06-01-PLAN.md` — Renderer decision spike, facade contract, and MusicXML test-suite strategy
 
 ## Coverage
 
@@ -189,9 +189,9 @@ Plans:
 | PRAC-01 | Phase 5 | Complete |
 | PRAC-02 | Phase 5 | Complete |
 | PRAC-03 | Phase 5 | Complete |
-| XML-06 | Phase 6 | Planned |
-| XML-07 | Phase 6 | Planned |
-| XML-08 | Phase 6 | Planned |
-| TEST-03 | Phase 6 | Planned |
+| XML-06 | Phase 6 | Completed |
+| XML-07 | Phase 6 | Completed |
+| XML-08 | Phase 6 | Completed |
+| TEST-03 | Phase 6 | Completed |
 
 **Coverage:** 26 / 26 requirements mapped.
