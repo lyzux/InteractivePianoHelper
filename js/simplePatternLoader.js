@@ -1,54 +1,6 @@
 // Simple Pattern Loader — extracted from index.html inline script
 import { PATTERN_IDS } from '../patterns/index.js';
-
-// ── MIDI Transposition Helpers ────────────────────────────────────────────────
-
-const _SHARP   = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-const _FLAT    = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
-const _ENARH   = { Db:'C#', Eb:'D#', Gb:'F#', Ab:'G#', Bb:'A#' };
-// Semitone offset above C for each key root
-const _KEY_ST  = {
-    C:0, G:7, D:2, A:9, E:4, B:11, 'F#':6,
-    F:5, Bb:10, Eb:3, Ab:8, Db:1,
-    Am:9, Dm:2  // minor key roots
-};
-const _FLAT_KEYS = new Set(['F','Bb','Eb','Ab','Db','Dm']);
-
-function _toMidi(note) {
-    if (!note) return null;
-    const oct = parseInt(note.slice(-1));
-    const nm  = note.slice(0, -1);
-    const idx = _SHARP.indexOf(_ENARH[nm] || nm);
-    return idx === -1 ? null : (oct + 1) * 12 + idx;
-}
-
-function _fromMidi(midi, flat) {
-    return (flat ? _FLAT : _SHARP)[midi % 12] + (Math.floor(midi / 12) - 1);
-}
-
-function _transposeNote(note, semitones, flat) {
-    if (note === null || note === undefined) return null;
-    if (Array.isArray(note)) return note.map(n => _transposeNote(n, semitones, flat));
-    const m = _toMidi(note);
-    return m === null ? note : _fromMidi(m + semitones, flat);
-}
-
-/**
- * Resolve notes for a given hand and key.
- * Patterns with nativeKey (e.g. furelise) bypass transposition — fn(key) is used directly.
- * All other patterns: always resolve from fn('C') and transpose chromatically.
- */
-function _resolveNotes(pattern, hand, key) {
-    const fn = pattern[hand] || (hand === 'leftHand' ? pattern.pattern : null);
-    if (!fn) return null;
-    if (pattern.nativeKey) return fn(key) || null;
-    const base = fn('C');
-    if (!base) return null;
-    if (key === 'C') return base;
-    const semitones = _KEY_ST[key] ?? 0;
-    const flat      = _FLAT_KEYS.has(key);
-    return base.map(n => _transposeNote(n, semitones, flat));
-}
+import { resolvePatternSequence } from './canonicalPatternResolver.js';
 
 export class SimplePatternLoader {
     constructor() {
@@ -77,31 +29,54 @@ export class SimplePatternLoader {
     }
 
     generateVexFlowNotation(patternId, key) {
-        const pattern = this.getPattern(patternId);
-        if (!pattern) return null;
+        const sequence = this.resolvePatternSequence(patternId, key);
+        if (!sequence || !sequence.isKeySupported || !sequence.events.length) return null;
 
-        const timing = pattern.timing;
+        const bassNotes = [];
+        const bassTiming = [];
+        const bassFingering = [];
+        const trebleNotes = [];
+        const trebleTiming = [];
+        const trebleFingering = [];
 
-        // Resolve notes — uses native key data for C/G/F/Am/Dm, transposes from C otherwise
-        const bassClefNotes   = _resolveNotes(pattern, 'leftHand',  key) || [];
-        const trebleClefNotes = _resolveNotes(pattern, 'rightHand', key);
-        const bassClefFingering = pattern.leftHandFingering || pattern.fingering;
-        const trebleClefFingering = pattern.rightHandFingering;
+        sequence.events.forEach(event => {
+            const left = event.hands.left;
+            const right = event.hands.right;
+
+            if (left) {
+                bassNotes.push(left.isRest ? null : (left.notes.length === 1 ? left.notes[0] : left.notes));
+                bassTiming.push(event.durationBeats);
+                bassFingering.push(left.fingering);
+            }
+
+            if (right) {
+                trebleNotes.push(right.isRest ? null : (right.notes.length === 1 ? right.notes[0] : right.notes));
+                trebleTiming.push(event.durationBeats);
+                trebleFingering.push(right.fingering);
+            }
+        });
 
         return {
             bassClef: {
-                notes: bassClefNotes,
-                fingering: bassClefFingering,
-                timing: timing
+                notes: bassNotes,
+                fingering: bassFingering,
+                timing: bassTiming
             },
-            trebleClef: trebleClefNotes ? {
-                notes: trebleClefNotes,
-                fingering: trebleClefFingering,
-                timing: timing
+            trebleClef: trebleNotes.length ? {
+                notes: trebleNotes,
+                fingering: trebleFingering,
+                timing: trebleTiming
             } : null,
-            timeSignature: pattern.timeSignature || '4/4',
-            key: key
+            timeSignature: sequence.timeSignature,
+            key: sequence.selectedKey,
+            sequence
         };
+    }
+
+    resolvePatternSequence(patternId, key) {
+        const pattern = this.getPattern(patternId);
+        if (!pattern) return null;
+        return resolvePatternSequence(pattern, { patternId, key });
     }
 
     // Convert note string to VexFlow format
