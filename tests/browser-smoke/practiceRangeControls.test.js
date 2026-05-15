@@ -89,8 +89,21 @@ async function withAppPage(assertions) {
     }
 }
 
+async function selectBuiltInScore(page) {
+    await page.evaluate(() => {
+        const select = document.getElementById('pattern');
+        const option = Array.from(select?.options || []).find(item => item.dataset.sourceType !== 'musicxml');
+        if (!select || !option) return;
+        select.value = option.value;
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await page.waitForSelector('.score-measure-hit-target', { timeout: 15000 });
+    await page.waitForFunction(() => document.querySelectorAll('.score-measure-hit-target').length >= 5);
+}
+
 test('practice range controls support Shift selection, range mode, persistence, and clear', async () => {
     await withAppPage(async page => {
+        await selectBuiltInScore(page);
         await page.locator('.score-measure-hit-target').nth(0).click();
         assert.equal(await page.locator('#practiceRangeStatus').textContent(), 'No range selected');
 
@@ -132,21 +145,14 @@ test('practice range controls support Shift selection, range mode, persistence, 
         }));
         assert.equal(rangeState.modePressed, 'false');
         assert.match(rangeState.status, /Measures .* selected/);
-    });
-});
-
-test('selected ranges wire into playback and auto-follow pauses and resumes', async () => {
-    await withAppPage(async page => {
-        await page.locator('.score-measure-hit-target').nth(1).click({ modifiers: ['Shift'] });
-        await page.locator('.score-measure-hit-target').nth(2).click({ modifiers: ['Shift'] });
-        await page.waitForFunction(() => /Measures .* selected/.test(document.getElementById('practiceRangeStatus')?.textContent || ''));
 
         const selectedRange = await page.evaluate(() => window.__iphPracticeDebug?.getPlaybackRange?.());
         assert.ok(selectedRange, 'selected range should expose a playback range');
         assert.equal(String(selectedRange.startMeasureNumber), '2');
-        assert.equal(String(selectedRange.endMeasureNumber), '3');
+        assert.equal(String(selectedRange.endMeasureNumber), '4');
 
         await page.check('#loopPlayback');
+        assert.deepEqual(await page.evaluate(() => window.__iphPracticeDebug?.getPlaybackRange?.()), selectedRange);
         await page.click('#playStopBtn');
         await page.waitForFunction(() => document.getElementById('playStopBtn')?.textContent?.trim() === 'Stop');
         const playbackState = await page.evaluate(() => window.__iphPracticeDebug?.lastPlaybackStart);
@@ -154,6 +160,7 @@ test('selected ranges wire into playback and auto-follow pauses and resumes', as
         assert.deepEqual(playbackState.range, selectedRange);
 
         await page.locator('#vexflow-notation').evaluate(element => {
+            element.dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: 80 }));
             element.scrollTop = 60;
             element.dispatchEvent(new Event('scroll', { bubbles: true }));
         });

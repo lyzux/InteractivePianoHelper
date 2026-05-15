@@ -108,7 +108,7 @@ test('source removes key selector and wires loop playback', () => {
     assert.match(indexHtml, /id="loopPlayback"/);
     assert.match(indexHtml, /loopToggle\.addEventListener\('change'/);
     assert.match(indexHtml, /player\.setLoopEnabled\(event\.target\.checked === true\)/);
-    assert.match(indexHtml, /player\.play\(sequence, \{ loop \}\)/);
+    assert.match(indexHtml, /player\.play\(sequence, \{ loop, range \}\)/);
     assert.match(playerSource, /play\(sequence, \{ loop = false, range = null \} = \{\}\)/);
     assert.match(playerSource, /setLoopEnabled\(enabled\)/);
 });

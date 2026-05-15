@@ -258,6 +258,14 @@ h1 {
     margin: 0;
 }
 
+.control-help {
+    max-width: 220px;
+    color: #52606d;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.35;
+}
+
 label {
     font-weight: 500;
     color: #4a5568;
@@ -418,6 +426,75 @@ button:disabled {
     letter-spacing: 0;
 }
 
+.practice-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 0 auto 16px;
+}
+
+.practice-range-status,
+.auto-follow-status {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #edf2f7;
+    color: #1f2933;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+.practice-range-status:not(:empty) {
+    border: 2px solid transparent;
+}
+
+.practice-range-status.has-selected-range {
+    border-color: #6ee7b7;
+    background: rgba(110, 231, 183, 0.16);
+}
+
+.practice-clear-range,
+.practice-range-mode,
+.resume-auto-follow {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 14px;
+    letter-spacing: 0;
+}
+
+.practice-range-mode {
+    background: #1f2933;
+}
+
+.practice-range-mode.is-active,
+.resume-auto-follow {
+    background: #6ee7b7;
+    color: #1f2933;
+}
+
+.practice-clear-range {
+    background: #4a5568;
+}
+
+.auto-follow-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.auto-follow-status[hidden],
+.resume-auto-follow[hidden] {
+    display: none;
+}
+
 #vexflow-notation {
     background: transparent;
     min-height: 320px;
@@ -476,8 +553,29 @@ button:disabled {
 .score-measure-hit-target.range-selected,
 .score-measure-hit-target.range-boundary {
     opacity: 1;
+    background: rgba(110, 231, 183, 0.22) !important;
     outline: 3px solid var(--range-accent);
     outline-offset: -3px;
+}
+
+.score-measure-hit-target.range-pending {
+    opacity: 1;
+    background: rgba(110, 231, 183, 0.14) !important;
+    outline: 3px dashed var(--range-accent);
+    outline-offset: -3px;
+}
+
+.score-measure-hit-target.range-boundary::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    background: var(--range-accent);
+}
+
+.score-measure-hit-target.range-boundary::after {
+    left: 0;
 }
 
 .score-empty {

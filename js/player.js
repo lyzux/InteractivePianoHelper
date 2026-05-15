@@ -72,7 +72,7 @@ export class Player {
 
         let startIndex = null;
         let endIndex = null;
-        const measures = Array.isArray(sequence.measures) ? sequence.measures : [];
+        const measures = this._resolveMeasures(sequence);
 
         if (range.startEventId || range.endEventId) {
             startIndex = range.startEventId
@@ -110,7 +110,41 @@ export class Player {
 
     _findMeasure(measures, measureNumber) {
         if (measureNumber === null || measureNumber === undefined || measureNumber === '') return null;
-        return measures.find(measure => String(measure.measureNumber) === String(measureNumber)) || null;
+        return measures.find(measure => (
+            String(measure.measureNumber) === String(measureNumber)
+            || String(measure.measureIndex) === String(measureNumber)
+            || String(measure.measureIndex + 1) === String(measureNumber)
+        )) || null;
+    }
+
+    _resolveMeasures(sequence) {
+        if (Array.isArray(sequence.measures) && sequence.measures.length) return sequence.measures;
+        const events = Array.isArray(sequence.events) ? sequence.events : [];
+        const byMeasure = new Map();
+        events.forEach(event => {
+            const measureIndex = Number.isInteger(event.measureIndex)
+                ? event.measureIndex
+                : Math.floor((event.startBeat || 0) / (sequence.beatsPerMeasure || 4));
+            if (!byMeasure.has(measureIndex)) {
+                byMeasure.set(measureIndex, {
+                    measureIndex,
+                    measureNumber: measureIndex + 1,
+                    startBeat: Number.POSITIVE_INFINITY,
+                    durationBeats: 0,
+                    eventIds: []
+                });
+            }
+            const measure = byMeasure.get(measureIndex);
+            measure.startBeat = Math.min(measure.startBeat, event.startBeat || 0);
+            measure.durationBeats = Math.max(
+                measure.durationBeats,
+                this._eventEndBeat(event) - measure.startBeat
+            );
+            measure.eventIds.push(event.id);
+        });
+        return [...byMeasure.values()]
+            .filter(measure => Number.isFinite(measure.startBeat) && measure.durationBeats > 0)
+            .sort((a, b) => a.measureIndex - b.measureIndex);
     }
 
     _eventEndBeat(event) {
@@ -119,7 +153,7 @@ export class Player {
     }
 
     _rangeEndBeat(sequence, range, selectedEvents) {
-        const measures = Array.isArray(sequence.measures) ? sequence.measures : [];
+        const measures = this._resolveMeasures(sequence);
         if (range?.endMeasureNumber) {
             const endMeasure = this._findMeasure(measures, range.endMeasureNumber);
             if (endMeasure) return endMeasure.startBeat + endMeasure.durationBeats;

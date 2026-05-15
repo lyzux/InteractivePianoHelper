@@ -142,6 +142,10 @@
         margin-bottom: 20px;
     }
 
+    .control-help {
+        max-width: none;
+    }
+
     .score-library {
         width: 100%;
         margin-bottom: 16px;
@@ -210,6 +214,23 @@
         margin-bottom: 20px;
         padding: 16px 8px;
         width: calc(100vw - 16px);
+    }
+
+    .practice-controls,
+    .auto-follow-controls {
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .practice-range-status,
+    .practice-range-mode,
+    .practice-clear-range,
+    .auto-follow-status,
+    .resume-auto-follow {
+        width: 100%;
+        min-height: 44px;
+        white-space: normal;
+        overflow-wrap: anywhere;
     }
     
     #vexflow-notation {

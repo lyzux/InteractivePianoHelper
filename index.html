@@ -269,6 +269,7 @@
                     <input type="checkbox" id="loopPlayback">
                     <label for="loopPlayback">Loop</label>
                 </div>
+                <div class="control-help" id="loopPlaybackHelp">Loop plays the selected range when one is selected.</div>
             </div>
             
             <div class="control-group">
@@ -291,6 +292,18 @@
         
         <div class="staff-notation">
             <h3>Sheet Music</h3>
+            <div class="practice-controls" aria-label="Practice controls">
+                <div class="practice-range-status" id="practiceRangeStatus" role="status" aria-live="polite">No range selected</div>
+                <button id="practiceRangeModeBtn" class="practice-range-mode" type="button" aria-pressed="false">
+                    <span class="material-icons" aria-hidden="true">select_all</span>
+                    <span>Range mode</span>
+                </button>
+                <button id="clearPracticeRangeBtn" class="practice-clear-range" type="button" hidden>Clear range</button>
+                <div class="auto-follow-controls">
+                    <span class="auto-follow-status" id="autoFollowStatus" role="status" aria-live="polite" hidden></span>
+                    <button id="resumeAutoFollowBtn" class="resume-auto-follow" type="button" hidden>Resume follow</button>
+                </div>
+            </div>
             <div id="vexflow-notation"></div>
         </div>
                 </div>
@@ -350,6 +363,8 @@
             { assignDuplicateImportedTitle, createImportedScoreRecord, registerImportedScore, removeImportedScore },
             { deleteImportedScore, getImportedScore, listImportedScores, saveImportedScore },
             { renderMusicXmlScore, clearMusicXmlScoreRender },
+            { createPracticeRangeController },
+            { createAutoFollowController },
             { generatePhysicsControls: _generatePhysicsControls },
             { initializeMobileMenu },
             { initializePianoResize }
@@ -365,6 +380,8 @@
             import(`./js/importedScoreLibrary.js?v=${APP_VERSION}`),
             import(`./js/importedScoreStore.js?v=${APP_VERSION}`),
             import(`./js/musicXmlScoreRenderer.js?v=${APP_VERSION}`),
+            import(`./js/practiceRangeController.js?v=${APP_VERSION}`),
+            import(`./js/autoFollowController.js?v=${APP_VERSION}`),
             import(`./js/physicsControlsPanel.js?v=${APP_VERSION}`),
             import(`./js/mobileMenu.js?v=${APP_VERSION}`),
             import(`./js/pianoResizeHandler.js?v=${APP_VERSION}`)
@@ -394,6 +411,8 @@
             } else {
                 currentNotationMaps = _drawStaffNotation(patternLoader, settings, currentPatternSequence);
             }
+            practiceRangeController?.updateNotationMaps(currentNotationMaps);
+            autoFollowController?.updateNotationMaps(currentNotationMaps);
             return currentNotationMaps;
         }
         function generatePhysicsControls() { _generatePhysicsControls(window.audioEngine || audioEngine); }
@@ -402,6 +421,8 @@
         let currentPatternSequence = null;
         let currentNotationMaps = null;  // { eventMap }
         let activeHighlightEls  = [];    // SVGElements currently carrying vf-note-highlight
+        let practiceRangeController = null;
+        let autoFollowController = null;
 
         function resolveCurrentPatternSequence() {
             const patternSelect = document.getElementById('pattern');
@@ -419,12 +440,13 @@
             activeHighlightEls = [];
         }
 
-        function highlightNotationNote(eventId) {
+        function highlightNotationNote(eventId, event) {
             if (!currentNotationMaps) return;
             clearNotationHighlights();
             const els = currentNotationMaps.eventMap?.get(eventId) || [];
             for (const el of els) el.classList.add('vf-note-highlight');
             activeHighlightEls = els;
+            autoFollowController?.handlePlaybackEvent(event);
         }
 
         function escapeHtml(value) {
@@ -787,6 +809,7 @@
             }
 
             removeImportedScore(patternLoader, selectedId);
+            practiceRangeController?.clearRange();
             populatePatternDropdown();
             resolveCurrentPatternSequence();
             updatePatternInfo();
@@ -839,6 +862,22 @@
                 
                 // Make audioEngine globally accessible
                 window.audioEngine = audioEngine;
+
+                practiceRangeController = createPracticeRangeController({
+                    container: document.getElementById('vexflow-notation'),
+                    statusEl: document.getElementById('practiceRangeStatus'),
+                    clearButton: document.getElementById('clearPracticeRangeBtn'),
+                    rangeModeButton: document.getElementById('practiceRangeModeBtn')
+                });
+                autoFollowController = createAutoFollowController({
+                    viewport: document.getElementById('vexflow-notation'),
+                    statusEl: document.getElementById('autoFollowStatus'),
+                    resumeButton: document.getElementById('resumeAutoFollowBtn')
+                });
+                window.__iphPracticeDebug = {
+                    getPlaybackRange: () => practiceRangeController?.getPlaybackRange?.() || null,
+                    lastPlaybackStart: null
+                };
 
                 // Wire notation note highlighting
                 player.onNoteHighlight = highlightNotationNote;
@@ -1124,6 +1163,7 @@
             button.classList.remove('playing');
             button.textContent = 'Play';
             clearNotationHighlights();
+            autoFollowController?.stopPlayback();
         }
 
         function handlePlayStop() {
@@ -1143,9 +1183,18 @@
 
                     if (sequence?.isKeySupported && sequence.events.length) {
                         const loop = document.getElementById('loopPlayback')?.checked === true;
-                        player.play(sequence, { loop });
-                        button.classList.add('playing');
-                        button.textContent = 'Stop';
+                        const range = practiceRangeController?.getPlaybackRange?.() || null;
+                        if (window.__iphPracticeDebug) {
+                            window.__iphPracticeDebug.lastPlaybackStart = { loop, range };
+                        }
+                        autoFollowController?.startPlayback();
+                        player.play(sequence, { loop, range });
+                        if (player.isCurrentlyPlaying()) {
+                            button.classList.add('playing');
+                            button.textContent = 'Stop';
+                        } else {
+                            autoFollowController?.stopPlayback();
+                        }
                     } else {
                         player.stop();
                         resetPlaybackButton();
@@ -1160,6 +1209,7 @@
         function handlePatternChange() {
             player.stop();
             resetPlaybackButton();
+            practiceRangeController?.clearRange();
             resolveCurrentPatternSequence();
             if (!currentPatternSequence) {
                 renderNoVerifiedSourcesState();
