@@ -279,6 +279,54 @@ export function planScorePages(measureCount, options = {}) {
     return pages;
 }
 
+function planScorePagesForSequence(sequence, measureCount) {
+    if (sequence?.sourceType !== 'musicxml') return planScorePages(measureCount);
+    const layout = Array.isArray(sequence.pageLayout?.measureLayout)
+        ? sequence.pageLayout.measureLayout
+        : [];
+    if (layout.length !== measureCount) return planScorePages(measureCount);
+
+    const pagesByNumber = new Map();
+    layout.forEach((measureLayout, fallbackIndex) => {
+        const measureIndex = Number.isInteger(measureLayout.measureIndex)
+            ? measureLayout.measureIndex
+            : fallbackIndex;
+        const pageNumber = Number(measureLayout.pageNumber) || 1;
+        const systemIndex = Number(measureLayout.systemIndex) || 0;
+        if (!pagesByNumber.has(pageNumber)) {
+            pagesByNumber.set(pageNumber, {
+                pageIndex: pagesByNumber.size,
+                sourcePageNumber: pageNumber,
+                systems: []
+            });
+        }
+        const page = pagesByNumber.get(pageNumber);
+        let system = page.systems.find(item => item.systemIndex === systemIndex);
+        if (!system) {
+            system = {
+                systemIndex,
+                start: measureIndex,
+                count: 0,
+                end: measureIndex
+            };
+            page.systems.push(system);
+        }
+        system.start = Math.min(system.start, measureIndex);
+        system.end = Math.max(system.end, measureIndex);
+        system.count = system.end - system.start + 1;
+    });
+
+    const pages = [...pagesByNumber.values()]
+        .sort((a, b) => a.sourcePageNumber - b.sourcePageNumber)
+        .map((page, pageIndex) => ({
+            ...page,
+            pageIndex,
+            systems: page.systems.sort((a, b) => a.systemIndex - b.systemIndex)
+        }));
+
+    return pages.length ? pages : planScorePages(measureCount);
+}
+
 function appendHighlightedElement(eventHighlightMap, eventId, staveNote) {
     if (!eventId) return;
     const el = staveNote.attrs?.id ? document.getElementById(`vf-${staveNote.attrs.id}`) : null;
@@ -379,15 +427,18 @@ export function drawStaffNotation(patternLoader, settings, sequence = null) {
         }
 
         const pages = planScorePages(scoreMeasures.measureCount);
+        const renderedPages = notationData.sourceType === 'musicxml'
+            ? planScorePagesForSequence(notationData, scoreMeasures.measureCount)
+            : pages;
         const scoreKey = notationData.selectedKey || notationData.nativeKey || 'C';
         const sheetView = document.createElement('div');
-        sheetView.className = pages.length === 1 ? 'score-sheet-view single-page' : 'score-sheet-view';
+        sheetView.className = renderedPages.length === 1 ? 'score-sheet-view single-page' : 'score-sheet-view';
         const pageGrid = document.createElement('div');
-        pageGrid.className = pages.length === 1 ? 'score-page-grid single-page' : 'score-page-grid';
+        pageGrid.className = renderedPages.length === 1 ? 'score-page-grid single-page' : 'score-page-grid';
         sheetView.appendChild(pageGrid);
         vexFlowDiv.appendChild(sheetView);
 
-        pages.forEach(pagePlan => {
+        renderedPages.forEach(pagePlan => {
             const pageEl = document.createElement('div');
             pageEl.className = 'score-page';
             pageEl.dataset.page = String(pagePlan.pageIndex + 1);
@@ -493,7 +544,7 @@ export function drawStaffNotation(patternLoader, settings, sequence = null) {
                         pageNumber: pagePlan.pageIndex + 1,
                         systemIndex: pageSystemIndex,
                         measureIndex,
-                        measureNumber: measureIndex + 1,
+                        measureNumber: notationData.measures?.[measureIndex]?.measureNumber || measureIndex + 1,
                         x: staveX,
                         y: trebleY,
                         width: staveWidth,
@@ -522,7 +573,7 @@ export function drawStaffNotation(patternLoader, settings, sequence = null) {
             eventMap: eventHighlightMap,
             measureMap,
             sequence: notationData,
-            pages
+            pages: renderedPages
         };
     } catch (error) {
         console.error('VexFlow rendering error:', error);
