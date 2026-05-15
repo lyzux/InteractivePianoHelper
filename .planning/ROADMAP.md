@@ -9,7 +9,7 @@
 | Phase | Name | Goal | Requirements | Status |
 |-------|------|------|--------------|--------|
 | 1 | Canonical Pattern Event Pipeline | Make simple patterns play and display from the same event sequence | MODEL-01, MODEL-02, MODEL-03, SYNC-01 | Completed |
-| 2 | Score Display Modes | Separate loop preview from score display and render full pieces reliably | SYNC-02, SYNC-03, SCORE-01, SCORE-02, SCORE-03 | In Progress |
+| 2 | Score Display Modes | Separate loop preview from score display and render full pieces reliably | SYNC-02, SYNC-03, SCORE-01, SCORE-02, SCORE-03 | Completed |
 | 3 | Pattern Validation And Feedback | Validate existing pattern data and surface clear errors | VAL-01, VAL-02, VAL-03, TEST-01 | Pending |
 | 4 | MusicXML-Ready Foundation | Prepare the score model for MusicXML while adding browser smoke coverage | XML-01, XML-02, TEST-02 | Pending |
 
@@ -41,7 +41,7 @@ Plans:
 **UI hint:** yes
 **Requirements:** SYNC-02, SYNC-03, SCORE-01, SCORE-02, SCORE-03
 **Depends on:** Phase 1
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 **Success Criteria**:
 1. Pattern preview and score display are explicit modes selected from pattern metadata or canonical score metadata.
@@ -58,7 +58,7 @@ Plans:
 - [x] 02-02 A4 full-score page renderer
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 02-03 Score display contract verification
+- [x] 02-03 Score display contract verification
 
 ### Phase 3: Pattern Validation And Feedback
 

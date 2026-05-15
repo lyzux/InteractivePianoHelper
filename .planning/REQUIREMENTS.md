@@ -14,14 +14,14 @@
 ### Notation And Playback
 
 - [x] **SYNC-01**: Lombard rhythm and other short loops display the same event sequence that playback schedules.
-- [ ] **SYNC-02**: Pattern preview and full score display are separate explicit modes.
-- [ ] **SYNC-03**: Notation highlights map to canonical event IDs, not modulo-only pattern indices.
+- [x] **SYNC-02**: Pattern preview and full score display are separate explicit modes.
+- [x] **SYNC-03**: Notation highlights map to canonical event IDs, not modulo-only pattern indices.
 
 ### Score Display
 
-- [ ] **SCORE-01**: Für Elise in A minor renders the complete available excerpt instead of stopping at 8 measures.
-- [ ] **SCORE-02**: Longer notation expands or scrolls without being hidden by the fixed piano area.
-- [ ] **SCORE-03**: Unsupported native-key selections show a clear user-facing message and do not start broken playback.
+- [x] **SCORE-01**: Für Elise in A minor renders the complete available excerpt instead of stopping at 8 measures.
+- [x] **SCORE-02**: Longer notation expands or scrolls without being hidden by the fixed piano area.
+- [x] **SCORE-03**: Unsupported native-key selections show a clear user-facing message and do not start broken playback.
 
 ### Validation
 
@@ -71,11 +71,11 @@
 | MODEL-02 | Phase 1 | Completed |
 | MODEL-03 | Phase 1 | Completed |
 | SYNC-01 | Phase 1 | Completed |
-| SYNC-02 | Phase 2 | Pending |
-| SYNC-03 | Phase 2 | Pending |
-| SCORE-01 | Phase 2 | Pending |
-| SCORE-02 | Phase 2 | Pending |
-| SCORE-03 | Phase 2 | Pending |
+| SYNC-02 | Phase 2 | Complete |
+| SYNC-03 | Phase 2 | Complete |
+| SCORE-01 | Phase 2 | Complete |
+| SCORE-02 | Phase 2 | Complete |
+| SCORE-03 | Phase 2 | Complete |
 | VAL-01 | Phase 3 | Pending |
 | VAL-02 | Phase 3 | Pending |
 | VAL-03 | Phase 3 | Pending |
