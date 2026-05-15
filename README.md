@@ -42,6 +42,20 @@ InteractivePianoHelper/
 - Auto‑discovery of patterns under `patterns/`
 - Optional two‑hand patterns (left/right or bass/treble)
 - Full-score A4-style sheet display rendered with VexFlow
+- Browser-only MusicXML import for strict piano-oriented `.musicxml` and `.xml` scores
+- Selected measure range looping and auto-follow during score playback
+
+## MusicXML Import And Practice
+
+Use **Import MusicXML** in the score library to add a `.musicxml` or `.xml` file. The app parses the file in the browser as inert data, validates it strictly, converts accepted scores into the same canonical score sequence used by notation and playback, and then displays the score as VexFlow sheet pages. Static hosting is still enough; no backend or build step is required.
+
+Imports are stored locally in this browser with IndexedDB for the current origin. `http://localhost:8000`, another local port, and the GitHub Pages URL each have separate imported-score libraries. Clearing site data removes imported scores. The app does not upload imported files, sync them between browsers, or modify the original file.
+
+If an imported title already exists, the new score is kept as a separate entry with a suffix such as `Title (2)`. The remove button deletes only the selected imported score from this browser and does not affect built-in scores, original files, piano settings, or sound controls.
+
+Strict import currently supports a focused piano-oriented MusicXML subset. Unsupported roots, unsupported parts/features, malformed XML, and files that cannot map to playable canonical events are rejected with a short error and expandable import details.
+
+For practice, Shift+click rendered measures to choose a selected range. On touch devices, use Range mode, then tap the start and end measures. Play starts from the selected range start; when Loop is enabled, playback loops the selected range instead of the whole score. Stop clears playback highlights and active piano keys while keeping the selected range. During playback, Auto-follow scrolls the score to the current system; manual scrolling pauses it until **Resume follow** or a playback restart.
 
 ## Adding Patterns
 
@@ -100,7 +114,7 @@ Naming rules that help auto‑loading:
 
 - ES modules, no bundler. Serve over HTTP for module imports to work.
 - VexFlow is included in `index.html` and used for the current sheet music renderer.
-- MusicXML import is future work. The canonical adapter target is documented in `docs/MUSICXML-ADAPTER.md`; future MusicXML sources must adapt into the same validated score sequence used by playback and notation.
+- MusicXML import uses browser file input, strict parser/adapter modules, IndexedDB storage, and the same validated score sequence used by playback and notation.
 - Short pedagogical patterns remain supported through the current validated pattern source path.
 - Console logs include some debug output; feel free to trim for production.
 
@@ -124,7 +138,7 @@ The smoke test uses Playwright and serves the static app on `127.0.0.1`. On this
 PLAYWRIGHT_CHROMIUM_EXECUTABLE=/path/to/chrome npm run test:smoke
 ```
 
-## Phase 02 score display smoke check
+## Manual score display smoke check
 
 Serve the static app from the repo root:
 
@@ -141,8 +155,9 @@ Then open http://localhost:8000 and verify:
 - Play without Loop stops after the complete score sequence.
 - Play with Loop enabled repeats after the complete score sequence.
 - Notation highlights follow playback on later pages, not only the first page.
-
-MusicXML import is not implemented yet; this smoke check covers the current validated built-in score display path.
+- Import a supported `.musicxml` or `.xml` file and verify it appears in the score library after reload.
+- Select a measure range and confirm Loop repeats only that range.
+- Scroll manually during playback, then use Resume follow to continue automatic score following.
 
 ## License
 
