@@ -88,7 +88,7 @@ Plans:
 **UI hint:** yes
 **Requirements:** XML-01, XML-02, TEST-02
 **Depends on:** Phase 1, Phase 2, Phase 3
-**Plans:** 0 plans
+**Plans:** 2 plans
 
 **Success Criteria**:
 1. The canonical score/event model has an adapter boundary suitable for future MusicXML import.
@@ -98,7 +98,11 @@ Plans:
 5. The app remains usable as a static site after the architecture changes.
 
 Plans:
-- [ ] TBD
+**Wave 1**
+- [ ] `04-01-PLAN.md` — MusicXML adapter contract and documentation
+
+**Wave 2** *(blocked on Wave 1 completion; critical browser tooling gate)*
+- [ ] `04-02-PLAN.md` — Browser smoke coverage
 
 ## Backlog
 
