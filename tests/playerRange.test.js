@@ -1,0 +1,158 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
+import { Player } from '../js/player.js';
+
+function makeSequence() {
+    return {
+        patternId: 'range-fixture',
+        patternName: 'Range Fixture',
+        selectedKey: 'C',
+        isKeySupported: true,
+        timeSignature: '4/4',
+        beatsPerMeasure: 4,
+        loopUnitBeats: 5,
+        measures: [
+            { measureNumber: '1', startBeat: 0, durationBeats: 2, eventIds: ['e0', 'e1'] },
+            { measureNumber: '2', startBeat: 2, durationBeats: 2, eventIds: ['e2', 'e3'] },
+            { measureNumber: '3', startBeat: 4, durationBeats: 1, eventIds: ['e4'] }
+        ],
+        events: [
+            event('e0', 0, 1, 0, 'C3'),
+            event('e1', 1, 1, 0, 'D3'),
+            event('e2', 2, 1, 1, 'E3'),
+            event('e3', 3, 1, 1, 'F3'),
+            event('e4', 4, 1, 2, 'G3')
+        ]
+    };
+}
+
+function event(id, startBeat, durationBeats, measureIndex, note) {
+    return {
+        id,
+        startBeat,
+        durationBeats,
+        measureIndex,
+        beatInMeasure: startBeat - (measureIndex * 2),
+        hands: {
+            left: {
+                notes: [note],
+                isRest: false,
+                fingering: null
+            }
+        }
+    };
+}
+
+function makePlayer() {
+    const played = [];
+    const highlights = [];
+    const audioEngine = {
+        audioContext: { currentTime: 0 },
+        initCalls: 0,
+        init() {
+            this.initCalls += 1;
+        },
+        getCurrentTime() {
+            return this.audioContext.currentTime;
+        },
+        playNote(notes, duration, sustain, volume, startTime) {
+            played.push({ notes, duration, sustain, volume, startTime });
+        }
+    };
+    const piano = {
+        highlighted: [],
+        cleared: 0,
+        highlightKey(notes) {
+            this.highlighted.push(notes);
+        },
+        unhighlightKey() {},
+        clearAllHighlights() {
+            this.cleared += 1;
+        }
+    };
+    const settings = {
+        getBeatDuration: () => 5,
+        getSwingRatio: () => 0.5,
+        getSustain: () => false
+    };
+    const player = new Player(audioEngine, piano, settings);
+    player.onNoteHighlight = (eventId, event) => highlights.push({ eventId, event });
+    return { player, played, highlights, piano, audioEngine };
+}
+
+test('plays all canonical events when no range is provided', () => {
+    const { player, played } = makePlayer();
+
+    player.play(makeSequence());
+    player.stop();
+
+    assert.deepEqual(played.map(call => call.notes), [['C3'], ['D3'], ['E3'], ['F3'], ['G3']]);
+});
+
+test('measure range starts at the first event in the start measure', () => {
+    const { player, played, highlights } = makePlayer();
+
+    player.play(makeSequence(), {
+        range: {
+            startMeasureNumber: '2',
+            endMeasureNumber: '2'
+        }
+    });
+    player.stop();
+
+    assert.deepEqual(played.map(call => call.notes), [['E3'], ['F3']]);
+    assert.deepEqual(highlights.map(entry => entry.eventId), ['e2', 'e3']);
+});
+
+test('event ID range starts and stops at selected canonical events', () => {
+    const { player, played } = makePlayer();
+
+    player.play(makeSequence(), {
+        range: {
+            startEventId: 'e1',
+            endEventId: 'e3'
+        }
+    });
+    player.stop();
+
+    assert.deepEqual(played.map(call => call.notes), [['D3'], ['E3'], ['F3']]);
+});
+
+test('non-looping range stops after the end measure', () => {
+    const { player, played } = makePlayer();
+
+    player.play(makeSequence(), {
+        loop: false,
+        range: {
+            startMeasureNumber: '2',
+            endMeasureNumber: '2'
+        }
+    });
+
+    assert.deepEqual(played.map(call => call.notes), [['E3'], ['F3']]);
+    assert.equal(player.noteIndex, 2);
+    player.stop();
+});
+
+test('looping range wraps to the range start', () => {
+    const { player, played } = makePlayer();
+
+    player.play(makeSequence(), {
+        loop: true,
+        range: {
+            startMeasureNumber: '2',
+            endMeasureNumber: '2'
+        }
+    });
+    player.stop();
+
+    assert.deepEqual(played.slice(0, 6).map(call => call.notes), [
+        ['E3'],
+        ['F3'],
+        ['E3'],
+        ['F3'],
+        ['E3'],
+        ['F3']
+    ]);
+});
