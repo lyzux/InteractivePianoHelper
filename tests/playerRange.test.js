@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { setTimeout as wait } from 'node:timers/promises';
 
 import { Player } from '../js/player.js';
 
@@ -90,7 +91,7 @@ test('plays all canonical events when no range is provided', () => {
     assert.deepEqual(played.map(call => call.notes), [['C3'], ['D3'], ['E3'], ['F3'], ['G3']]);
 });
 
-test('measure range starts at the first event in the start measure', () => {
+test('measure range starts at the first event in the start measure', async () => {
     const { player, played, highlights } = makePlayer();
 
     player.play(makeSequence(), {
@@ -99,6 +100,7 @@ test('measure range starts at the first event in the start measure', () => {
             endMeasureNumber: '2'
         }
     });
+    await wait(15);
     player.stop();
 
     assert.deepEqual(played.map(call => call.notes), [['E3'], ['F3']]);

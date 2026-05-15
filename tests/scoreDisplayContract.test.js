@@ -64,7 +64,7 @@ test('score display source contracts stay wired', () => {
     assert.match(indexHtml, /loopToggle\.addEventListener\('change'/);
     assert.match(indexHtml, /player\.setLoopEnabled\(event\.target\.checked === true\)/);
     assert.match(indexHtml, /player\.play\(sequence, \{ loop \}\)/);
-    assert.match(playerSource, /play\(sequence, \{ loop = false \} = \{\}\)/);
+    assert.match(playerSource, /play\(sequence, \{ loop = false, range = null \} = \{\}\)/);
     assert.match(playerSource, /setLoopEnabled\(enabled\)/);
     assert.doesNotMatch(rendererSource, /MAX_DISPLAY_MEASURES/);
     assert.match(cssSource, /\.score-page-grid/);

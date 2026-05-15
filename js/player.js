@@ -16,6 +16,7 @@ export class Player {
         this.currentPattern   = null;
         this.currentKey      = null;
         this.sequenceEvents   = [];
+        this.playbackRange    = null;
         this.noteIndex       = 0;
         this.nextNoteTime    = 0; // AudioContext seconds
         this.beatPosition    = 0; // beats, tracks swing phase
@@ -23,17 +24,20 @@ export class Player {
         this.onPlaybackEnd   = null;
     }
 
-    play(sequence, { loop = false } = {}) {
+    play(sequence, { loop = false, range = null } = {}) {
         if (this.isPlaying) return;
         if (!sequence || !sequence.isKeySupported || !sequence.events?.length) return;
+        const resolvedRange = this._resolvePlaybackRange(sequence, range);
+        if (!resolvedRange || resolvedRange.events.length === 0) return;
         this.audioEngine.init();
         this.isPlaying      = true;
         this.currentPattern = sequence;
         this.currentKey     = sequence.selectedKey;
-        this.sequenceEvents = sequence.events;
+        this.sequenceEvents = resolvedRange.events;
+        this.playbackRange  = resolvedRange;
         this.loopEnabled    = loop;
         this.noteIndex      = 0;
-        this.beatPosition   = 0;
+        this.beatPosition   = resolvedRange.startBeat;
         this.nextNoteTime   = this.audioEngine.getCurrentTime();
         this._scheduleLoop();
     }
@@ -47,11 +51,93 @@ export class Player {
         clearTimeout(this.schedulerTimer);
         this.schedulerTimer = null;
         this.noteIndex = 0;
-        this.beatPosition = 0;
+        this.beatPosition = this.playbackRange?.startBeat || 0;
 
         const ctx = this.audioEngine.audioContext;
         const delayMs = Math.max(0, (this.nextNoteTime - ctx.currentTime) * 1000);
         this.schedulerTimer = setTimeout(() => this._scheduleLoop(), delayMs);
+    }
+
+    _resolvePlaybackRange(sequence, range) {
+        const events = Array.isArray(sequence.events) ? sequence.events : [];
+        if (!range) {
+            return {
+                events,
+                startBeat: events[0]?.startBeat || 0,
+                endBeat: Number.isFinite(sequence.loopUnitBeats)
+                    ? sequence.loopUnitBeats
+                    : this._eventEndBeat(events[events.length - 1])
+            };
+        }
+
+        let startIndex = null;
+        let endIndex = null;
+        const measures = Array.isArray(sequence.measures) ? sequence.measures : [];
+
+        if (range.startEventId || range.endEventId) {
+            startIndex = range.startEventId
+                ? events.findIndex(event => event.id === range.startEventId)
+                : 0;
+            endIndex = range.endEventId
+                ? events.findIndex(event => event.id === range.endEventId)
+                : events.length - 1;
+        } else if (range.startMeasureNumber || range.endMeasureNumber) {
+            const startMeasure = this._findMeasure(measures, range.startMeasureNumber)
+                || measures[0]
+                || null;
+            const endMeasure = this._findMeasure(measures, range.endMeasureNumber)
+                || startMeasure
+                || measures[measures.length - 1]
+                || null;
+
+            if (!startMeasure || !endMeasure) return null;
+            const startBeat = startMeasure.startBeat;
+            const endBeat = endMeasure.startBeat + endMeasure.durationBeats;
+            startIndex = events.findIndex(event => event.startBeat >= startBeat - 0.001);
+            endIndex = events.findLastIndex(event => event.startBeat < endBeat - 0.001);
+        }
+
+        if (!Number.isInteger(startIndex) || !Number.isInteger(endIndex)) return null;
+        if (startIndex < 0 || endIndex < 0 || endIndex < startIndex) return null;
+
+        const selected = events.slice(startIndex, endIndex + 1);
+        return {
+            events: selected,
+            startBeat: selected[0]?.startBeat || 0,
+            endBeat: this._rangeEndBeat(sequence, range, selected)
+        };
+    }
+
+    _findMeasure(measures, measureNumber) {
+        if (measureNumber === null || measureNumber === undefined || measureNumber === '') return null;
+        return measures.find(measure => String(measure.measureNumber) === String(measureNumber)) || null;
+    }
+
+    _eventEndBeat(event) {
+        if (!event) return 0;
+        return (event.startBeat || 0) + (event.durationBeats || 0);
+    }
+
+    _rangeEndBeat(sequence, range, selectedEvents) {
+        const measures = Array.isArray(sequence.measures) ? sequence.measures : [];
+        if (range?.endMeasureNumber) {
+            const endMeasure = this._findMeasure(measures, range.endMeasureNumber);
+            if (endMeasure) return endMeasure.startBeat + endMeasure.durationBeats;
+        }
+        return this._eventEndBeat(selectedEvents[selectedEvents.length - 1]);
+    }
+
+    _beatsUntilNextEvent(event, nextEvent) {
+        if (nextEvent) {
+            return Math.max(0, nextEvent.startBeat - event.startBeat);
+        }
+
+        if (this.loopEnabled && this.playbackRange) {
+            const rangeEndBeat = Math.max(this.playbackRange.endBeat, this._eventEndBeat(event));
+            return Math.max(0, rangeEndBeat - event.startBeat + this.playbackRange.startBeat - this.sequenceEvents[0].startBeat);
+        }
+
+        return event.durationBeats;
     }
 
     // Convert raw beats to seconds, applying swing to eighth notes.
@@ -84,6 +170,7 @@ export class Player {
             const idx           = this.noteIndex;
             const event         = this.sequenceEvents[idx];
             const rawBeats      = event.durationBeats;
+            this.beatPosition   = event.startBeat;
             const durSec        = this._noteDurationSec(rawBeats);
             const startTime     = this.nextNoteTime;
             // Delay in ms from now until this note's scheduled start, for visual sync
@@ -115,12 +202,14 @@ export class Player {
                 );
             }
 
-            this.beatPosition += rawBeats;
-            this.nextNoteTime += durSec;
+            const nextEvent = this.sequenceEvents[idx + 1] || null;
+            const beatDelta = this._beatsUntilNextEvent(event, nextEvent);
+            this.beatPosition = nextEvent?.startBeat ?? (event.startBeat + beatDelta);
+            this.nextNoteTime += this._noteDurationSec(beatDelta);
             if (++this.noteIndex >= maxLen) {
                 if (this.loopEnabled) {
                     this.noteIndex    = 0;
-                    this.beatPosition = 0;
+                    this.beatPosition = this.playbackRange?.startBeat || 0;
                 } else {
                     const endMs = unhighlightMs + 25;
                     this.schedulerTimer = setTimeout(() => this._finishPlayback(), endMs);
@@ -148,6 +237,7 @@ export class Player {
         this.currentPattern = null;
         this.noteIndex      = 0;
         this.sequenceEvents = [];
+        this.playbackRange  = null;
         this.currentKey     = null;
         this.nextNoteTime   = 0;
         this.beatPosition   = 0;
