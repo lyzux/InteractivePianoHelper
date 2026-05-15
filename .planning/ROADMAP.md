@@ -12,6 +12,7 @@
 | 2 | Score Display Modes | Separate loop preview from score display and render full pieces reliably | SYNC-02, SYNC-03, SCORE-01, SCORE-02, SCORE-03 | Completed |
 | 3 | Pattern Validation And Feedback | Validate existing pattern data and surface clear errors | VAL-01, VAL-02, VAL-03, TEST-01 | Completed |
 | 4 | MusicXML-Ready Foundation | Prepare the score model for MusicXML while adding browser smoke coverage | XML-01, XML-02, TEST-02 | Completed |
+| 5 | MusicXML Import And Practice UX | Import MusicXML scores and add practice controls for score playback | XML-03, XML-04, XML-05, PRAC-01, PRAC-02, PRAC-03 | Pending |
 
 ## Phases
 
@@ -104,25 +105,26 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion; critical browser tooling gate)*
 - [x] `04-02-PLAN.md` — Browser smoke coverage
 
-## Backlog
+### Phase 5: MusicXML Import And Practice UX
 
-### Phase 999.1: MusicXML Import UI (BACKLOG)
-
-**Goal:** User can import MusicXML files for complete sheet music display and playback.
-**Requirements:** XML-03, XML-04, XML-05
+**Goal:** User can import MusicXML files for complete sheet music display/playback and practice imported or built-in score content with selected measure looping, start positions, and auto-scroll.
+**Mode:** mvp
+**UI hint:** yes
+**Requirements:** XML-03, XML-04, XML-05, PRAC-01, PRAC-02, PRAC-03
+**Depends on:** Phase 1, Phase 2, Phase 3, Phase 4
 **Plans:** 0 plans
 
+**Success Criteria**:
+1. User can import `.musicxml` or `.xml` files through a browser file picker without a backend.
+2. Imported MusicXML is parsed as inert data, validated, converted into the canonical score model, and rejected with clear feedback when unsupported or invalid.
+3. Imported MusicXML scores display as complete sheet pages and play through the existing piano, keyboard, and highlight path.
+4. Imported pieces are remembered locally, appear alongside built-in pieces, and can be removed.
+5. User can choose a measure range to loop and can start playback from a selected measure or note.
+6. Notation auto-scrolls to the currently playing system during score playback without disrupting the bottom keyboard or sound controls.
+7. Built-in short pedagogical patterns remain available and are not forced into MusicXML.
+
 Plans:
-- [ ] TBD (promote with `$gsd-review-backlog` when ready)
-
-### Phase 999.2: Practice Range UX (BACKLOG)
-
-**Goal:** User can loop selected measures, start playback from a measure/note, and auto-scroll during score playback.
-**Requirements:** PRAC-01, PRAC-02, PRAC-03
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (promote with `$gsd-review-backlog` when ready)
+- [ ] TBD
 
 ## Coverage
 
@@ -144,5 +146,11 @@ Plans:
 | XML-01 | Phase 4 | Completed |
 | XML-02 | Phase 4 | Completed |
 | TEST-02 | Phase 4 | Completed |
+| XML-03 | Phase 5 | Pending |
+| XML-04 | Phase 5 | Pending |
+| XML-05 | Phase 5 | Pending |
+| PRAC-01 | Phase 5 | Pending |
+| PRAC-02 | Phase 5 | Pending |
+| PRAC-03 | Phase 5 | Pending |
 
-**Coverage:** 16 / 16 v1 requirements mapped.
+**Coverage:** 22 / 22 requirements mapped.

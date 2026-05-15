@@ -83,12 +83,18 @@
 | XML-02 | Phase 4 | Complete |
 | TEST-01 | Phase 3 | Completed |
 | TEST-02 | Phase 4 | Complete |
+| XML-03 | Phase 5 | Pending |
+| XML-04 | Phase 5 | Pending |
+| XML-05 | Phase 5 | Pending |
+| PRAC-01 | Phase 5 | Pending |
+| PRAC-02 | Phase 5 | Pending |
+| PRAC-03 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 16 total
-- Mapped to phases: 16
+- Requirements: 22 total
+- Mapped to phases: 22
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-14*
-*Last updated: 2026-05-15 after Phase 4 execution*
+*Last updated: 2026-05-15 after backlog promotion to Phase 5*
