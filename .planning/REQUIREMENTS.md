@@ -83,12 +83,12 @@
 | XML-02 | Phase 4 | Complete |
 | TEST-01 | Phase 3 | Completed |
 | TEST-02 | Phase 4 | Complete |
-| XML-03 | Phase 5 | Pending |
+| XML-03 | Phase 5 | Complete |
 | XML-04 | Phase 5 | Pending |
-| XML-05 | Phase 5 | Pending |
+| XML-05 | Phase 5 | Complete |
 | PRAC-01 | Phase 5 | Pending |
 | PRAC-02 | Phase 5 | Pending |
-| PRAC-03 | Phase 5 | Pending |
+| PRAC-03 | Phase 5 | Complete |
 
 **Coverage:**
 - Requirements: 22 total

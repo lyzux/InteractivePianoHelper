@@ -12,7 +12,7 @@
 | 2 | Score Display Modes | Separate loop preview from score display and render full pieces reliably | SYNC-02, SYNC-03, SCORE-01, SCORE-02, SCORE-03 | Completed |
 | 3 | Pattern Validation And Feedback | Validate existing pattern data and surface clear errors | VAL-01, VAL-02, VAL-03, TEST-01 | Completed |
 | 4 | MusicXML-Ready Foundation | Prepare the score model for MusicXML while adding browser smoke coverage | XML-01, XML-02, TEST-02 | Completed |
-| 5 | MusicXML Import And Practice UX | Import MusicXML scores and add practice controls for score playback | XML-03, XML-04, XML-05, PRAC-01, PRAC-02, PRAC-03 | Planned |
+| 5 | MusicXML Import And Practice UX | Import MusicXML scores and add practice controls for score playback | XML-03, XML-04, XML-05, PRAC-01, PRAC-02, PRAC-03 | In Progress |
 
 ## Phases
 
@@ -112,7 +112,7 @@ Plans:
 **UI hint:** yes
 **Requirements:** XML-03, XML-04, XML-05, PRAC-01, PRAC-02, PRAC-03
 **Depends on:** Phase 1, Phase 2, Phase 3, Phase 4
-**Plans:** 6 plans
+**Plans:** 1/6 plans complete
 
 **Success Criteria**:
 1. User can import `.musicxml` or `.xml` files through a browser file picker without a backend.
@@ -125,7 +125,7 @@ Plans:
 
 Plans:
 **Wave 1**
-- [ ] `05-01-PLAN.md` — Renderer/storage gate
+- [x] `05-01-PLAN.md` — Renderer/storage gate
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] `05-02-PLAN.md` — Strict import, storage, library core
@@ -162,11 +162,11 @@ Plans:
 | XML-01 | Phase 4 | Completed |
 | XML-02 | Phase 4 | Completed |
 | TEST-02 | Phase 4 | Completed |
-| XML-03 | Phase 5 | Pending |
+| XML-03 | Phase 5 | Complete |
 | XML-04 | Phase 5 | Pending |
-| XML-05 | Phase 5 | Pending |
+| XML-05 | Phase 5 | Complete |
 | PRAC-01 | Phase 5 | Pending |
 | PRAC-02 | Phase 5 | Pending |
-| PRAC-03 | Phase 5 | Pending |
+| PRAC-03 | Phase 5 | Complete |
 
 **Coverage:** 22 / 22 requirements mapped.
