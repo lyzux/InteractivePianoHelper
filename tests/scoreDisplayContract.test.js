@@ -81,6 +81,7 @@ test('renderer source honors per-measure meter and key metadata for imported sco
     assert.match(rendererSource, /currentTimeSignature/);
     assert.match(rendererSource, /currentKey/);
     assert.match(rendererSource, /KEY_SIGNATURE_BY_FIFTHS/);
+    assert.match(rendererSource, /new VF\.Accidental/);
     assert.doesNotMatch(rendererSource, /addTimeSignature\(notationData\.timeSignature\)/);
 });
 

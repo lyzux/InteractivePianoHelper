@@ -86,6 +86,19 @@ const UNSUPPORTED_LYRIC_FIXTURE = `<?xml version="1.0" encoding="UTF-8"?>
   </part>
 </score-partwise>`;
 
+const UNSUPPORTED_FRACTIONAL_DURATION_FIXTURE = `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list>
+    <score-part id="P1"><part-name>Piano</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>3</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><staff>1</staff></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
 function adaptFixture(xml = ACCEPTED_FIXTURE) {
     const parsed = parseMusicXmlText(xml, {
         sourceId: 'fixture-score',
@@ -219,6 +232,14 @@ test('rejects deferred note-level features in strict mode', () => {
     assert.equal(result.ok, false);
     assert.equal(result.sequence, null);
     assert.ok(fatalCodes(result.diagnostics).includes('MUSICXML_ELEMENT_UNSUPPORTED'));
+});
+
+test('rejects durations that cannot render and play consistently', () => {
+    const result = adaptFixture(UNSUPPORTED_FRACTIONAL_DURATION_FIXTURE);
+
+    assert.equal(result.ok, false);
+    assert.equal(result.sequence, null);
+    assert.ok(fatalCodes(result.diagnostics).includes('MUSICXML_DURATION_UNSUPPORTED'));
 });
 
 test('rejects unsupported multi-part MusicXML instead of silently skipping parts', () => {

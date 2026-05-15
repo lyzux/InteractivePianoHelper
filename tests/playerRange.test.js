@@ -28,7 +28,7 @@ function makeSequence() {
     };
 }
 
-function event(id, startBeat, durationBeats, measureIndex, note) {
+function event(id, startBeat, durationBeats, measureIndex, note, payloadOverrides = {}) {
     return {
         id,
         startBeat,
@@ -39,7 +39,8 @@ function event(id, startBeat, durationBeats, measureIndex, note) {
             left: {
                 notes: [note],
                 isRest: false,
-                fingering: null
+                fingering: null,
+                ...payloadOverrides
             }
         }
     };
@@ -157,4 +158,26 @@ test('looping range wraps to the range start', () => {
         ['E3'],
         ['F3']
     ]);
+});
+
+test('tied stop events do not retrigger playback attacks', () => {
+    const { player, played } = makePlayer();
+    const sequence = {
+        ...makeSequence(),
+        loopUnitBeats: 3,
+        measures: [
+            { measureNumber: '1', startBeat: 0, durationBeats: 3, eventIds: ['t0', 't1', 't2'] }
+        ],
+        events: [
+            event('t0', 0, 1, 0, 'C3', { tie: 'start' }),
+            event('t1', 1, 1, 0, 'C3', { tie: 'stop' }),
+            event('t2', 2, 1, 0, 'D3')
+        ]
+    };
+
+    player.play(sequence);
+    player.stop();
+
+    assert.deepEqual(played.map(call => call.notes), [['C3'], ['D3']]);
+    assert.equal(played[0].duration, 0.01);
 });

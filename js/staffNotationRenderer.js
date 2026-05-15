@@ -170,6 +170,12 @@ function buildMeasureNotes(VF, measureData, clef, patternLoader) {
             const vexNote = patternLoader.convertToVexFlowNote(note, clef);
             const keys = Array.isArray(vexNote) ? vexNote : [vexNote];
             sn = new VF.StaveNote({ keys, duration: dur, clef });
+            keys.forEach((key, keyIndex) => {
+                const accidental = key.match(/([#b])\//)?.[1];
+                if (accidental) {
+                    sn.addModifier(new VF.Accidental(accidental), keyIndex);
+                }
+            });
 
             if (fing != null) {
                 try {

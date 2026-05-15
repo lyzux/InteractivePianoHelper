@@ -20,6 +20,7 @@ const DEFAULT_SOURCE_ID = 'musicxml-import';
 const DEFAULT_PAGE_SIZE = Object.freeze({ width: 1190, height: 1683 });
 const DEFAULT_PAGE_MARGINS = Object.freeze({ left: 56, right: 56, top: 56, bottom: 56 });
 const ROUND_TOLERANCE = 0.001;
+const SUPPORTED_RENDER_DURATIONS = new Set([0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4]);
 const SUPPORTED_NOTE_CHILDREN = new Set([
     'pitch',
     'rest',
@@ -300,6 +301,16 @@ function validateNoteElement(noteElement, diagnostics, context, path, divisions)
             path: `${path}.duration`,
             message: 'MusicXML notes must have a positive duration and active divisions value.'
         }));
+    } else {
+        const durationBeats = roundBeat(duration / divisions);
+        if (!SUPPORTED_RENDER_DURATIONS.has(durationBeats)) {
+            diagnostics.push(diagnostic(context, {
+                severity: 'error',
+                code: 'MUSICXML_DURATION_UNSUPPORTED',
+                path: `${path}.duration`,
+                message: 'Strict import only supports durations that can be rendered and played consistently.'
+            }));
+        }
     }
 }
 

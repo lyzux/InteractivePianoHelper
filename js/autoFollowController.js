@@ -36,6 +36,11 @@ export function createAutoFollowController(options = {}) {
 
     function resume() {
         paused = false;
+        programmaticScroll = true;
+        clearTimeout(scrollTimer);
+        scrollTimer = setTimeout(() => {
+            programmaticScroll = false;
+        }, 250);
         renderStatus();
     }
 

@@ -189,6 +189,39 @@ export class Player {
         return rawBeats * beatSec;
     }
 
+    _payloadShouldAttack(payload) {
+        return Boolean(payload && !payload.isRest && payload.notes?.length && payload.tie !== 'stop' && payload.tie !== 'continue');
+    }
+
+    _sameNotes(a, b) {
+        if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+        return a.every((note, index) => note === b[index]);
+    }
+
+    _tiedDurationBeats(eventIndex, handName, baseBeats) {
+        const event = this.sequenceEvents[eventIndex];
+        const payload = event?.hands?.[handName];
+        if (!payload || payload.tie !== 'start') return baseBeats;
+
+        let durationBeats = baseBeats;
+        let expectedStart = (event.startBeat || 0) + baseBeats;
+
+        for (let index = eventIndex + 1; index < this.sequenceEvents.length; index++) {
+            const nextEvent = this.sequenceEvents[index];
+            const nextPayload = nextEvent?.hands?.[handName];
+            if (!nextPayload || nextPayload.isRest) continue;
+            if (!this._sameNotes(payload.notes, nextPayload.notes)) break;
+            if (Math.abs((nextEvent.startBeat || 0) - expectedStart) > 0.001) break;
+            if (nextPayload.tie !== 'stop' && nextPayload.tie !== 'continue') break;
+
+            durationBeats += nextEvent.durationBeats || 0;
+            expectedStart += nextEvent.durationBeats || 0;
+            if (nextPayload.tie === 'stop') break;
+        }
+
+        return durationBeats;
+    }
+
     _scheduleLoop() {
         if (!this.isPlaying) return;
 
@@ -205,14 +238,17 @@ export class Player {
             const event         = this.sequenceEvents[idx];
             const rawBeats      = event.durationBeats;
             this.beatPosition   = event.startBeat;
-            const durSec        = this._noteDurationSec(rawBeats);
             const startTime     = this.nextNoteTime;
             // Delay in ms from now until this note's scheduled start, for visual sync
             const visualMs      = Math.max(0, (startTime - ctx.currentTime) * 1000);
-            const unhighlightMs = visualMs + durSec * 900;
+            let eventVisualEndMs = visualMs + this._noteDurationSec(rawBeats) * 900;
 
-            const leftNote = event.hands.left && !event.hands.left.isRest ? event.hands.left.notes : null;
+            const leftPayload = event.hands.left;
+            const leftNote = this._payloadShouldAttack(leftPayload) ? leftPayload.notes : null;
             if (leftNote?.length) {
+                const durSec = this._noteDurationSec(this._tiedDurationBeats(idx, 'left', rawBeats));
+                const unhighlightMs = visualMs + durSec * 900;
+                eventVisualEndMs = Math.max(eventVisualEndMs, unhighlightMs);
                 this.audioEngine.playNote(leftNote, durSec, useSustain, 0.8, startTime);
                 this._visualTimeouts.push(
                     setTimeout(() => this.piano.highlightKey(leftNote),   visualMs),
@@ -227,8 +263,12 @@ export class Player {
                 );
             }
 
-            const rightNote = event.hands.right && !event.hands.right.isRest ? event.hands.right.notes : null;
+            const rightPayload = event.hands.right;
+            const rightNote = this._payloadShouldAttack(rightPayload) ? rightPayload.notes : null;
             if (rightNote?.length) {
+                const durSec = this._noteDurationSec(this._tiedDurationBeats(idx, 'right', rawBeats));
+                const unhighlightMs = visualMs + durSec * 900;
+                eventVisualEndMs = Math.max(eventVisualEndMs, unhighlightMs);
                 this.audioEngine.playNote(rightNote, durSec, useSustain, 0.8, startTime);
                 this._visualTimeouts.push(
                     setTimeout(() => this.piano.highlightKey(rightNote),   visualMs),
@@ -245,7 +285,7 @@ export class Player {
                     this.noteIndex    = 0;
                     this.beatPosition = this.playbackRange?.startBeat || 0;
                 } else {
-                    const endMs = unhighlightMs + 25;
+                    const endMs = eventVisualEndMs + 25;
                     this.schedulerTimer = setTimeout(() => this._finishPlayback(), endMs);
                     return;
                 }
