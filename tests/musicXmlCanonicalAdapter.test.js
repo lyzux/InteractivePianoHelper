@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import {
     adaptMusicXmlDocumentToCanonical,
@@ -8,112 +10,9 @@ import {
 import { parseMusicXmlText } from '../js/musicXmlParser.js';
 import { hasFatalDiagnostics, validateResolvedSequence } from '../js/patternValidator.js';
 
-const ACCEPTED_FIXTURE = `<?xml version="1.0" encoding="UTF-8"?>
-<score-partwise version="4.0">
-  <work><work-title>Adapter Fixture</work-title></work>
-  <identification>
-    <creator type="composer">Fixture Composer</creator>
-  </identification>
-  <defaults>
-    <page-layout>
-      <page-height>1683</page-height>
-      <page-width>1190</page-width>
-      <page-margins type="both">
-        <left-margin>56</left-margin>
-        <right-margin>56</right-margin>
-        <top-margin>48</top-margin>
-        <bottom-margin>48</bottom-margin>
-      </page-margins>
-    </page-layout>
-  </defaults>
-  <part-list>
-    <score-part id="P1"><part-name>Piano</part-name></score-part>
-  </part-list>
-  <part id="P1">
-    <measure number="1">
-      <print new-page="yes" page-number="1">
-        <system-layout><system-distance>120</system-distance></system-layout>
-      </print>
-      <attributes>
-        <divisions>2</divisions>
-        <key><fifths>1</fifths></key>
-        <time><beats>4</beats><beat-type>4</beat-type></time>
-        <staves>2</staves>
-        <clef number="1"><sign>G</sign><line>2</line></clef>
-        <clef number="2"><sign>F</sign><line>4</line></clef>
-      </attributes>
-      <note>
-        <pitch><step>C</step><alter>1</alter><octave>4</octave></pitch>
-        <duration>2</duration>
-        <voice>1</voice>
-        <type>quarter</type>
-        <staff>1</staff>
-      </note>
-      <note>
-        <chord/>
-        <pitch><step>E</step><octave>4</octave></pitch>
-        <duration>2</duration>
-        <voice>1</voice>
-        <type>quarter</type>
-        <staff>1</staff>
-      </note>
-      <note>
-        <pitch><step>F</step><octave>4</octave></pitch>
-        <duration>1</duration>
-        <voice>1</voice>
-        <type>eighth</type>
-        <staff>1</staff>
-      </note>
-      <note>
-        <rest/>
-        <duration>1</duration>
-        <voice>1</voice>
-        <type>eighth</type>
-        <staff>1</staff>
-      </note>
-      <backup><duration>4</duration></backup>
-      <note>
-        <pitch><step>C</step><octave>3</octave></pitch>
-        <duration>4</duration>
-        <voice>2</voice>
-        <type>half</type>
-        <staff>2</staff>
-        <tie type="start"/>
-      </note>
-      <forward><duration>4</duration></forward>
-    </measure>
-    <measure number="2">
-      <print new-system="yes"/>
-      <attributes>
-        <divisions>4</divisions>
-        <time><beats>3</beats><beat-type>4</beat-type></time>
-      </attributes>
-      <note>
-        <pitch><step>C</step><octave>3</octave></pitch>
-        <duration>4</duration>
-        <voice>2</voice>
-        <type>quarter</type>
-        <staff>2</staff>
-        <tie type="stop"/>
-      </note>
-      <backup><duration>4</duration></backup>
-      <note>
-        <pitch><step>G</step><octave>4</octave></pitch>
-        <duration>2</duration>
-        <voice>1</voice>
-        <type>eighth</type>
-        <staff>1</staff>
-      </note>
-      <note>
-        <pitch><step>A</step><alter>-1</alter><octave>4</octave></pitch>
-        <duration>2</duration>
-        <voice>1</voice>
-        <type>eighth</type>
-        <staff>1</staff>
-      </note>
-    </measure>
-  </part>
-</score-partwise>`;
+const FIXTURE_ROOT = resolve(new URL('.', import.meta.url).pathname, 'fixtures');
+const ACCEPTED_FIXTURE = readFileSync(resolve(FIXTURE_ROOT, 'tiny-score.musicxml'), 'utf8');
+const UNSUPPORTED_FIXTURE = readFileSync(resolve(FIXTURE_ROOT, 'unsupported-score.musicxml'), 'utf8');
 
 const MULTIPART_FIXTURE = `<?xml version="1.0" encoding="UTF-8"?>
 <score-partwise version="4.0">
@@ -162,7 +61,7 @@ test('maps accepted MusicXML into canonical sequence, measures, and page metadat
     assert.equal(result.sequence.sourceId, 'fixture-score');
     assert.equal(result.sequence.sourceType, 'musicxml');
     assert.equal(result.sequence.patternId, 'fixture-score');
-    assert.equal(result.sequence.patternName, 'Adapter Fixture');
+    assert.equal(result.sequence.patternName, 'Tiny Fixture Score');
     assert.equal(result.sequence.metadata.composer, 'Fixture Composer');
     assert.equal(result.sequence.timeSignature, '4/4');
     assert.equal(result.sequence.beatsPerMeasure, 4);
@@ -247,4 +146,21 @@ test('rejects unsupported multi-part MusicXML instead of silently skipping parts
     assert.equal(result.ok, false);
     assert.equal(result.sequence, null);
     assert.ok(fatalCodes(result.diagnostics).includes('MUSICXML_PART_UNSUPPORTED'));
+});
+
+test('rejects the shared unsupported fixture before creating a playable canonical sequence', () => {
+    const parsed = parseMusicXmlText(UNSUPPORTED_FIXTURE, {
+        sourceId: 'unsupported-fixture',
+        filename: 'unsupported-score.musicxml'
+    });
+    const result = adaptMusicXmlDocumentToCanonical(parsed.document, {
+        sourceId: 'unsupported-fixture',
+        filename: 'unsupported-score.musicxml',
+        descriptor: parsed.descriptor
+    });
+
+    assert.equal(parsed.ok, false);
+    assert.equal(result.ok, false);
+    assert.equal(result.sequence, null);
+    assert.ok(fatalCodes(result.diagnostics).includes('MUSICXML_ELEMENT_UNSUPPORTED'));
 });

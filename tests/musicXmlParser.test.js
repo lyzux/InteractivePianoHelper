@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 import { SimplePatternLoader } from '../js/simplePatternLoader.js';
 import {
@@ -11,40 +13,9 @@ import {
 } from '../js/importedScoreLibrary.js';
 import { parseMusicXmlText } from '../js/musicXmlParser.js';
 
-const ACCEPTED_SCORE = `<?xml version="1.0" encoding="UTF-8"?>
-<score-partwise version="4.0">
-  <work><work-title>Tiny Piece</work-title></work>
-  <identification><creator type="composer">Ada Composer</creator></identification>
-  <part-list>
-    <score-part id="P1"><part-name>Piano</part-name></score-part>
-  </part-list>
-  <part id="P1">
-    <measure number="1">
-      <attributes>
-        <divisions>1</divisions>
-        <key><fifths>0</fifths></key>
-        <time><beats>4</beats><beat-type>4</beat-type></time>
-        <staves>2</staves>
-        <clef number="1"><sign>G</sign><line>2</line></clef>
-        <clef number="2"><sign>F</sign><line>4</line></clef>
-      </attributes>
-      <note>
-        <pitch><step>C</step><octave>4</octave></pitch>
-        <duration>1</duration>
-        <voice>1</voice>
-        <type>quarter</type>
-        <staff>1</staff>
-      </note>
-      <note>
-        <rest/>
-        <duration>1</duration>
-        <voice>1</voice>
-        <type>quarter</type>
-        <staff>1</staff>
-      </note>
-    </measure>
-  </part>
-</score-partwise>`;
+const FIXTURE_ROOT = resolve(new URL('.', import.meta.url).pathname, 'fixtures');
+const ACCEPTED_SCORE = readFileSync(resolve(FIXTURE_ROOT, 'tiny-score.musicxml'), 'utf8');
+const UNSUPPORTED_SCORE = readFileSync(resolve(FIXTURE_ROOT, 'unsupported-score.musicxml'), 'utf8');
 
 function codes(result) {
     return result.diagnostics.map(diagnostic => diagnostic.code);
@@ -55,20 +26,33 @@ function firstDiagnostic(result) {
     return result.diagnostics[0];
 }
 
-test('accepts a small score-partwise fixture as inert MusicXML data', () => {
+test('accepts a shared small score-partwise fixture as inert MusicXML data', () => {
     const result = parseMusicXmlText(ACCEPTED_SCORE, {
-        sourceId: 'musicxml:tiny-piece',
-        filename: 'tiny-piece.musicxml'
+        sourceId: 'musicxml:tiny-score',
+        filename: 'tiny-score.musicxml'
     });
 
     assert.equal(result.ok, true);
     assert.equal(result.descriptor.sourceType, 'musicxml');
-    assert.equal(result.descriptor.sourceId, 'musicxml:tiny-piece');
-    assert.equal(result.descriptor.title, 'Tiny Piece');
-    assert.equal(result.descriptor.composer, 'Ada Composer');
+    assert.equal(result.descriptor.sourceId, 'musicxml:tiny-score');
+    assert.equal(result.descriptor.title, 'Tiny Fixture Score');
+    assert.equal(result.descriptor.composer, 'Fixture Composer');
     assert.equal(result.descriptor.root, 'score-partwise');
+    assert.equal(result.descriptor.metadata.partCount, 1);
     assert.equal(result.document.rootName, 'score-partwise');
     assert.deepEqual(result.diagnostics, []);
+});
+
+test('rejects the shared unsupported fixture during strict parse validation', () => {
+    const result = parseMusicXmlText(UNSUPPORTED_SCORE, {
+        sourceId: 'musicxml:unsupported-score',
+        filename: 'unsupported-score.musicxml'
+    });
+
+    assert.equal(result.ok, false);
+    assert.deepEqual(codes(result), ['MUSICXML_ELEMENT_UNSUPPORTED']);
+    assert.match(firstDiagnostic(result).message, /Unsupported MusicXML element "direction"/);
+    assert.equal(firstDiagnostic(result).path, 'score-partwise.part[0].measure[0].direction[1]');
 });
 
 test('rejects malformed XML with a parse failure diagnostic', () => {
