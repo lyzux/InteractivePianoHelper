@@ -145,6 +145,13 @@
     .control-group {
         width: 100%;
     }
+
+    .validation-status {
+        width: 100%;
+        margin-bottom: 16px;
+        padding: 16px;
+        overflow-wrap: anywhere;
+    }
     
     /* Smaller pattern info on mobile */
     .pattern-info {

@@ -127,6 +127,52 @@ button.playing {
     background: linear-gradient(135deg, #f56565 0%, #ed8936 100%);
 }
 
+button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.validation-status {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 960px;
+    margin: 0 auto 24px;
+    padding: 16px;
+    border-left: 4px solid;
+    border-radius: 8px;
+    color: #1f2933;
+    line-height: 1.45;
+}
+
+.validation-status[hidden] {
+    display: none;
+}
+
+.validation-status strong {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.validation-status span {
+    color: #52606d;
+    font-size: 14px;
+    font-weight: 400;
+}
+
+.validation-status-warning {
+    background: #fff7e6;
+    border-color: #b7791f;
+}
+
+.validation-status-error {
+    background: #fff5f5;
+    border-color: #c53030;
+}
+
 .pattern-info {
     background: #f7fafc;
     padding: 20px;

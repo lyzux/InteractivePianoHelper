@@ -321,7 +321,7 @@ export function drawStaffNotation(patternLoader, settings, sequence = null) {
 
     const notationData = sequence || patternLoader.resolvePatternSequenceForDisplay?.(patternType);
     if (!notationData || !notationData.isKeySupported || !notationData.events.length) {
-        vexFlowDiv.innerHTML = '<div class="score-empty"><h4>This score cannot be displayed.</h4></div>';
+        vexFlowDiv.innerHTML = '<div class="score-empty"><h4>This score cannot be displayed.</h4><p>The selected source did not pass verification.</p></div>';
         return null;
     }
 

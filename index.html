@@ -261,6 +261,8 @@
             </div>
             
         </div>
+
+        <div id="validationStatus" class="validation-status" hidden></div>
         
         <div class="pattern-info" id="patternInfo">
             <h2>Pattern Details</h2>
@@ -346,7 +348,13 @@
         // `audioEngine` vars that are assigned by the async boot IIFE below.
         function drawStaffNotation() {
             if (!currentPatternSequence) resolveCurrentPatternSequence();
+            if (!currentPatternSequence) {
+                renderScoreFailureState();
+                currentNotationMaps = null;
+                return null;
+            }
             currentNotationMaps = _drawStaffNotation(patternLoader, settings, currentPatternSequence);
+            return currentNotationMaps;
         }
         function generatePhysicsControls() { _generatePhysicsControls(window.audioEngine || audioEngine); }
 
@@ -506,6 +514,7 @@
                 
                 // Initialize UI after everything is loaded
                 populatePatternDropdown();
+                showValidationStatus(patternLoader.getValidationSummary?.());
                 updatePatternInfo();
                 setupEventListeners();
                 
@@ -550,6 +559,16 @@
                 getPattern: function(id) { return this.patterns.get(id); },
                 getAllPatterns: function() { return Array.from(this.patterns.entries()).map(([id, pattern]) => ({ id, ...pattern })); },
                 getPatternOptions: function() { return this.getAllPatterns().map(p => ({ value: p.id, label: p.name })); },
+                getRejectedSources: function() { return []; },
+                getValidationSummary: function() {
+                    return {
+                        validCount: this.patterns.size,
+                        rejectedCount: 0,
+                        hasFailures: false,
+                        rejectedSources: []
+                    };
+                },
+                getDiagnosticsForSource: function() { return []; },
                 getAuthoredKey: function(patternId) {
                     return this.getPattern(patternId)?.nativeKey || 'C';
                 },
@@ -632,24 +651,99 @@
             
             // Initialize UI
             populatePatternDropdown();
+            showValidationStatus(patternLoader.getValidationSummary?.());
             updatePatternInfo();
             setupEventListeners();
             
             console.log('Emergency system active - basic functions available');
         }
 
+        function showValidationStatus(summary) {
+            const status = document.getElementById('validationStatus');
+            if (!status || !summary) return;
+
+            if (summary.validCount === 0) {
+                status.hidden = false;
+                status.className = 'validation-status validation-status-error';
+                status.setAttribute('role', 'alert');
+                status.innerHTML = `
+                    <strong>No verified pieces available</strong>
+                    <span>The loaded sources failed verification. Check the console diagnostics and fix the source data.</span>
+                `;
+                return;
+            }
+
+            if (summary.rejectedCount > 0) {
+                status.hidden = false;
+                status.className = 'validation-status validation-status-warning';
+                status.setAttribute('role', 'status');
+                status.innerHTML = `
+                    <strong>Some pieces failed verification</strong>
+                    <span>${summary.rejectedCount} source(s) were not loaded. Playable pieces remain available.</span>
+                `;
+                return;
+            }
+
+            hideValidationStatus();
+        }
+
+        function hideValidationStatus() {
+            const status = document.getElementById('validationStatus');
+            if (!status) return;
+            status.hidden = true;
+            status.removeAttribute('role');
+            status.innerHTML = '';
+        }
+
+        function renderNoVerifiedSourcesState() {
+            const patternInfo = document.getElementById('patternInfo');
+            if (!patternInfo) return;
+            patternInfo.innerHTML = `
+                <h2>No verified piece selected</h2>
+                <p>Fix the source data, then reload the app.</p>
+            `;
+        }
+
+        function renderScoreFailureState() {
+            const vexFlowDiv = document.getElementById('vexflow-notation');
+            if (!vexFlowDiv) return;
+            vexFlowDiv.innerHTML = `
+                <div class="score-empty">
+                    <h4>This score cannot be displayed.</h4>
+                    <p>The selected source did not pass verification.</p>
+                </div>
+            `;
+        }
+
         // Populate pattern dropdown
         function populatePatternDropdown() {
             const patternSelect = document.getElementById('pattern');
             const patterns = patternLoader.getPatternOptions();
+            const playStopBtn = document.getElementById('playStopBtn');
             
             patternSelect.innerHTML = '';
+
+            if (!patterns.length) {
+                patternSelect.disabled = true;
+                currentPatternSequence = null;
+                if (playStopBtn) playStopBtn.disabled = true;
+                return false;
+            }
+
+            patternSelect.disabled = false;
+            if (playStopBtn) playStopBtn.disabled = false;
             patterns.forEach(pattern => {
                 const option = document.createElement('option');
                 option.value = pattern.value;
                 option.textContent = pattern.label;
                 patternSelect.appendChild(option);
             });
+
+            if (!patterns.some(pattern => pattern.value === patternSelect.value)) {
+                patternSelect.value = patterns[0].value;
+            }
+
+            return true;
         }
 
         // Update pattern info display
@@ -657,18 +751,23 @@
             const patternType = document.getElementById('pattern').value;
             const pattern = patternLoader.getPattern(patternType);
             
-            if (pattern) {
-                resolveCurrentPatternSequence();
-                document.getElementById('patternInfo').innerHTML = `
-                    <h2>${pattern.name}</h2>
-                    <p>${pattern.description}</p>
-                `;
-                
-                // Removed notation display
-                
-                // Update staff notation
-                drawStaffNotation();
+            if (!pattern) {
+                currentPatternSequence = null;
+                renderNoVerifiedSourcesState();
+                renderScoreFailureState();
+                return;
             }
+
+            resolveCurrentPatternSequence();
+            document.getElementById('patternInfo').innerHTML = `
+                <h2>${pattern.name}</h2>
+                <p>${pattern.description}</p>
+            `;
+            
+            // Removed notation display
+            
+            // Update staff notation
+            drawStaffNotation();
         }
 
         // Event handlers
@@ -682,6 +781,7 @@
 
         function handlePlayStop() {
             const button = document.getElementById('playStopBtn');
+            if (!button || button.disabled) return;
             
             if (player.isCurrentlyPlaying()) {
                 // Currently playing - stop it
@@ -700,6 +800,10 @@
                         button.classList.add('playing');
                         button.textContent = 'Stop';
                     } else {
+                        player.stop();
+                        resetPlaybackButton();
+                        renderScoreFailureState();
+                        showValidationStatus(patternLoader.getValidationSummary?.());
                         console.warn(sequence?.unsupportedReason || `No playable sequence for ${patternType}`);
                     }
                 }, 100);
@@ -710,6 +814,12 @@
             player.stop();
             resetPlaybackButton();
             resolveCurrentPatternSequence();
+            if (!currentPatternSequence) {
+                renderNoVerifiedSourcesState();
+                renderScoreFailureState();
+                showValidationStatus(patternLoader.getValidationSummary?.());
+                return;
+            }
             updatePatternInfo();
         }
 
