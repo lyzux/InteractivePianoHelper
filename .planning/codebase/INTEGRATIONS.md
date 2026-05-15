@@ -1,6 +1,7 @@
 # External Integrations
 
 **Analysis Date:** 2026-05-14
+**Last Updated:** 2026-05-15 after Phase 04 execution
 
 ## APIs & External Services
 
@@ -55,7 +56,8 @@
 - Static hosting. `README.md` links a GitHub Pages preview at `https://lyzux.github.io/InteractivePianoHelper/`.
 
 **CI Pipeline:**
-- None detected. There is no `.github/workflows/`, package manifest, or test command.
+- None detected. There is no `.github/workflows/`.
+- Local test commands exist: `npm test` and `npm run test:smoke`.
 
 ## Environment Configuration
 
@@ -63,6 +65,7 @@
 - No required env vars.
 - Serve the repo root over HTTP.
 - `start-server.bat` tries Python first, then Node `http-server`.
+- Browser smoke tests may set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` if Chrome/Chromium is not in a standard path.
 
 **Staging:**
 - None defined.
@@ -82,4 +85,4 @@
 ---
 
 *Integration audit: 2026-05-14*
-*Update when adding MusicXML libraries, backend services, analytics, or vendored CDN assets*
+*Updated after adding local browser smoke tooling*

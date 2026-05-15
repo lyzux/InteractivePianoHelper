@@ -1,6 +1,9 @@
 # Technology Stack
 
 **Analysis Date:** 2026-05-14
+**Last Updated:** 2026-05-15 after Phase 04 execution
+
+> Current note: the app still has no build step or framework, but npm is now used for automated tests and Playwright browser smoke tooling.
 
 ## Languages
 
@@ -22,8 +25,9 @@
 - Must be served over HTTP; `file://` breaks module imports.
 
 **Package Manager:**
-- None. There is no `package.json`, lockfile, bundler, transpiler, or local dependency install.
-- Optional serving command in docs: `npx http-server -p 8000`.
+- npm is used for test tooling only.
+- `package.json` and `package-lock.json` exist.
+- There is no bundler, transpiler, or build step.
 
 ## Frameworks
 
@@ -33,13 +37,15 @@
 - Web Audio API - audio graph and scheduled playback in `js/audioEngine.js`.
 
 **Testing:**
-- No test framework currently configured.
-- No unit, integration, browser smoke, or visual regression tests are present.
+- Node's built-in `node:test` runner for contract/unit tests.
+- Playwright for browser smoke coverage.
+- No visual snapshot framework.
 
 **Build/Dev:**
 - No build step.
 - Runtime cache busting uses `APP_VERSION = Date.now()` in `index.html` and appends `?v=...` to dynamic imports.
 - Local HTTP serving via `python -m http.server 8000`, `npx http-server -p 8000`, or `start-server.bat`.
+- Test commands: `npm test` and `npm run test:smoke`.
 
 ## Key Dependencies
 
@@ -53,11 +59,13 @@
 - Browser `localStorage` - settings and piano resize persistence in `js/settings.js` and `js/pianoResizeHandler.js`.
 - Browser `fetch()` - sample loading in `js/audioEngine.js`.
 - Dynamic `import()` - app modules and pattern files load at runtime.
+- Playwright 1.60.0 - dev-only browser smoke automation; installed package license is Apache-2.0.
 
 ## Configuration
 
 **Environment:**
-- No environment variables.
+- No required environment variables for normal app use.
+- `PLAYWRIGHT_CHROMIUM_EXECUTABLE` can point smoke tests at a Chromium-compatible executable.
 - No secrets.
 - User settings persist under `localStorage` key `pianoHelperSettings`.
 - Piano height persists under `localStorage` key `pianoHeight`.
@@ -71,7 +79,8 @@
 
 **Development:**
 - Any platform with a modern browser and a simple HTTP server.
-- Optional Node/npm only if using `npx http-server`.
+- Node/npm required for automated tests.
+- Optional Node/npm only if using `npx http-server` for serving without Python.
 - Optional Python only if using `python -m http.server`.
 
 **Production:**
@@ -82,4 +91,4 @@
 ---
 
 *Stack analysis: 2026-05-14*
-*Update after adding a package manifest, build tooling, test runner, or MusicXML rendering dependency*
+*Updated after adding a package manifest, test runner, and browser smoke tooling*

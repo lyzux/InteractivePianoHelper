@@ -1,41 +1,40 @@
 # Testing Patterns
 
 **Analysis Date:** 2026-05-14
+**Last Updated:** 2026-05-15 after Phase 04 execution
+
+> Current note: this map was originally created before tests existed. The repository now has `package.json`, `npm test` for Node contract tests, and `npm run test:smoke` for Playwright browser smoke coverage.
 
 ## Test Framework
 
 **Runner:**
-- None configured.
-- No `package.json`, `npm test`, test config, or CI workflow exists.
+- Node's built-in `node:test` runner via `npm test`.
+- Browser smoke via `npm run test:smoke`.
 
 **Assertion Library:**
-- None configured.
+- `node:assert/strict`.
+- Playwright for browser automation.
 
 **Run Commands:**
 ```bash
-# Manual smoke only
-python -m http.server 8000
-npx http-server -p 8000
-start-server.bat
+npm test
+npm run test:smoke
 ```
 
 ## Test File Organization
 
 **Location:**
-- No test files detected.
-- No `tests/`, `__tests__/`, `.spec.js`, `.test.js`, or browser automation directories.
+- Node tests live in `tests/*.test.js`.
+- Browser smoke tests live in `tests/browser-smoke/*.test.js`.
 
 **Naming:**
-- No current test naming conventions.
+- Test files use `*.test.js`.
 
 **Structure:**
 ```
 InteractivePianoHelper/
-├── index.html
-├── js/
-├── css/
-├── patterns/
-└── third-party/
+├── tests/*.test.js
+└── tests/browser-smoke/*.test.js
 ```
 
 ## Test Structure
@@ -44,8 +43,9 @@ InteractivePianoHelper/
 - Not established.
 
 **Patterns:**
-- Manual browser verification is the current effective test strategy.
-- `CLAUDE.md` identifies future regression targets around notation/playback consistency, pattern validation, and score rendering.
+- Pure model and source-contract tests use Node's test runner.
+- Browser smoke uses Playwright with a local `127.0.0.1` static server.
+- Smoke assertions are structural and behavioral rather than full SVG snapshots.
 
 ## Mocking
 
@@ -78,11 +78,10 @@ InteractivePianoHelper/
 ## Coverage
 
 **Requirements:**
-- None currently.
-- The highest-value future coverage is behavioral, not raw line count.
+- Phase 01-04 v1 coverage is represented by focused tests for canonical events, score display contracts, validation, MusicXML adapter contract, and browser smoke.
 
 **Configuration:**
-- None.
+- No coverage reporter configured.
 
 **View Coverage:**
 - Not applicable.
@@ -96,7 +95,8 @@ InteractivePianoHelper/
   - Timing-to-VexFlow duration conversion.
   - Measure grouping and rest filling.
   - Pattern validation.
-  - Pattern-to-canonical-event conversion once added.
+  - Pattern-to-canonical-event conversion.
+  - MusicXML adapter contract fields.
 
 **Integration Tests:**
 - High-value targets:
@@ -105,11 +105,13 @@ InteractivePianoHelper/
   - Unsupported native key selection produces clear non-playing/non-rendering state.
 
 **Browser Smoke Tests:**
-- High-value targets:
+- Implemented in `tests/browser-smoke/appBoot.test.js`:
   - App boots over HTTP.
   - Pattern dropdown is populated.
   - VexFlow notation area renders non-empty SVG.
+  - At least one score page renders.
   - Play/Stop does not leave stuck keyboard or notation highlights.
+- Future target:
   - Mobile drawer opens and closes.
 
 **Visual/Regression Tests:**
@@ -134,4 +136,4 @@ InteractivePianoHelper/
 ---
 
 *Testing analysis: 2026-05-14*
-*Update when adding a package manifest, test runner, or browser automation*
+*Updated after adding a package manifest, test runner, and browser automation*

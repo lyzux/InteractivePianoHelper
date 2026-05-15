@@ -1,6 +1,9 @@
 # Codebase Structure
 
 **Analysis Date:** 2026-05-14
+**Last Updated:** 2026-05-15 after Phase 04 execution
+
+> Current note: this map was created before the test/package setup existed. The repo now includes `tests/`, `package.json`, and `package-lock.json`.
 
 ## Directory Layout
 
@@ -10,10 +13,13 @@ InteractivePianoHelper/
 ├── js/                        # ES modules for app behavior
 ├── css/                       # Core and mobile styles
 ├── patterns/                  # One JS module per accompaniment pattern or piece
+├── tests/                     # Node contract tests and browser smoke tests
 ├── third-party/               # Vendored notices and piano MP3 samples
 ├── .planning/                 # GSD planning artifacts
 ├── README.md                  # User-facing project overview
 ├── CLAUDE.md                  # Detailed architecture notes and improvement plan
+├── package.json               # npm test scripts
+├── package-lock.json          # npm dependency lockfile
 ├── start-server.bat           # Windows HTTP server helper
 ├── LICENSE                    # MIT license
 └── .gitignore                 # Git ignore rules
@@ -49,6 +55,11 @@ InteractivePianoHelper/
 - Current contents: captured todo in `.planning/todos/pending/` and codebase map documents in `.planning/codebase/`.
 - Important: this directory is being initialized for GSD and may grow to include `PROJECT.md`, `REQUIREMENTS.md`, `ROADMAP.md`, `STATE.md`, and phase directories.
 
+**`tests/`:**
+- Purpose: automated regression coverage.
+- Contains: `tests/*.test.js` Node contract tests and `tests/browser-smoke/appBoot.test.js`.
+- Browser smoke: starts a loopback static server and drives Chrome through Playwright.
+
 ## Key File Locations
 
 **Entry Points:**
@@ -57,8 +68,9 @@ InteractivePianoHelper/
 
 **Configuration:**
 - `patterns/index.js`: pattern manifest and source of truth for dynamic pattern imports.
+- `package.json`: npm scripts for `npm test` and `npm run test:smoke`.
 - `.gitignore`: ignored files.
-- No `package.json`, build config, or test config exists.
+- No build config exists.
 
 **Core Logic:**
 - `js/audioEngine.js`: Web Audio synthesis, effects, sample loading, active note lifecycle.
@@ -74,7 +86,8 @@ InteractivePianoHelper/
 - `js/pianoResizeHandler.js`: resizable bottom piano.
 
 **Testing:**
-- No test files or testing directories detected.
+- `tests/*.test.js`: Node contract/unit coverage.
+- `tests/browser-smoke/appBoot.test.js`: static app browser smoke coverage.
 
 **Documentation:**
 - `README.md`: quick start and general overview; some module names are stale versus current files.
@@ -118,8 +131,9 @@ InteractivePianoHelper/
 - Keep complete score rendering separate from compact pattern preview logic.
 
 **New tests:**
-- A package manifest and test runner will be needed first.
-- Likely targets: note parsing/transposition, measure grouping, pattern validation, and browser smoke checks.
+- Add fast contract/unit tests to `tests/*.test.js`.
+- Add full browser smoke checks to `tests/browser-smoke/*.test.js`.
+- Keep `npm test` browser-free; use `npm run test:smoke` for Playwright coverage.
 
 ## Special Directories
 
@@ -136,4 +150,4 @@ InteractivePianoHelper/
 ---
 
 *Structure analysis: 2026-05-14*
-*Update when moving to a build tool, adding tests, or reorganizing pattern/score data*
+*Updated after adding tests, package manifest, and browser smoke coverage*
