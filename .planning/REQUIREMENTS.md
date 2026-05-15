@@ -7,13 +7,13 @@
 
 ### Canonical Music Model
 
-- [ ] **MODEL-01**: Playback and notation use one canonical event sequence.
-- [ ] **MODEL-02**: Built-in JavaScript patterns convert into the canonical model without changing their current audible behavior.
-- [ ] **MODEL-03**: Chords, rests, fingerings, timings, hands, time signatures, and native-key metadata are represented explicitly.
+- [x] **MODEL-01**: Playback and notation use one canonical event sequence.
+- [x] **MODEL-02**: Built-in JavaScript patterns convert into the canonical model without changing their current audible behavior.
+- [x] **MODEL-03**: Chords, rests, fingerings, timings, hands, time signatures, and native-key metadata are represented explicitly.
 
 ### Notation And Playback
 
-- [ ] **SYNC-01**: Lombard rhythm and other short loops display the same event sequence that playback schedules.
+- [x] **SYNC-01**: Lombard rhythm and other short loops display the same event sequence that playback schedules.
 - [ ] **SYNC-02**: Pattern preview and full score display are separate explicit modes.
 - [ ] **SYNC-03**: Notation highlights map to canonical event IDs, not modulo-only pattern indices.
 
@@ -67,10 +67,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MODEL-01 | Phase 1 | Pending |
-| MODEL-02 | Phase 1 | Pending |
-| MODEL-03 | Phase 1 | Pending |
-| SYNC-01 | Phase 1 | Pending |
+| MODEL-01 | Phase 1 | Completed |
+| MODEL-02 | Phase 1 | Completed |
+| MODEL-03 | Phase 1 | Completed |
+| SYNC-01 | Phase 1 | Completed |
 | SYNC-02 | Phase 2 | Pending |
 | SYNC-03 | Phase 2 | Pending |
 | SCORE-01 | Phase 2 | Pending |
