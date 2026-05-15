@@ -144,3 +144,67 @@ test('vexflow-adapter renderer exposes interactive score page hooks', async () =
         assert.equal(rendererState.hasImageFallback, false, 'renderer gate must not use static image output');
     });
 });
+
+test('imported score store saves lists retrieves and deletes MusicXML records', async () => {
+    await withAppPage(async page => {
+        const storageState = await page.evaluate(async () => {
+            const {
+                deleteImportedScore,
+                getImportedScore,
+                listImportedScores,
+                saveImportedScore
+            } = await import('./js/importedScoreStore.js');
+
+            const storeOptions = { databaseName: 'iph-smoke-imported-scores' };
+            await deleteImportedScore('gate-score-1', storeOptions);
+
+            const saveResult = await saveImportedScore({
+                id: 'gate-score-1',
+                title: 'Gate Score',
+                filename: 'gate-score.musicxml',
+                createdAt: '2026-05-15T14:00:00.000Z',
+                xmlText: '<score-partwise version="4.0"></score-partwise>',
+                descriptor: {
+                    sourceId: 'gate-score-1',
+                    sourceType: 'musicxml',
+                    title: 'Gate Score'
+                },
+                diagnostics: []
+            }, storeOptions);
+
+            const listResult = await listImportedScores(storeOptions);
+            const getResult = await getImportedScore('gate-score-1', storeOptions);
+            const deleteResult = await deleteImportedScore('gate-score-1', storeOptions);
+            const afterDeleteResult = await getImportedScore('gate-score-1', storeOptions);
+            const failureResult = await saveImportedScore({
+                id: 'will-fail',
+                title: 'Will Fail',
+                filename: 'will-fail.musicxml',
+                xmlText: '<score-partwise />'
+            }, { indexedDB: null });
+
+            return {
+                saveResult,
+                listCount: listResult.records.length,
+                listedRecord: listResult.records.find(record => record.id === 'gate-score-1'),
+                loadedRecord: getResult.record,
+                deleteResult,
+                afterDeleteResult,
+                failureResult
+            };
+        });
+
+        assert.equal(storageState.saveResult.ok, true);
+        assert.equal(storageState.listCount, 1);
+        assert.equal(storageState.listedRecord.title, 'Gate Score');
+        assert.equal(storageState.listedRecord.xmlText, undefined, 'list should omit XML payload text');
+        assert.equal(storageState.loadedRecord.xmlText, '<score-partwise version="4.0"></score-partwise>');
+        assert.equal(storageState.loadedRecord.descriptor.sourceType, 'musicxml');
+        assert.equal(storageState.deleteResult.ok, true);
+        assert.equal(storageState.afterDeleteResult.ok, false);
+        assert.equal(storageState.afterDeleteResult.error.code, 'NOT_FOUND');
+        assert.equal(storageState.failureResult.ok, false);
+        assert.equal(storageState.failureResult.error.code, 'STORAGE_UNAVAILABLE');
+        assert.match(storageState.failureResult.error.message, /storage/i);
+    });
+});
