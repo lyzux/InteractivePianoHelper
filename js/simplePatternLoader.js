@@ -1,14 +1,89 @@
 // Simple Pattern Loader — extracted from index.html inline script
 import { PATTERN_IDS } from '../patterns/index.js';
 import { resolvePatternSequence } from './canonicalPatternResolver.js';
+import { createDiagnostic, validatePatternForRegistration } from './patternValidator.js';
 
 export class SimplePatternLoader {
     constructor() {
         this.patterns = new Map();
+        this.rejectedSources = new Map();
+        this.validationResults = new Map();
     }
 
-    registerPattern(id, pattern) {
+    registerPattern(id, pattern, options = {}) {
+        const sourceType = options.sourceType || 'pattern';
+        const result = validatePatternForRegistration(pattern, {
+            ...options,
+            patternId: id,
+            sourceId: id,
+            sourceType,
+            key: options.key || pattern?.nativeKey || 'C'
+        });
+
+        this.validationResults.set(id, {
+            id,
+            sourceType,
+            diagnostics: result.diagnostics
+        });
+
+        if (!result.valid) {
+            this.patterns.delete(id);
+            this.rejectedSources.set(id, {
+                id,
+                sourceType,
+                diagnostics: result.diagnostics
+            });
+            return { ok: false, diagnostics: result.diagnostics };
+        }
+
         this.patterns.set(id, pattern);
+        this.rejectedSources.delete(id);
+        return { ok: true, diagnostics: result.diagnostics };
+    }
+
+    recordRejectedSource(id, diagnostics, options = {}) {
+        const sourceType = options.sourceType || 'pattern';
+        const normalizedDiagnostics = diagnostics.map(diagnostic => createDiagnostic({
+            ...diagnostic,
+            sourceId: diagnostic.sourceId || id,
+            sourceType: diagnostic.sourceType || sourceType
+        }));
+
+        this.patterns.delete(id);
+        this.rejectedSources.set(id, {
+            id,
+            sourceType,
+            diagnostics: normalizedDiagnostics
+        });
+        this.validationResults.set(id, {
+            id,
+            sourceType,
+            diagnostics: normalizedDiagnostics
+        });
+
+        return { ok: false, diagnostics: normalizedDiagnostics };
+    }
+
+    recordImportFailure(id, error, options = {}) {
+        return this.recordRejectedSource(id, [createDiagnostic({
+            sourceId: id,
+            sourceType: options.sourceType || 'pattern',
+            severity: 'error',
+            code: 'PATTERN_IMPORT_FAILED',
+            path: `patterns/${id}.js`,
+            message: `Pattern "${id}" could not be imported: ${error?.message || String(error)}`
+        })], options);
+    }
+
+    recordMissingExport(id, options = {}) {
+        return this.recordRejectedSource(id, [createDiagnostic({
+            sourceId: id,
+            sourceType: options.sourceType || 'pattern',
+            severity: 'error',
+            code: 'PATTERN_EXPORT_MISSING',
+            path: `exports.${id}`,
+            message: `Pattern module imported but did not export "${id}".`
+        })], options);
     }
 
     getPattern(id) {
@@ -26,6 +101,29 @@ export class SimplePatternLoader {
             value: pattern.id,
             label: pattern.name
         }));
+    }
+
+    getRejectedSources() {
+        return Array.from(this.rejectedSources.values()).map(source => ({
+            id: source.id,
+            sourceType: source.sourceType,
+            diagnostics: source.diagnostics.map(diagnostic => ({ ...diagnostic }))
+        }));
+    }
+
+    getValidationSummary() {
+        const rejectedSources = this.getRejectedSources();
+        return {
+            validCount: this.patterns.size,
+            rejectedCount: rejectedSources.length,
+            hasFailures: rejectedSources.length > 0,
+            rejectedSources
+        };
+    }
+
+    getDiagnosticsForSource(id) {
+        const result = this.rejectedSources.get(id) || this.validationResults.get(id);
+        return result ? result.diagnostics.map(diagnostic => ({ ...diagnostic })) : [];
     }
 
     getAuthoredKey(patternId) {
@@ -149,10 +247,20 @@ export class SimplePatternLoader {
             try {
                 const module = await import(`../patterns/${patternId}.js?v=${timestamp}`);
                 const pattern = module[patternId];
-                if (pattern) this.registerPattern(patternId, pattern);
-            } catch (_) { /* pattern file not found — skip silently */ }
+                if (!pattern) {
+                    this.recordMissingExport(patternId);
+                    return;
+                }
+                this.registerPattern(patternId, pattern);
+            } catch (error) {
+                this.recordImportFailure(patternId, error);
+            }
         }));
-        console.log(`${this.patterns.size} patterns loaded`);
+        const summary = this.getValidationSummary();
+        console.log(`${summary.validCount} patterns loaded`);
+        if (summary.hasFailures) {
+            console.warn('Pattern sources rejected during load', summary.rejectedSources);
+        }
         return this.patterns.size > 0;
     }
 }
