@@ -160,7 +160,8 @@ export class SimplePatternLoader {
     isCompleteScoreSource(pattern) {
         return pattern?.isCompleteScore === true
             || pattern?.libraryType === 'complete-score'
-            || pattern?.displayMode === 'score';
+            || pattern?.displayMode === 'score'
+            || pattern?.id === 'furelise';
     }
 
     getCompleteScoreOptions() {

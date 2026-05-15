@@ -141,6 +141,41 @@
         gap: 15px;
         margin-bottom: 20px;
     }
+
+    .score-library {
+        width: 100%;
+        margin-bottom: 16px;
+        padding: 16px;
+        padding-bottom: calc(16px + env(safe-area-inset-bottom));
+        overflow-wrap: anywhere;
+    }
+
+    .score-library-main {
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .score-selector-group,
+    .import-control-group,
+    .import-button,
+    .remove-imported-score {
+        width: 100%;
+    }
+
+    .import-button,
+    .remove-imported-score {
+        white-space: normal;
+        min-height: 44px;
+        overflow-wrap: anywhere;
+    }
+
+    .import-status {
+        overflow-wrap: anywhere;
+    }
+
+    .import-status-error {
+        padding: 16px;
+    }
     
     .control-group {
         width: 100%;
@@ -182,9 +217,14 @@
         padding-bottom: calc(25vh + 32px);
     }
 
+    .score-sheet-view {
+        overflow: visible;
+        height: auto !important;
+    }
+
     .score-page-grid {
-        grid-template-columns: repeat(2, 794px);
-        gap: var(--score-page-gap);
+        grid-template-columns: 794px;
+        gap: 24px;
     }
 
     .score-page-grid.single-page {

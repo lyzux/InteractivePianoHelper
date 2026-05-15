@@ -190,7 +190,7 @@ test('MusicXML import UI shows details, restores saved scores, and removes impor
         assert.equal(restoredState.removeVisible, true);
 
         page.once('dialog', async dialog => {
-            assert.match(dialog.message(), /Remove imported score from this browser/);
+            assert.match(dialog.message(), /Remove this imported score from this browser/);
             await dialog.accept();
         });
         await page.click('#removeImportedScoreBtn');

@@ -219,13 +219,32 @@
         <div class="main-layout">
             <div class="piano-section">
                 <div class="content-area">
+                    <div class="score-library" aria-label="Score library">
+                        <div class="score-library-main">
+                            <div class="control-group score-selector-group">
+                                <label for="pattern">Score Library</label>
+                                <select id="pattern">
+                                    <!-- Scores will be populated by JavaScript -->
+                                </select>
+                            </div>
+
+                            <div class="import-control-group">
+                                <label for="musicXmlFileInput" class="import-button">
+                                    <span class="material-icons" aria-hidden="true">upload_file</span>
+                                    <span>Import MusicXML</span>
+                                </label>
+                                <input type="file" id="musicXmlFileInput" accept=".musicxml,.xml">
+                            </div>
+
+                            <button id="removeImportedScoreBtn" class="remove-imported-score" type="button" hidden>
+                                <span class="material-icons" aria-hidden="true">delete</span>
+                                <span>Remove imported score</span>
+                            </button>
+                        </div>
+                        <div id="importStatus" class="import-status" role="status" aria-live="polite"></div>
+                    </div>
+
                     <div class="controls">
-            <div class="control-group">
-                <label for="pattern">Rhythm Pattern</label>
-                <select id="pattern">
-                    <!-- Patterns will be populated by JavaScript -->
-                </select>
-            </div>
             
             <div class="control-group">
                 <label for="tempo">Tempo (BPM)</label>
@@ -326,6 +345,11 @@
             { Player },
             { SimplePatternLoader },
             { drawStaffNotation: _drawStaffNotation },
+            { parseMusicXmlText },
+            { adaptMusicXmlDocumentToCanonical },
+            { assignDuplicateImportedTitle, createImportedScoreRecord, registerImportedScore, removeImportedScore },
+            { deleteImportedScore, getImportedScore, listImportedScores, saveImportedScore },
+            { renderMusicXmlScore, clearMusicXmlScoreRender },
             { generatePhysicsControls: _generatePhysicsControls },
             { initializeMobileMenu },
             { initializePianoResize }
@@ -336,12 +360,20 @@
             import(`./js/player.js?v=${APP_VERSION}`),
             import(`./js/simplePatternLoader.js?v=${APP_VERSION}`),
             import(`./js/staffNotationRenderer.js?v=${APP_VERSION}`),
+            import(`./js/musicXmlParser.js?v=${APP_VERSION}`),
+            import(`./js/musicXmlCanonicalAdapter.js?v=${APP_VERSION}`),
+            import(`./js/importedScoreLibrary.js?v=${APP_VERSION}`),
+            import(`./js/importedScoreStore.js?v=${APP_VERSION}`),
+            import(`./js/musicXmlScoreRenderer.js?v=${APP_VERSION}`),
             import(`./js/physicsControlsPanel.js?v=${APP_VERSION}`),
             import(`./js/mobileMenu.js?v=${APP_VERSION}`),
             import(`./js/pianoResizeHandler.js?v=${APP_VERSION}`)
         ]);
 
         console.log('All modules loaded');
+
+        const MUSICXML_SOURCE_TYPE = 'musicxml';
+        const IMPORT_CONFIRM_COPY = 'Remove imported score: Remove this imported score from this browser? This does not delete the original file.';
 
         // Thin wrappers so existing call sites don't need to pass dependencies.
         // They close over the module-level `patternLoader`, `settings`, and
@@ -353,7 +385,15 @@
                 currentNotationMaps = null;
                 return null;
             }
-            currentNotationMaps = _drawStaffNotation(patternLoader, settings, currentPatternSequence);
+            if (currentPatternSequence.sourceType === MUSICXML_SOURCE_TYPE) {
+                currentNotationMaps = renderMusicXmlScore({
+                    patternLoader,
+                    settings,
+                    sequence: currentPatternSequence
+                });
+            } else {
+                currentNotationMaps = _drawStaffNotation(patternLoader, settings, currentPatternSequence);
+            }
             return currentNotationMaps;
         }
         function generatePhysicsControls() { _generatePhysicsControls(window.audioEngine || audioEngine); }
@@ -385,6 +425,122 @@
             const els = currentNotationMaps.eventMap?.get(eventId) || [];
             for (const el of els) el.classList.add('vf-note-highlight');
             activeHighlightEls = els;
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function slugify(value) {
+            return String(value || 'score')
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/^-+|-+$/g, '')
+                || 'score';
+        }
+
+        function createImportedSourceId(title) {
+            return `imported-score:${Date.now().toString(36)}-${slugify(title)}`;
+        }
+
+        function normalizeDiagnosticList(diagnostics = []) {
+            return diagnostics.map(diagnostic => ({
+                severity: diagnostic.severity || 'error',
+                code: diagnostic.code || 'IMPORT_ERROR',
+                path: diagnostic['path'] || '',
+                message: diagnostic.message || 'The imported score could not be processed.'
+            }));
+        }
+
+        function showImportStatus(message, options = {}) {
+            const status = document.getElementById('importStatus');
+            if (!status) return;
+
+            const kind = options.kind || 'info';
+            status.className = `import-status import-status-${kind}`;
+            status.setAttribute('role', kind === 'error' ? 'alert' : 'status');
+            status.setAttribute('aria-live', kind === 'error' ? 'assertive' : 'polite');
+
+            const diagnostics = normalizeDiagnosticList(options.diagnostics || []);
+            if (!diagnostics.length) {
+                status.textContent = message;
+                return;
+            }
+
+            const details = diagnostics.map(diagnostic => `
+                <li>
+                    <span>${escapeHtml(diagnostic.message)}</span>
+                    <small>${escapeHtml([diagnostic['path'], diagnostic.code].filter(Boolean).join(' · '))}</small>
+                </li>
+            `).join('');
+
+            status.innerHTML = `
+                <p>${escapeHtml(message)}</p>
+                <details>
+                    <summary>Show import details</summary>
+                    <h4>Import details</h4>
+                    <ul>${details}</ul>
+                </details>
+            `;
+        }
+
+        function clearImportStatus() {
+            const status = document.getElementById('importStatus');
+            if (!status) return;
+            status.className = 'import-status';
+            status.setAttribute('role', 'status');
+            status.setAttribute('aria-live', 'polite');
+            status.textContent = '';
+        }
+
+        function updateImportedRemoveControl() {
+            const removeButton = document.getElementById('removeImportedScoreBtn');
+            const patternSelect = document.getElementById('pattern');
+            if (!removeButton || !patternSelect || !patternLoader) return;
+
+            const selected = patternLoader.getPattern(patternSelect.value);
+            const isImported = selected?.sourceType === MUSICXML_SOURCE_TYPE || selected?.isImported === true;
+            removeButton.hidden = !isImported;
+            removeButton.disabled = !isImported;
+        }
+
+        function diagnosticsFromStorageError(id, storageResult) {
+            return [{
+                sourceId: id || 'musicxml-import',
+                sourceType: MUSICXML_SOURCE_TYPE,
+                severity: 'error',
+                code: storageResult?.error?.code || 'STORAGE_ERROR',
+                path: 'IndexedDB',
+                message: storageResult?.error?.message || 'Imported score storage failed.'
+            }];
+        }
+
+        function parseAndAdaptMusicXml(xmlText, { sourceId, filename }) {
+            const parsed = parseMusicXmlText(xmlText, { sourceId, filename });
+            if (!parsed.ok) {
+                return {
+                    ok: false,
+                    diagnostics: parsed.diagnostics,
+                    descriptor: parsed.descriptor
+                };
+            }
+
+            const adapted = adaptMusicXmlDocumentToCanonical(parsed.document, {
+                sourceId,
+                filename,
+                descriptor: parsed.descriptor
+            });
+            return {
+                ok: adapted.ok,
+                sequence: adapted.sequence,
+                descriptor: adapted.descriptor,
+                diagnostics: adapted.diagnostics
+            };
         }
 
         // Asynchronous initialization
@@ -459,6 +615,185 @@
             return { audioEngine, piano, settings, patternLoader, player };
         }
 
+        async function restoreImportedScores() {
+            const listResult = await listImportedScores();
+            if (!listResult.ok) {
+                showImportStatus('Imported scores could not be restored from this browser.', {
+                    kind: 'error',
+                    diagnostics: diagnosticsFromStorageError('musicxml-restore', listResult)
+                });
+                return [];
+            }
+
+            const restored = [];
+            const failedDiagnostics = [];
+            for (const listRecord of listResult.records) {
+                const fullRecord = await getImportedScore(listRecord.id);
+                if (!fullRecord.ok) {
+                    failedDiagnostics.push(...diagnosticsFromStorageError(listRecord.id, fullRecord));
+                    continue;
+                }
+
+                const adapted = parseAndAdaptMusicXml(fullRecord.record.xmlText, {
+                    sourceId: fullRecord.record.id,
+                    filename: fullRecord.record.filename
+                });
+                if (!adapted.ok || !adapted.sequence) {
+                    failedDiagnostics.push(...normalizeDiagnosticList(adapted.diagnostics).map(diagnostic => ({
+                        ...diagnostic,
+                        sourceId: fullRecord.record.id,
+                        sourceType: MUSICXML_SOURCE_TYPE
+                    })));
+                    continue;
+                }
+
+                const record = createImportedScoreRecord({
+                    ...fullRecord.record,
+                    title: fullRecord.record.title || adapted.descriptor.title,
+                    descriptor: adapted.descriptor,
+                    diagnostics: adapted.diagnostics
+                });
+                record.sequence = adapted.sequence;
+                registerImportedScore(patternLoader, record);
+                restored.push(record);
+            }
+
+            if (failedDiagnostics.length) {
+                showImportStatus('Some imported scores could not be restored from this browser.', {
+                    kind: 'error',
+                    diagnostics: failedDiagnostics
+                });
+            }
+
+            return restored;
+        }
+
+        async function handleMusicXmlImport(event) {
+            const input = event.currentTarget;
+            const file = input.files?.[0];
+            if (!file) return;
+
+            showImportStatus(`Importing ${file.name}...`, { kind: 'info' });
+
+            try {
+                const xmlText = await file.text();
+                const existingScores = patternLoader.getAllPatterns();
+                const preliminary = parseMusicXmlText(xmlText, {
+                    sourceId: 'musicxml-import-preview',
+                    filename: file.name
+                });
+                const baseTitle = preliminary.descriptor?.title || file.name || 'Imported score';
+                const title = assignDuplicateImportedTitle(baseTitle, existingScores);
+                const sourceId = createImportedSourceId(title);
+
+                const adapted = parseAndAdaptMusicXml(xmlText, {
+                    sourceId,
+                    filename: file.name
+                });
+                if (!adapted.ok || !adapted.sequence) {
+                    showImportStatus('This MusicXML file could not be imported. Review the details, fix the file, and import it again.', {
+                        kind: 'error',
+                        diagnostics: adapted.diagnostics
+                    });
+                    return;
+                }
+
+                const record = createImportedScoreRecord({
+                    id: sourceId,
+                    sourceId,
+                    title,
+                    filename: file.name,
+                    xmlText,
+                    descriptor: {
+                        ...adapted.descriptor,
+                        title,
+                        sourceId,
+                        id: sourceId
+                    },
+                    diagnostics: adapted.diagnostics
+                });
+                record.sequence = {
+                    ...adapted.sequence,
+                    patternId: sourceId,
+                    sourceId,
+                    patternName: title,
+                    descriptor: {
+                        ...adapted.sequence.descriptor,
+                        title,
+                        sourceId,
+                        id: sourceId
+                    },
+                    metadata: {
+                        ...adapted.sequence.metadata,
+                        title,
+                        filename: file.name
+                    }
+                };
+
+                const saveResult = await saveImportedScore(record);
+                if (!saveResult.ok) {
+                    showImportStatus('This MusicXML file could not be imported. Review the details, fix the file, and import it again.', {
+                        kind: 'error',
+                        diagnostics: diagnosticsFromStorageError(sourceId, saveResult)
+                    });
+                    return;
+                }
+
+                const registerResult = registerImportedScore(patternLoader, record);
+                if (!registerResult.ok) {
+                    showImportStatus('This MusicXML file could not be imported. Review the details, fix the file, and import it again.', {
+                        kind: 'error',
+                        diagnostics: registerResult.diagnostics
+                    });
+                    return;
+                }
+
+                populatePatternDropdown(sourceId);
+                resolveCurrentPatternSequence();
+                updatePatternInfo();
+                showValidationStatus(patternLoader.getValidationSummary?.());
+                showImportStatus(`Imported "${title}"`, { kind: 'success' });
+            } catch (error) {
+                showImportStatus('This MusicXML file could not be imported. Review the details, fix the file, and import it again.', {
+                    kind: 'error',
+                    diagnostics: [{
+                        sourceId: file.name,
+                        sourceType: MUSICXML_SOURCE_TYPE,
+                        severity: 'error',
+                        code: 'IMPORT_READ_FAILED',
+                        path: file.name,
+                        message: error?.message || String(error)
+                    }]
+                });
+            } finally {
+                input.value = '';
+            }
+        }
+
+        async function handleRemoveImportedScore() {
+            const patternSelect = document.getElementById('pattern');
+            const selectedId = patternSelect?.value;
+            const selected = selectedId ? patternLoader.getPattern(selectedId) : null;
+            if (!selected || selected.sourceType !== MUSICXML_SOURCE_TYPE) return;
+            if (!window.confirm(IMPORT_CONFIRM_COPY)) return;
+
+            const deleteResult = await deleteImportedScore(selectedId);
+            if (!deleteResult.ok) {
+                showImportStatus('Imported score could not be removed from this browser.', {
+                    kind: 'error',
+                    diagnostics: diagnosticsFromStorageError(selectedId, deleteResult)
+                });
+                return;
+            }
+
+            removeImportedScore(patternLoader, selectedId);
+            populatePatternDropdown();
+            resolveCurrentPatternSequence();
+            updatePatternInfo();
+            showValidationStatus(patternLoader.getValidationSummary?.());
+            showImportStatus('Removed imported score', { kind: 'success' });
+        }
+
         // Fallback: Manual pattern registration if auto-load fails
         async function loadPatternsFallback(patternLoader) {
             console.log('Loading patterns manually as fallback...');
@@ -513,7 +848,8 @@
                 generatePhysicsControls();
                 
                 // Initialize UI after everything is loaded
-                populatePatternDropdown();
+                const restoredImports = await restoreImportedScores();
+                populatePatternDropdown(restoredImports[restoredImports.length - 1]?.id || null);
                 showValidationStatus(patternLoader.getValidationSummary?.());
                 updatePatternInfo();
                 setupEventListeners();
@@ -716,10 +1052,13 @@
         }
 
         // Populate pattern dropdown
-        function populatePatternDropdown() {
+        function populatePatternDropdown(preferredValue = null) {
             const patternSelect = document.getElementById('pattern');
-            const patterns = patternLoader.getPatternOptions();
+            const allPatterns = patternLoader.getPatternOptions();
+            const completePatterns = patternLoader.getPatternOptions({ completeScoresOnly: true });
+            const patterns = completePatterns.length ? completePatterns : allPatterns;
             const playStopBtn = document.getElementById('playStopBtn');
+            const previousValue = preferredValue || patternSelect.value;
             
             patternSelect.innerHTML = '';
 
@@ -736,13 +1075,17 @@
                 const option = document.createElement('option');
                 option.value = pattern.value;
                 option.textContent = pattern.label;
+                option.dataset.sourceType = pattern.sourceType || 'pattern';
                 patternSelect.appendChild(option);
             });
 
-            if (!patterns.some(pattern => pattern.value === patternSelect.value)) {
+            if (patterns.some(pattern => pattern.value === previousValue)) {
+                patternSelect.value = previousValue;
+            } else {
                 patternSelect.value = patterns[0].value;
             }
 
+            updateImportedRemoveControl();
             return true;
         }
 
@@ -759,9 +1102,13 @@
             }
 
             resolveCurrentPatternSequence();
+            updateImportedRemoveControl();
+            const sourceLabel = pattern.sourceType === MUSICXML_SOURCE_TYPE
+                ? '<span class="score-source-badge">Imported</span>'
+                : '<span class="score-source-badge score-source-badge-built-in">Built-in score</span>';
             document.getElementById('patternInfo').innerHTML = `
-                <h2>${pattern.name}</h2>
-                <p>${pattern.description}</p>
+                <h2>${escapeHtml(pattern.name)} ${sourceLabel}</h2>
+                <p>${escapeHtml(pattern.description || pattern.metadata?.composer || 'Complete score ready for playback.')}</p>
             `;
             
             // Removed notation display
@@ -827,6 +1174,8 @@
         function setupEventListeners() {
             document.getElementById('playStopBtn').addEventListener('click', handlePlayStop);
             document.getElementById('pattern').addEventListener('change', handlePatternChange);
+            document.getElementById('musicXmlFileInput')?.addEventListener('change', handleMusicXmlImport);
+            document.getElementById('removeImportedScoreBtn')?.addEventListener('click', handleRemoveImportedScore);
 
             let notationLayoutTimer = null;
             const scheduleNotationLayoutRedraw = () => {

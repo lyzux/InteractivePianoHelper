@@ -66,6 +66,7 @@ export function createImportedScoreRecord(input = {}) {
             filename,
             sourceType: MUSICXML_SOURCE_TYPE
         },
+        ...(input.sequence ? { sequence: input.sequence } : {}),
         diagnostics: diagnostics.map(diagnostic => createDiagnostic({
             ...diagnostic,
             sourceId: diagnostic.sourceId || id,
