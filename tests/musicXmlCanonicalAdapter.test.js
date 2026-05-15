@@ -99,6 +99,45 @@ const UNSUPPORTED_FRACTIONAL_DURATION_FIXTURE = `<?xml version="1.0" encoding="U
   </part>
 </score-partwise>`;
 
+const UNSUPPORTED_ADDITIVE_METER_FIXTURE = `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list>
+    <score-part id="P1"><part-name>Piano</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions><time><beats>3+2</beats><beat-type>8</beat-type></time></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><staff>1</staff></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+const UNSUPPORTED_ACCIDENTAL_TEXT_FIXTURE = `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list>
+    <score-part id="P1"><part-name>Piano</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><accidental>quarter-sharp</accidental><staff>1</staff></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+const UNSUPPORTED_KEY_SIGNATURE_FIXTURE = `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list>
+    <score-part id="P1"><part-name>Piano</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes><divisions>1</divisions><key><fifths>8</fifths></key><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><staff>1</staff></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
 function adaptFixture(xml = ACCEPTED_FIXTURE) {
     const parsed = parseMusicXmlText(xml, {
         sourceId: 'fixture-score',
@@ -240,6 +279,24 @@ test('rejects durations that cannot render and play consistently', () => {
     assert.equal(result.ok, false);
     assert.equal(result.sequence, null);
     assert.ok(fatalCodes(result.diagnostics).includes('MUSICXML_DURATION_UNSUPPORTED'));
+});
+
+test('rejects unsupported MusicXML meter, accidental text, and key signatures', () => {
+    const additiveMeter = adaptFixture(UNSUPPORTED_ADDITIVE_METER_FIXTURE);
+    const accidentalText = adaptFixture(UNSUPPORTED_ACCIDENTAL_TEXT_FIXTURE);
+    const keySignature = adaptFixture(UNSUPPORTED_KEY_SIGNATURE_FIXTURE);
+
+    assert.equal(additiveMeter.ok, false);
+    assert.equal(additiveMeter.sequence, null);
+    assert.ok(fatalCodes(additiveMeter.diagnostics).includes('MUSICXML_TIME_SIGNATURE_UNSUPPORTED'));
+
+    assert.equal(accidentalText.ok, false);
+    assert.equal(accidentalText.sequence, null);
+    assert.ok(fatalCodes(accidentalText.diagnostics).includes('MUSICXML_ACCIDENTAL_UNSUPPORTED'));
+
+    assert.equal(keySignature.ok, false);
+    assert.equal(keySignature.sequence, null);
+    assert.ok(fatalCodes(keySignature.diagnostics).includes('MUSICXML_KEY_SIGNATURE_UNSUPPORTED'));
 });
 
 test('rejects unsupported multi-part MusicXML instead of silently skipping parts', () => {

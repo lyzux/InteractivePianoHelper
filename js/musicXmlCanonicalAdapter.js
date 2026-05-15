@@ -21,6 +21,8 @@ const DEFAULT_PAGE_SIZE = Object.freeze({ width: 1190, height: 1683 });
 const DEFAULT_PAGE_MARGINS = Object.freeze({ left: 56, right: 56, top: 56, bottom: 56 });
 const ROUND_TOLERANCE = 0.001;
 const SUPPORTED_RENDER_DURATIONS = new Set([0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4]);
+const SUPPORTED_BEAT_VALUES = new Set([1, 2, 4, 8, 16]);
+const SUPPORTED_ACCIDENTAL_TEXT = new Set(['natural', 'sharp', 'flat']);
 const SUPPORTED_NOTE_CHILDREN = new Set([
     'pitch',
     'rest',
@@ -121,17 +123,41 @@ function parsePageLayout(root) {
     };
 }
 
-function readTimeSignature(attributes, previous) {
-    const beats = childText(attributes, 'time.beats');
-    const beatType = childText(attributes, 'time.beat-type');
-    return beats && beatType ? `${beats}/${beatType}` : previous;
+function readTimeSignature(attributes, previous, diagnostics, context, path) {
+    const beatsText = childText(attributes, 'time.beats');
+    const beatTypeText = childText(attributes, 'time.beat-type');
+    if (beatsText === '' && beatTypeText === '') return previous;
+
+    const beats = Number(beatsText);
+    const beatType = Number(beatTypeText);
+    if (!Number.isInteger(beats) || beats <= 0 || !SUPPORTED_BEAT_VALUES.has(beatType)) {
+        diagnostics.push(diagnostic(context, {
+            severity: 'error',
+            code: 'MUSICXML_TIME_SIGNATURE_UNSUPPORTED',
+            path: `${path}.time`,
+            message: 'Strict import supports only simple positive meters such as 4/4, 3/4, or 6/8.'
+        }));
+        return previous;
+    }
+
+    return `${beats}/${beatType}`;
 }
 
-function readKeySignature(attributes, previous) {
-    const fifths = childText(attributes, 'key.fifths');
-    if (fifths === '') return previous;
+function readKeySignature(attributes, previous, diagnostics, context, path) {
+    const fifthsText = childText(attributes, 'key.fifths');
+    if (fifthsText === '') return previous;
+    const fifths = Number(fifthsText);
+    if (!Number.isInteger(fifths) || fifths < -7 || fifths > 7) {
+        diagnostics.push(diagnostic(context, {
+            severity: 'error',
+            code: 'MUSICXML_KEY_SIGNATURE_UNSUPPORTED',
+            path: `${path}.key.fifths`,
+            message: 'Strict import supports key signatures from 7 flats through 7 sharps.'
+        }));
+        return previous;
+    }
     return {
-        fifths: Number(fifths)
+        fifths
     };
 }
 
@@ -293,6 +319,15 @@ function validateNoteElement(noteElement, diagnostics, context, path, divisions)
             }));
         }
     }
+    const accidentalText = childText(noteElement, 'accidental');
+    if (accidentalText && !SUPPORTED_ACCIDENTAL_TEXT.has(accidentalText)) {
+        diagnostics.push(diagnostic(context, {
+            severity: 'error',
+            code: 'MUSICXML_ACCIDENTAL_UNSUPPORTED',
+            path: `${path}.accidental`,
+            message: 'Only natural, sharp, and flat accidentals are supported by strict import.'
+        }));
+    }
     const duration = Number(childText(noteElement, 'duration'));
     if (!Number.isFinite(duration) || duration <= 0 || !Number.isFinite(divisions) || divisions <= 0) {
         diagnostics.push(diagnostic(context, {
@@ -381,8 +416,8 @@ function convertDocument(document, context) {
                 } else {
                     divisions = nextDivisions;
                 }
-                timeSignature = readTimeSignature(child, timeSignature);
-                keySignature = readKeySignature(child, keySignature);
+                timeSignature = readTimeSignature(child, timeSignature, diagnostics, context, path);
+                keySignature = readKeySignature(child, keySignature, diagnostics, context, path);
                 clefs = readClefs(child, clefs);
                 if (!firstTimeSignature) {
                     firstTimeSignature = timeSignature;
