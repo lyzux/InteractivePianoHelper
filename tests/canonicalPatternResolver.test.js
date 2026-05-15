@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
 import { resolvePatternSequence, transposeNote } from '../js/canonicalPatternResolver.js';
+import { SimplePatternLoader } from '../js/simplePatternLoader.js';
 import { lombardisch } from '../patterns/lombardisch.js';
 import { furelise } from '../patterns/furelise.js';
 import { bossa } from '../patterns/bossa.js';
@@ -80,4 +82,30 @@ test('represents unsupported native-key patterns without events', () => {
     assert.equal(sequence.isKeySupported, false);
     assert.equal(sequence.events.length, 0);
     assert.match(sequence.unsupportedReason, /only available in Am/);
+});
+
+test('resolves display sequences in their authored key', () => {
+    const loader = new SimplePatternLoader();
+    loader.registerPattern('furelise', furelise);
+    loader.registerPattern('lombardisch', lombardisch);
+
+    const furElise = loader.resolvePatternSequenceForDisplay('furelise');
+    const lombard = loader.resolvePatternSequenceForDisplay('lombardisch');
+
+    assert.equal(loader.getAuthoredKey('furelise'), 'Am');
+    assert.equal(furElise.isKeySupported, true);
+    assert.equal(furElise.selectedKey, 'Am');
+    assert.equal(furElise.displayMode, 'score');
+    assert.equal(loader.getAuthoredKey('lombardisch'), 'C');
+    assert.equal(lombard.selectedKey, 'C');
+});
+
+test('source removes key selector and wires loop playback', () => {
+    const indexHtml = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    const playerSource = fs.readFileSync(new URL('../js/player.js', import.meta.url), 'utf8');
+
+    assert.doesNotMatch(indexHtml, /select\s+id="key"/);
+    assert.match(indexHtml, /id="loopPlayback"/);
+    assert.match(indexHtml, /player\.play\(sequence, \{ loop \}\)/);
+    assert.match(playerSource, /play\(sequence, \{ loop = false \} = \{\}\)/);
 });

@@ -152,26 +152,6 @@
             </div>
             
             <div class="control-group">
-                <label for="key">Key</label>
-                <select id="key">
-                    <option value="C">C Major</option>
-                    <option value="G">G Major</option>
-                    <option value="D">D Major</option>
-                    <option value="A">A Major</option>
-                    <option value="E">E Major</option>
-                    <option value="B">B Major</option>
-                    <option value="F#">F♯ Major</option>
-                    <option value="F">F Major</option>
-                    <option value="Bb">B♭ Major</option>
-                    <option value="Eb">E♭ Major</option>
-                    <option value="Ab">A♭ Major</option>
-                    <option value="Db">D♭ Major</option>
-                    <option value="Am">A Minor</option>
-                    <option value="Dm">D Minor</option>
-                </select>
-            </div>
-            
-            <div class="control-group">
                 <label for="tempo">Tempo (BPM)</label>
                 <input type="range" id="tempo" min="60" max="180" value="120">
                 <div class="tempo-display" id="tempoDisplay">120 BPM</div>
@@ -186,6 +166,14 @@
             <div class="control-group">
                 <label>&nbsp;</label>
                 <button id="playStopBtn">Play</button>
+            </div>
+
+            <div class="control-group">
+                <label>&nbsp;</label>
+                <div class="pedal-control">
+                    <input type="checkbox" id="loopPlayback">
+                    <label for="loopPlayback">Loop</label>
+                </div>
             </div>
             
             <div class="control-group">
@@ -294,10 +282,9 @@
         function resolveCurrentPatternSequence() {
             const patternSelect = document.getElementById('pattern');
             const patternType = patternSelect ? patternSelect.value : null;
-            const key = settings && typeof settings.getKey === 'function' ? settings.getKey() : 'C';
 
-            currentPatternSequence = patternType && patternLoader?.resolvePatternSequence
-                ? patternLoader.resolvePatternSequence(patternType, key)
+            currentPatternSequence = patternType && patternLoader?.resolvePatternSequenceForDisplay
+                ? patternLoader.resolvePatternSequenceForDisplay(patternType)
                 : null;
 
             return currentPatternSequence;
@@ -355,7 +342,7 @@
 
             // Initialize settings
             console.log('Initializing Settings...');
-            settings.init('tempo', 'tempoDisplay', 'sustain', 'key');
+            settings.init('tempo', 'tempoDisplay', 'sustain');
 
             // Try to load saved settings
             settings.load();
@@ -436,6 +423,7 @@
 
                 // Wire notation note highlighting
                 player.onNoteHighlight = highlightNotationNote;
+                player.onPlaybackEnd = resetPlaybackButton;
 
                 // Generate physics controls now that audioEngine is available
                 generatePhysicsControls();
@@ -470,13 +458,11 @@
             };
             piano = { highlightKey: () => {}, unhighlightKey: () => {}, clearAllHighlights: () => {} };
             settings = { 
-                getKey: () => 'C', 
                 getTempo: () => 120, 
                 getSustain: () => true,
                 init: () => {}, 
                 load: () => {}, 
                 save: () => {},
-                onKeyChange: () => {},
                 onTempoChange: () => {},
                 onSustainChange: () => {}
             };
@@ -488,6 +474,16 @@
                 getPattern: function(id) { return this.patterns.get(id); },
                 getAllPatterns: function() { return Array.from(this.patterns.entries()).map(([id, pattern]) => ({ id, ...pattern })); },
                 getPatternOptions: function() { return this.getAllPatterns().map(p => ({ value: p.id, label: p.name })); },
+                getAuthoredKey: function(patternId) {
+                    return this.getPattern(patternId)?.nativeKey || 'C';
+                },
+                getDisplayMode: function(patternId) {
+                    return this.getPattern(patternId)?.displayMode || 'score';
+                },
+                resolvePatternSequenceForDisplay: function(patternId) {
+                    const sequence = this.resolvePatternSequence(patternId, this.getAuthoredKey(patternId));
+                    return sequence ? { ...sequence, displayMode: this.getDisplayMode(patternId) } : null;
+                },
                 resolvePatternSequence: function(patternId, key) {
                     const pattern = this.getPattern(patternId);
                     const notes = pattern?.pattern ? pattern.pattern(key) : ['C3', 'G3', 'E3', 'G3'];
@@ -600,15 +596,21 @@
         }
 
         // Event handlers
+        function resetPlaybackButton() {
+            const button = document.getElementById('playStopBtn');
+            if (!button) return;
+            button.classList.remove('playing');
+            button.textContent = 'Play';
+            clearNotationHighlights();
+        }
+
         function handlePlayStop() {
             const button = document.getElementById('playStopBtn');
             
             if (player.isCurrentlyPlaying()) {
                 // Currently playing - stop it
                 player.stop();
-                clearNotationHighlights();
-                button.classList.remove('playing');
-                button.textContent = 'Play';
+                resetPlaybackButton();
             } else {
                 // Not playing - start it
                 player.stop(); // Ensure clean state
@@ -617,7 +619,8 @@
                     const sequence = currentPatternSequence || resolveCurrentPatternSequence();
 
                     if (sequence?.isKeySupported && sequence.events.length) {
-                        player.play(sequence);
+                        const loop = document.getElementById('loopPlayback')?.checked === true;
+                        player.play(sequence, { loop });
                         button.classList.add('playing');
                         button.textContent = 'Stop';
                     } else {
@@ -629,32 +632,15 @@
 
         function handlePatternChange() {
             player.stop();
-            clearNotationHighlights();
-            const button = document.getElementById('playStopBtn');
-            button.classList.remove('playing');
-            button.textContent = 'Play';
+            resetPlaybackButton();
             resolveCurrentPatternSequence();
             updatePatternInfo();
-        }
-
-        function handleKeyChange() {
-            player.stop();
-            clearNotationHighlights();
-            const button = document.getElementById('playStopBtn');
-            button.classList.remove('playing');
-            button.textContent = 'Play';
-            resolveCurrentPatternSequence();
-            drawStaffNotation();
-            settings.save();
         }
 
         // Setup event listeners (called after initialization)
         function setupEventListeners() {
             document.getElementById('playStopBtn').addEventListener('click', handlePlayStop);
             document.getElementById('pattern').addEventListener('change', handlePatternChange);
-            
-            // Key select direct event listener in addition to settings callbacks
-            document.getElementById('key').addEventListener('change', handleKeyChange);
             
             // Direct tempo slider event listener (fallback)
             const tempoSlider = document.getElementById('tempo');
@@ -676,8 +662,7 @@
 
 
             // Settings callbacks (if settings available)
-            if (settings && typeof settings.onKeyChange === 'function') {
-                settings.onKeyChange(handleKeyChange);
+            if (settings && typeof settings.onTempoChange === 'function') {
                 settings.onTempoChange(() => {
                     // Save settings when changed
                     settings.save();

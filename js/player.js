@@ -19,9 +19,11 @@ export class Player {
         this.noteIndex       = 0;
         this.nextNoteTime    = 0; // AudioContext seconds
         this.beatPosition    = 0; // beats, tracks swing phase
+        this.loopEnabled     = false;
+        this.onPlaybackEnd   = null;
     }
 
-    play(sequence) {
+    play(sequence, { loop = false } = {}) {
         if (this.isPlaying) return;
         if (!sequence || !sequence.isKeySupported || !sequence.events?.length) return;
         this.audioEngine.init();
@@ -29,6 +31,7 @@ export class Player {
         this.currentPattern = sequence;
         this.currentKey     = sequence.selectedKey;
         this.sequenceEvents = sequence.events;
+        this.loopEnabled    = loop;
         this.noteIndex      = 0;
         this.beatPosition   = 0;
         this.nextNoteTime   = this.audioEngine.getCurrentTime();
@@ -99,12 +102,24 @@ export class Player {
             this.beatPosition += rawBeats;
             this.nextNoteTime += durSec;
             if (++this.noteIndex >= maxLen) {
-                this.noteIndex    = 0;
-                this.beatPosition = 0;
+                if (this.loopEnabled) {
+                    this.noteIndex    = 0;
+                    this.beatPosition = 0;
+                } else {
+                    const endMs = unhighlightMs + 25;
+                    this.schedulerTimer = setTimeout(() => this._finishPlayback(), endMs);
+                    return;
+                }
             }
         }
 
         this.schedulerTimer = setTimeout(() => this._scheduleLoop(), POLL_INTERVAL);
+    }
+
+    _finishPlayback() {
+        if (!this.isPlaying) return;
+        this.stop();
+        if (this.onPlaybackEnd) this.onPlaybackEnd();
     }
 
     stop() {
@@ -120,6 +135,7 @@ export class Player {
         this.currentKey     = null;
         this.nextNoteTime   = 0;
         this.beatPosition   = 0;
+        this.loopEnabled    = false;
     }
 
     isCurrentlyPlaying() {

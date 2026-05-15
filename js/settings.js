@@ -3,20 +3,17 @@ export class Settings {
     constructor() {
         this.tempo = 120;
         this.sustainEnabled = true;
-        this.key = 'C';
         this.swingRatio = 0.5; // 0.5 = straight, 0.75 = heavy swing
         this.callbacks = {
             tempoChange: [],
-            sustainChange: [],
-            keyChange: []
+            sustainChange: []
         };
     }
 
-    init(tempoSliderId, tempoDisplayId, sustainCheckboxId, keySelectId) {
+    init(tempoSliderId, tempoDisplayId, sustainCheckboxId) {
         this.tempoSlider = document.getElementById(tempoSliderId);
         this.tempoDisplay = document.getElementById(tempoDisplayId);
         this.sustainCheckbox = document.getElementById(sustainCheckboxId);
-        this.keySelect = document.getElementById(keySelectId);
 
         this.attachEventListeners();
         this.updateDisplays();
@@ -35,11 +32,6 @@ export class Settings {
             });
         }
 
-        if (this.keySelect) {
-            this.keySelect.addEventListener('change', (e) => {
-                this.setKey(e.target.value);
-            });
-        }
     }
 
     setTempo(tempo) {
@@ -55,10 +47,8 @@ export class Settings {
         this.notifyCallbacks('sustainChange', enabled);
     }
 
-    setKey(key) {
-        this.key = key;
-        if (this.keySelect) this.keySelect.value = key;
-        this.notifyCallbacks('keyChange', key);
+    setKey() {
+        // Legacy no-op: scores now resolve in their authored key.
     }
 
     getTempo() {
@@ -70,7 +60,7 @@ export class Settings {
     }
 
     getKey() {
-        return this.key;
+        return 'C';
     }
 
     getSwingRatio() { return this.swingRatio; }
@@ -97,9 +87,6 @@ export class Settings {
             this.sustainCheckbox.checked = this.sustainEnabled;
         }
         
-        if (this.keySelect) {
-            this.keySelect.value = this.key;
-        }
     }
 
     // Callback system for external components to listen to changes
@@ -111,12 +98,12 @@ export class Settings {
         this.callbacks.sustainChange.push(callback);
     }
 
-    onKeyChange(callback) {
-        this.callbacks.keyChange.push(callback);
+    onKeyChange() {
+        // Legacy no-op: kept so older fallback wiring cannot crash.
     }
 
     notifyCallbacks(event, value) {
-        this.callbacks[event].forEach(callback => callback(value));
+        this.callbacks[event]?.forEach(callback => callback(value));
     }
 
     // Export settings for saving/loading
@@ -124,7 +111,6 @@ export class Settings {
         return {
             tempo: this.tempo,
             sustainEnabled: this.sustainEnabled,
-            key: this.key,
             swingRatio: this.swingRatio
         };
     }
@@ -136,9 +122,6 @@ export class Settings {
         }
         if (settingsData.sustainEnabled !== undefined) {
             this.setSustain(settingsData.sustainEnabled);
-        }
-        if (settingsData.key !== undefined) {
-            this.setKey(settingsData.key);
         }
         if (settingsData.swingRatio !== undefined) {
             this.setSwingRatio(settingsData.swingRatio);

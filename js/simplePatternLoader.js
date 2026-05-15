@@ -28,6 +28,25 @@ export class SimplePatternLoader {
         }));
     }
 
+    getAuthoredKey(patternId) {
+        const pattern = this.getPattern(patternId);
+        return pattern?.nativeKey || 'C';
+    }
+
+    getDisplayMode(patternId) {
+        const pattern = this.getPattern(patternId);
+        return pattern?.displayMode || 'score';
+    }
+
+    resolvePatternSequenceForDisplay(patternId) {
+        const sequence = this.resolvePatternSequence(patternId, this.getAuthoredKey(patternId));
+        if (!sequence) return null;
+        return {
+            ...sequence,
+            displayMode: sequence.displayMode || this.getDisplayMode(patternId)
+        };
+    }
+
     generateVexFlowNotation(patternId, key) {
         const sequence = this.resolvePatternSequence(patternId, key);
         if (!sequence || !sequence.isKeySupported || !sequence.events.length) return null;
