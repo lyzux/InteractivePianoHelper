@@ -73,6 +73,33 @@ test('score display source contracts stay wired', () => {
     assert.match(cssSource, /aspect-ratio:\s*210 \/ 297/);
 });
 
+test('sound panel and bottom keyboard state contracts stay wired', () => {
+    const indexHtml = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    const mobileMenuSource = fs.readFileSync(new URL('../js/mobileMenu.js', import.meta.url), 'utf8');
+    const pianoResizeSource = fs.readFileSync(new URL('../js/pianoResizeHandler.js', import.meta.url), 'utf8');
+    const cssSource = [
+        fs.readFileSync(new URL('../css/mobile.css', import.meta.url), 'utf8'),
+        fs.readFileSync(new URL('../css/styles.css', import.meta.url), 'utf8')
+    ].join('\n');
+
+    assert.match(indexHtml, /class="sound-panel-toggle"/);
+    assert.match(indexHtml, /class="physics-sidebar is-collapsed"/);
+    assert.match(indexHtml, /id="pianoKeyboardToggle"/);
+    assert.match(indexHtml, /id="pianoKeyboardContent"/);
+
+    assert.match(mobileMenuSource, /SOUND_PANEL_STORAGE_KEY = 'soundPanelExpanded'/);
+    assert.match(mobileMenuSource, /physicsSidebar\.classList\.toggle\('is-collapsed'/);
+    assert.match(mobileMenuSource, /localStorage\.setItem\(SOUND_PANEL_STORAGE_KEY/);
+
+    assert.match(pianoResizeSource, /PIANO_EXPANDED_STORAGE_KEY = 'pianoKeyboardExpanded'/);
+    assert.match(pianoResizeSource, /localStorage\.getItem\(PIANO_EXPANDED_STORAGE_KEY\) !== 'false'/);
+    assert.match(pianoResizeSource, /pianoContainer\.classList\.toggle\('is-collapsed'/);
+    assert.match(pianoResizeSource, /--piano-bottom-space/);
+
+    assert.match(cssSource, /\.physics-sidebar\.is-collapsed/);
+    assert.match(cssSource, /\.piano-keyboard-container\.is-collapsed/);
+});
+
 test('display loader resolves long and short fixtures for score view', () => {
     const loader = new SimplePatternLoader();
     loader.registerPattern('furelise', furelise);

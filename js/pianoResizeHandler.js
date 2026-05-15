@@ -1,10 +1,15 @@
 // Piano Resize Handler — extracted from index.html inline script
 // Lets the user drag a handle to change the piano keyboard height.
-// Persists the chosen height to localStorage and restores it on load.
+// Persists the chosen height and expanded/collapsed state to localStorage.
+
+const PIANO_HEIGHT_STORAGE_KEY = 'pianoHeight';
+const PIANO_EXPANDED_STORAGE_KEY = 'pianoKeyboardExpanded';
+const COLLAPSED_HEIGHT = 44;
 
 export function initializePianoResize() {
     const resizeHandle = document.getElementById('pianoResizeHandle');
     const pianoContainer = document.getElementById('pianoKeyboardContainer');
+    const toggleButton = document.getElementById('pianoKeyboardToggle');
 
     if (!resizeHandle || !pianoContainer) return;
 
@@ -14,6 +19,59 @@ export function initializePianoResize() {
 
     const minHeight = 80;  // Minimum height in pixels
     const maxHeight = window.innerHeight * 0.6; // Maximum 60% of screen height
+    let lastExpandedHeight = getSavedHeight();
+
+    function setBodyPadding(height) {
+        const bottomSpace = (height + 20) + 'px';
+        document.documentElement.style.setProperty('--piano-bottom-space', bottomSpace);
+        document.body.style.paddingBottom = bottomSpace;
+    }
+
+    function setTogglePresentation(isExpanded) {
+        if (!toggleButton) return;
+        const icon = toggleButton.querySelector('.material-icons');
+        toggleButton.setAttribute('aria-expanded', String(isExpanded));
+        toggleButton.title = isExpanded ? 'Hide keyboard' : 'Show keyboard';
+        if (icon) icon.textContent = isExpanded ? 'expand_more' : 'expand_less';
+    }
+
+    function getSavedExpandedState() {
+        return localStorage.getItem(PIANO_EXPANDED_STORAGE_KEY) !== 'false';
+    }
+
+    function getSavedHeight() {
+        const savedHeight = localStorage.getItem(PIANO_HEIGHT_STORAGE_KEY);
+        if (!savedHeight || isNaN(savedHeight)) return null;
+        return Math.min(Math.max(parseInt(savedHeight, 10), minHeight), maxHeight);
+    }
+
+    function setKeyboardExpanded(isExpanded, { persist = true } = {}) {
+        const wasCollapsed = pianoContainer.classList.contains('is-collapsed');
+        const currentHeight = parseInt(getComputedStyle(pianoContainer).height, 10);
+        if (!isExpanded && !wasCollapsed && currentHeight > COLLAPSED_HEIGHT) {
+            lastExpandedHeight = Math.min(Math.max(currentHeight, minHeight), maxHeight);
+            localStorage.setItem(PIANO_HEIGHT_STORAGE_KEY, lastExpandedHeight);
+        }
+
+        pianoContainer.classList.toggle('is-collapsed', !isExpanded);
+        document.body.classList.toggle('keyboard-collapsed', !isExpanded);
+        setTogglePresentation(isExpanded);
+
+        if (persist) {
+            localStorage.setItem(PIANO_EXPANDED_STORAGE_KEY, isExpanded ? 'true' : 'false');
+        }
+
+        if (!isExpanded) {
+            setBodyPadding(COLLAPSED_HEIGHT);
+            return;
+        }
+
+        const restoredHeight = lastExpandedHeight || getSavedHeight() || Math.max(parseInt(getComputedStyle(pianoContainer).height, 10), minHeight);
+        lastExpandedHeight = restoredHeight;
+        pianoContainer.style.height = restoredHeight + 'px';
+        setBodyPadding(restoredHeight);
+        setTimeout(() => adjustPianoKeySizes(restoredHeight), 0);
+    }
 
     // Mouse events for desktop
     resizeHandle.addEventListener('mousedown', initResize);
@@ -25,7 +83,14 @@ export function initializePianoResize() {
     document.addEventListener('touchmove', doResizeTouch, { passive: false });
     document.addEventListener('touchend', stopResize);
 
+    if (toggleButton) {
+        toggleButton.addEventListener('click', () => {
+            setKeyboardExpanded(pianoContainer.classList.contains('is-collapsed'));
+        });
+    }
+
     function initResize(e) {
+        if (pianoContainer.classList.contains('is-collapsed')) return;
         isResizing = true;
         startY = e.clientY;
         startHeight = parseInt(getComputedStyle(pianoContainer).height, 10);
@@ -34,6 +99,7 @@ export function initializePianoResize() {
     }
 
     function initResizeTouch(e) {
+        if (pianoContainer.classList.contains('is-collapsed')) return;
         isResizing = true;
         startY = e.touches[0].clientY;
         startHeight = parseInt(getComputedStyle(pianoContainer).height, 10);
@@ -51,7 +117,7 @@ export function initializePianoResize() {
         pianoContainer.style.height = newHeight + 'px';
 
         // Update body padding to account for new piano height
-        document.body.style.paddingBottom = (newHeight + 20) + 'px';
+        setBodyPadding(newHeight);
 
         // Adjust piano key sizes proportionally
         adjustPianoKeySizes(newHeight);
@@ -67,7 +133,7 @@ export function initializePianoResize() {
         pianoContainer.style.height = newHeight + 'px';
 
         // Update body padding to account for new piano height
-        document.body.style.paddingBottom = (newHeight + 20) + 'px';
+        setBodyPadding(newHeight);
 
         // Adjust piano key sizes proportionally
         adjustPianoKeySizes(newHeight);
@@ -76,12 +142,14 @@ export function initializePianoResize() {
     }
 
     function stopResize() {
+        if (!isResizing) return;
         isResizing = false;
         pianoContainer.classList.remove('resizing');
 
         // Save the preferred height to localStorage
         const currentHeight = parseInt(getComputedStyle(pianoContainer).height, 10);
-        localStorage.setItem('pianoHeight', currentHeight);
+        lastExpandedHeight = currentHeight;
+        localStorage.setItem(PIANO_HEIGHT_STORAGE_KEY, currentHeight);
     }
 
     function adjustPianoKeySizes(containerHeight) {
@@ -106,16 +174,5 @@ export function initializePianoResize() {
         piano.style.height = whiteKeyHeight + 'px';
     }
 
-    // Restore saved height on page load
-    const savedHeight = localStorage.getItem('pianoHeight');
-    if (savedHeight && !isNaN(savedHeight)) {
-        const height = Math.min(Math.max(parseInt(savedHeight), minHeight), maxHeight);
-        pianoContainer.style.height = height + 'px';
-        document.body.style.paddingBottom = (height + 20) + 'px';
-
-        // Wait for piano to be rendered, then adjust key sizes
-        setTimeout(() => {
-            adjustPianoKeySizes(height);
-        }, 1000);
-    }
+    setKeyboardExpanded(getSavedExpandedState(), { persist: false });
 }

@@ -1,33 +1,46 @@
-// Mobile Menu — extracted from index.html inline script
-// Wires the hamburger toggle, close button, and overlay for the mobile sidebar drawer.
+// Sound panel controller.
+// Keeps the right-side piano controls expandable/retractable and persists state.
+
+const SOUND_PANEL_STORAGE_KEY = 'soundPanelExpanded';
 
 export function initializeMobileMenu() {
-    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-    const mobileCloseBtn = document.getElementById('mobileCloseBtn');
+    const panelToggle = document.getElementById('mobileMenuToggle');
+    const panelCloseBtn = document.getElementById('mobileCloseBtn');
     const physicsSidebar = document.getElementById('physicsSidebar');
     const mobileOverlay = document.getElementById('mobileOverlay');
 
-    if (mobileMenuToggle) {
-        mobileMenuToggle.addEventListener('click', () => {
-            physicsSidebar.classList.add('mobile-open');
-            mobileOverlay.classList.add('active');
-            mobileMenuToggle.classList.add('menu-open');
-        });
+    if (!panelToggle || !physicsSidebar) return;
+
+    function setPanelExpanded(isExpanded) {
+        physicsSidebar.classList.toggle('is-collapsed', !isExpanded);
+        panelToggle.setAttribute('aria-expanded', String(isExpanded));
+        panelToggle.title = isExpanded ? 'Hide piano controls' : 'Show piano controls';
+        localStorage.setItem(SOUND_PANEL_STORAGE_KEY, isExpanded ? 'true' : 'false');
+
+        if (mobileOverlay) {
+            mobileOverlay.classList.toggle('active', isExpanded && window.matchMedia('(max-width: 768px)').matches);
+        }
     }
 
-    if (mobileCloseBtn) {
-        mobileCloseBtn.addEventListener('click', () => {
-            physicsSidebar.classList.remove('mobile-open');
-            mobileOverlay.classList.remove('active');
-            mobileMenuToggle.classList.remove('menu-open');
-        });
+    const savedExpanded = localStorage.getItem(SOUND_PANEL_STORAGE_KEY) === 'true';
+    setPanelExpanded(savedExpanded);
+
+    panelToggle.addEventListener('click', () => {
+        setPanelExpanded(physicsSidebar.classList.contains('is-collapsed'));
+    });
+
+    if (panelCloseBtn) {
+        panelCloseBtn.addEventListener('click', () => setPanelExpanded(false));
     }
 
     if (mobileOverlay) {
-        mobileOverlay.addEventListener('click', () => {
-            physicsSidebar.classList.remove('mobile-open');
-            mobileOverlay.classList.remove('active');
-            mobileMenuToggle.classList.remove('menu-open');
-        });
+        mobileOverlay.addEventListener('click', () => setPanelExpanded(false));
     }
+
+    window.addEventListener('resize', () => {
+        const isExpanded = !physicsSidebar.classList.contains('is-collapsed');
+        if (mobileOverlay) {
+            mobileOverlay.classList.toggle('active', isExpanded && window.matchMedia('(max-width: 768px)').matches);
+        }
+    });
 }
