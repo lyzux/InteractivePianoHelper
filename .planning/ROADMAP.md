@@ -41,7 +41,7 @@ Plans:
 **UI hint:** yes
 **Requirements:** SYNC-02, SYNC-03, SCORE-01, SCORE-02, SCORE-03
 **Depends on:** Phase 1
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 **Success Criteria**:
 1. Pattern preview and score display are explicit modes selected from pattern metadata or canonical score metadata.
@@ -55,7 +55,7 @@ Plans:
 - [x] 02-01 Authored score controls and loop playback
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 02-02 A4 full-score page renderer
+- [x] 02-02 A4 full-score page renderer
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 02-03 Score display contract verification
