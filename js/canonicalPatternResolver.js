@@ -12,6 +12,8 @@ const KEY_SEMITONES = {
     Am: 9, Dm: 2
 };
 const FLAT_KEYS = new Set(['F', 'Bb', 'Eb', 'Ab', 'Db', 'Dm']);
+export const PIANO_MIN_MIDI = 21; // A0
+export const PIANO_MAX_MIDI = 108; // C8
 
 function roundBeat(value) {
     return Math.round(value * 1000) / 1000;
@@ -29,6 +31,14 @@ export function noteToMidi(note) {
 export function noteFromMidi(midi, preferFlats = false) {
     const names = preferFlats ? FLAT_NAMES : SHARP_NAMES;
     return names[((midi % 12) + 12) % 12] + (Math.floor(midi / 12) - 1);
+}
+
+export function isPlayableMidi(midi) {
+    return Number.isInteger(midi) && midi >= PIANO_MIN_MIDI && midi <= PIANO_MAX_MIDI;
+}
+
+export function isPlayablePianoNote(note) {
+    return isPlayableMidi(noteToMidi(note));
 }
 
 export function transposeNote(note, semitones, preferFlats = false) {
