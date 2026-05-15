@@ -14,6 +14,10 @@ body {
     color: #333;
 }
 
+:root {
+    --sound-panel-width: min(390px, calc(100vw - 56px));
+}
+
 .container {
     width: 100%;
     max-width: none;
@@ -22,6 +26,13 @@ body {
     border-radius: 0;
     padding: 24px clamp(16px, 2.4vw, 40px);
     box-shadow: none;
+    transition: padding-right 0.25s ease;
+}
+
+@media (min-width: 769px) {
+    body.sound-panel-expanded .container {
+        padding-right: calc(var(--sound-panel-width) + clamp(20px, 2vw, 36px));
+    }
 }
 
 h1 {
@@ -167,9 +178,7 @@ button.playing {
     margin-bottom: 30px;
     box-shadow: none;
     overflow-x: auto;
-    width: calc(100vw - clamp(24px, 4vw, 64px));
-    margin-left: 50%;
-    transform: translateX(-50%);
+    width: 100%;
 }
 
 .staff-notation h3 {
@@ -191,7 +200,7 @@ button.playing {
     padding: 0 0 180px;
     border: none;
     text-align: left;
-    overflow-x: auto;
+    overflow-x: hidden;
 }
 
 .score-sheet-view {

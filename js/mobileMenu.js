@@ -12,6 +12,7 @@ export function initializeMobileMenu() {
 
     function setPanelExpanded(isExpanded) {
         physicsSidebar.classList.toggle('is-collapsed', !isExpanded);
+        document.body.classList.toggle('sound-panel-expanded', isExpanded);
         panelToggle.setAttribute('aria-expanded', String(isExpanded));
         panelToggle.title = isExpanded ? 'Hide piano controls' : 'Show piano controls';
         const label = panelToggle.querySelector('.sound-panel-label');
@@ -21,6 +22,9 @@ export function initializeMobileMenu() {
         if (mobileOverlay) {
             mobileOverlay.classList.toggle('active', isExpanded && window.matchMedia('(max-width: 768px)').matches);
         }
+
+        window.dispatchEvent(new CustomEvent('score-layout-change'));
+        setTimeout(() => window.dispatchEvent(new CustomEvent('score-layout-change')), 280);
     }
 
     const savedExpanded = localStorage.getItem(SOUND_PANEL_STORAGE_KEY) === 'true';

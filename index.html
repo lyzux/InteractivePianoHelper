@@ -33,7 +33,7 @@
             right: 0;
             bottom: 150px;
             bottom: var(--piano-bottom-space, 150px);
-            width: min(390px, calc(100vw - 56px));
+            width: var(--sound-panel-width);
             background: rgba(255, 255, 255, 0.98);
             border-radius: 8px 0 0 8px;
             padding: 18px;
@@ -119,10 +119,11 @@
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-right: none;
             box-shadow: 0 8px 24px rgba(31, 41, 51, 0.25);
+            white-space: nowrap;
         }
 
         .sound-panel-toggle[aria-expanded="true"] {
-            right: calc(min(390px, calc(100vw - 56px)) + 12px);
+            right: calc(var(--sound-panel-width) + 12px);
         }
 
         .sound-panel-toggle .material-icons {
@@ -199,7 +200,7 @@
                 width: 98%;
             }
             .physics-sidebar {
-                width: min(390px, calc(100vw - 56px));
+                width: var(--sound-panel-width);
             }
         }
 
@@ -716,6 +717,18 @@
         function setupEventListeners() {
             document.getElementById('playStopBtn').addEventListener('click', handlePlayStop);
             document.getElementById('pattern').addEventListener('change', handlePatternChange);
+
+            let notationLayoutTimer = null;
+            const scheduleNotationLayoutRedraw = () => {
+                clearTimeout(notationLayoutTimer);
+                notationLayoutTimer = setTimeout(() => {
+                    if (patternLoader && document.getElementById('pattern')?.value) {
+                        drawStaffNotation();
+                    }
+                }, 80);
+            };
+            window.addEventListener('resize', scheduleNotationLayoutRedraw);
+            window.addEventListener('score-layout-change', scheduleNotationLayoutRedraw);
 
             const loopToggle = document.getElementById('loopPlayback');
             if (loopToggle) {

@@ -70,7 +70,7 @@
     }
 
     .sound-panel-toggle[aria-expanded="true"] {
-        right: calc(min(390px, calc(100vw - 56px)) + 8px);
+        right: calc(var(--sound-panel-width) + 8px);
     }
 
     .physics-sidebar {
@@ -78,7 +78,7 @@
         top: 0;
         right: 0;
         bottom: var(--piano-bottom-space, 44px);
-        width: min(390px, calc(100vw - 56px));
+        width: var(--sound-panel-width);
         height: auto;
         background: rgba(255, 255, 255, 0.98);
         z-index: 1003;
