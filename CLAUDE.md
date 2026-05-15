@@ -277,6 +277,265 @@ const APP_VERSION = Date.now();
 
 ---
 
-## Known Design Issues & Future Optimizations
+## Product Evaluation And Improvement Plan
 
-No open issues currently. All previously tracked items have been resolved.
+### Current Evaluation
+
+The app is strongest where it is already intentionally simple:
+
+- **Sound generation:** good enough for the current learning goal. Keep this stable for now instead of spending effort on synthesis polish.
+- **88-key keyboard display and input response:** very good. Mouse, touch, QWERTY input, visual key highlights, and playback highlights are a solid foundation.
+- **Playback:** musically useful and already uses a proper Web Audio lookahead scheduler. Playback also drives keyboard highlights, which is a strong user-facing feature.
+
+The weakest area is the contract between **pattern data**, **playback**, and **notation rendering**. The current pattern format is flexible but under-validated, and the renderer makes display-only decisions that do not always match playback behavior.
+
+Concrete issues observed:
+
+- `js/staffNotationRenderer.js` has `MAX_DISPLAY_MEASURES = 8`, so longer pieces such as `patterns/furelise.js` are intentionally cut off after the first few systems.
+- Short accompaniment cycles are expanded for notation display by `expandPattern()`, but playback loops the raw source pattern. For example, `patterns/lombardisch.js` defines 4 notes with timings `[0.25, 0.75, 0.25, 0.75]` for a 2-beat cycle. The renderer expands this to fill a 4/4 measure, displaying 8 note events, while the player loops the original 4-note cycle. This is understandable internally, but it feels inconsistent to the user.
+- Pattern files are executable JavaScript modules, not data. They are convenient for hand-written examples, but they are hard to validate thoroughly, hard to import from notation software, and easy to make subtly inconsistent.
+- Validation is mostly implicit. Missing fields, mismatched note/timing/fingering lengths, unsupported notes, unsupported keys, impossible durations, and very long pieces are not surfaced to the user in a structured way.
+- The notation renderer is a custom layout layer over VexFlow. It can render simple material, but it is carrying more responsibility than it should for complete score display, pagination, systems, rests, ties, and edge cases.
+
+### Improvement Goals
+
+1. Make playback and notation derive from one canonical sequence so visible notes and played notes always agree.
+2. Always render complete notation for complete pieces, especially MusicXML imports and longer examples such as Für Elise.
+3. Replace or supplement executable pattern files with validated data, preferably MusicXML for real pieces and a strict JSON schema for short generated patterns.
+4. Surface validation errors and warnings clearly in development and gracefully in the UI.
+5. Preserve the parts that already work well: sound generation, keyboard interaction, and the lightweight no-build development loop where possible.
+
+### Recommended Direction
+
+The best long-term direction is a **two-format model**:
+
+- **MusicXML for complete pieces and externally authored music.** This should become the preferred input for full sheet music, imported examples, and anything expected to look like a real score.
+- **Strict internal pattern JSON for small pedagogical accompaniment loops.** This keeps simple rhythm-pattern authoring lightweight while still allowing validation and deterministic playback.
+
+This is more achievable than making MusicXML the only format immediately. MusicXML is excellent for notation fidelity, but it is more complex than the current loop-pattern concept. A small validated pattern schema can preserve the current app's fast authoring workflow while MusicXML support grows.
+
+### Option Weighing
+
+| Option | Achievability | Workload | Quality | Robustness | Notes |
+|---|---:|---:|---:|---:|---|
+| Patch current renderer only | High | Low-Medium | Medium | Medium | Fixes Lombard display/playback mismatch and removes the 8-measure cap, but custom notation edge cases remain. |
+| Add validation to current JS patterns | High | Medium | Medium | Medium-High | Good immediate safety net. Still leaves executable JS as the source format. |
+| Convert patterns to strict JSON | Medium-High | Medium | High | High | Easier to validate and test. Loses function-based transposition unless transposition is moved into shared app logic. |
+| Add MusicXML import beside existing patterns | Medium | High | High | High | Best user-facing upgrade for real sheet music. Requires parser, validation, score-to-playback conversion, and renderer strategy. |
+| Replace VexFlow custom layout with a MusicXML-oriented renderer | Medium | High | Very High | High | Best for complete sheet notation. Needs dependency decision and more testing. |
+| Full rewrite with framework/build step | Low-Medium | Very High | Unclear | Unclear | Not recommended now. The current architecture is small and understandable. |
+
+### Phase 1: Make Current Behavior Consistent
+
+**Goal:** remove the most visible clunkiness without changing the whole data model.
+
+- Fix notation/playback mismatch for short patterns:
+  - Introduce a shared `SequenceResolver` module used by both `Player` and `staffNotationRenderer`.
+  - Resolve each pattern into a canonical event list: `{ startBeat, durationBeats, left, right, fingering, sourceIndex }`.
+  - Decide explicitly whether a pattern is displayed as:
+    - one source cycle, exactly as played, or
+    - one full musical measure, with playback using the same expanded sequence.
+  - For Lombard rhythm, prefer displaying and playing the same 4-note cycle unless the UI labels the display as a full-measure expansion.
+- Remove the hard cut-off for long pieces:
+  - Replace `MAX_DISPLAY_MEASURES = 8` with renderer modes:
+    - `loop-preview`: compact one-cycle or one-measure preview for accompaniment patterns.
+    - `score`: render all measures for complete pieces.
+  - Für Elise should use `score` mode and render the complete available excerpt.
+- Add basic renderer overflow handling:
+  - Ensure the notation container scrolls vertically or expands naturally.
+  - Keep the piano usable at the bottom without hiding the last systems.
+- Add visible messages for unsupported native keys:
+  - Example: Für Elise is only available in A minor. If another key is selected, show a clear notation message instead of an empty or broken staff.
+
+**Achievability:** high.  
+**Workload:** low to medium.  
+**Quality gain:** high for user trust.  
+**Robustness gain:** medium.
+
+### Phase 2: Add Validation Around Existing Patterns
+
+**Goal:** make the current format safer before introducing MusicXML.
+
+- Create a `PatternValidator` module that checks:
+  - required fields: `name`, `description`, `timing`, and at least one of `pattern`, `leftHand`, `rightHand`;
+  - valid note names from `A0` to `C8`, including flats/sharps and chord arrays;
+  - valid rests as `null`;
+  - valid timing values or supported duration fractions;
+  - valid `timeSignature`;
+  - matching or intentionally cyclic lengths for notes, timings, and fingerings;
+  - valid `nativeKey` behavior;
+  - playable keyboard range after transposition;
+  - empty-hand and all-rest cases.
+- Run validation after `autoLoadPatterns()`.
+- Display developer-facing warnings in the console with pattern IDs and exact field paths.
+- Display user-facing errors only when a selected pattern cannot be rendered or played.
+- Stop silently swallowing dynamic import failures in `simplePatternLoader.js`; log enough information to debug broken pattern files.
+
+**Achievability:** high.  
+**Workload:** medium.  
+**Quality gain:** medium.  
+**Robustness gain:** high.
+
+### Phase 3: Introduce A Canonical Internal Score Model
+
+**Goal:** separate "input format" from "thing the app plays and renders".
+
+Add an internal model such as:
+
+```js
+{
+  id,
+  title,
+  sourceType: 'pattern' | 'musicxml',
+  mode: 'loop' | 'score',
+  keySignature,
+  timeSignature,
+  tempo,
+  parts: [
+    {
+      id: 'leftHand',
+      clef: 'bass',
+      events: [
+        {
+          measure,
+          startBeat,
+          durationBeats,
+          notes: ['C3'],
+          fingering: [5],
+          tieStart: false,
+          tieStop: false
+        }
+      ]
+    }
+  ]
+}
+```
+
+Both playback and notation should consume this model. Current JS patterns and future MusicXML files should be adapters into this model.
+
+Benefits:
+
+- Playback and notation cannot drift as easily.
+- Validation can target one internal representation.
+- MusicXML support can be added without rewriting the player.
+- The app can support score navigation, looping selected measures, and future practice features.
+
+**Achievability:** medium-high.  
+**Workload:** medium-high.  
+**Quality gain:** high.  
+**Robustness gain:** high.
+
+### Phase 4: Add MusicXML Input
+
+**Goal:** make real sheet music the preferred source for complete pieces.
+
+Implementation choices:
+
+1. **Client-side MusicXML parsing with a browser-compatible parser**
+   - Achievability: medium.
+   - Workload: high.
+   - Quality: high if the parser handles common MusicXML exports.
+   - Robustness: high with validation and good error reporting.
+   - Best fit if the app remains static and GitHub Pages friendly.
+
+2. **Use a rendering library that already understands MusicXML**
+   - Possible direction: OpenSheetMusicDisplay for score rendering, while still converting notes into the internal playback model.
+   - Achievability: medium.
+   - Workload: medium-high.
+   - Quality: very high for complete sheet display.
+   - Robustness: high for notation, but playback extraction still needs careful mapping.
+
+3. **Server-side conversion**
+   - Achievability: low for the current project shape.
+   - Workload: high.
+   - Quality: high possible.
+   - Robustness: high possible.
+   - Not recommended unless the project stops being a static app.
+
+Recommended path: investigate **OpenSheetMusicDisplay** or a similar browser-side MusicXML renderer first. If it integrates cleanly, use it for full-score rendering and keep VexFlow/custom rendering only for small pattern previews. If it is too heavy, parse MusicXML into the internal score model and continue rendering with VexFlow, accepting more custom layout work.
+
+MusicXML validation should include:
+
+- file type and XML parse errors;
+- required score structure;
+- supported divisions/durations;
+- supported note pitches, rests, chords, ties, accidentals, clefs, key signatures, and time signatures;
+- part-to-hand mapping;
+- unsupported notation warnings that do not block playback when safe;
+- clear import summary: title, parts, measures, detected key/time, warnings.
+
+**Achievability:** medium.  
+**Workload:** high.  
+**Quality gain:** very high.  
+**Robustness gain:** high.
+
+### Phase 5: Score Display And Practice UX
+
+**Goal:** make complete sheet music feel intentional, not squeezed into a pattern preview.
+
+- Add display modes:
+  - `Pattern Preview`: compact one-cycle or one-measure accompaniment view.
+  - `Sheet Music`: complete systems, full vertical scroll, stable measure layout.
+  - `Practice Range`: selected measures only.
+- Add score navigation:
+  - current measure tracking during playback;
+  - auto-scroll to current system;
+  - optional loop selected measure range;
+  - clickable measure or note to start playback from that point.
+- Highlight notation from canonical event IDs, not modulo pattern indices.
+- Keep keyboard highlights synchronized from the same events.
+
+**Achievability:** medium.  
+**Workload:** medium-high.  
+**Quality gain:** high.  
+**Robustness gain:** medium-high.
+
+### Phase 6: Testing And Regression Safety
+
+**Goal:** prevent notation/playback regressions as formats grow.
+
+- Add a minimal `package.json` only when needed for test tooling.
+- Unit-test:
+  - note parsing and enharmonic conversion;
+  - transposition;
+  - timing-to-duration conversion;
+  - measure grouping;
+  - validation failures;
+  - pattern-to-score conversion;
+  - MusicXML-to-score conversion.
+- Add fixture tests for:
+  - Lombard rhythm;
+  - Für Elise excerpt;
+  - patterns with chords;
+  - patterns with rests;
+  - dotted rhythms;
+  - ties across measures;
+  - unsupported native key selection.
+- Add lightweight browser smoke tests:
+  - app boots;
+  - patterns load;
+  - notation renders non-empty SVG;
+  - play/stop does not leave stuck highlights.
+
+**Achievability:** high.  
+**Workload:** medium.  
+**Quality gain:** medium-high.  
+**Robustness gain:** very high.
+
+### Recommended Implementation Order
+
+1. Fix Lombard-style display/playback consistency and remove the long-score cut-off via explicit render modes.
+2. Add `PatternValidator` and stop silent loader failures.
+3. Introduce a canonical internal score/event model shared by playback and notation.
+4. Convert existing JS patterns through an adapter into that model.
+5. Add MusicXML import/rendering proof of concept with one known-good file.
+6. Decide whether full-score rendering stays custom VexFlow or moves to a MusicXML-oriented renderer.
+7. Add score/practice UX: full sheet display, current-measure tracking, auto-scroll, and measure-range looping.
+8. Add regression tests around conversion, rendering inputs, and playback scheduling.
+
+### What Not To Prioritize Yet
+
+- Do not spend major effort on sound generation unless a specific playback bug appears.
+- Do not redesign the keyboard UI; it is already one of the app's best parts.
+- Do not start with a full framework rewrite. The real architectural problem is data/model consistency, not lack of a framework.
+- Do not make MusicXML the only supported format immediately. Short pedagogical patterns are valuable and easier to author in a compact validated format.
