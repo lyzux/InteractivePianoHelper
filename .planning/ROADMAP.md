@@ -10,7 +10,7 @@
 |-------|------|------|--------------|--------|
 | 1 | Canonical Pattern Event Pipeline | Make simple patterns play and display from the same event sequence | MODEL-01, MODEL-02, MODEL-03, SYNC-01 | Completed |
 | 2 | Score Display Modes | Separate loop preview from score display and render full pieces reliably | SYNC-02, SYNC-03, SCORE-01, SCORE-02, SCORE-03 | Completed |
-| 3 | Pattern Validation And Feedback | Validate existing pattern data and surface clear errors | VAL-01, VAL-02, VAL-03, TEST-01 | Pending |
+| 3 | Pattern Validation And Feedback | Validate existing pattern data and surface clear errors | VAL-01, VAL-02, VAL-03, TEST-01 | Completed |
 | 4 | MusicXML-Ready Foundation | Prepare the score model for MusicXML while adding browser smoke coverage | XML-01, XML-02, TEST-02 | Pending |
 
 ## Phases
@@ -67,7 +67,7 @@ Plans:
 **UI hint:** yes
 **Requirements:** VAL-01, VAL-02, VAL-03, TEST-01
 **Depends on:** Phase 1, Phase 2
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 **Success Criteria**:
 1. Pattern loading validates required fields, note names, playable range, rests, chords, timings, time signatures, fingerings, and native-key behavior.
@@ -77,9 +77,9 @@ Plans:
 5. Existing valid built-in patterns pass validation.
 
 Plans:
-- [ ] `03-01-PLAN.md` — Validator core and diagnostic fixtures (Wave 1)
-- [ ] `03-02-PLAN.md` — Loader validation gate and source corrections (Wave 2, depends on 03-01)
-- [ ] `03-03-PLAN.md` — User feedback and regression contracts (Wave 3, depends on 03-01 and 03-02)
+- [x] `03-01-PLAN.md` — Validator core and diagnostic fixtures (Wave 1)
+- [x] `03-02-PLAN.md` — Loader validation gate and source corrections (Wave 2, depends on 03-01)
+- [x] `03-03-PLAN.md` — User feedback and regression contracts (Wave 3, depends on 03-01 and 03-02)
 
 ### Phase 4: MusicXML-Ready Foundation
 
@@ -128,15 +128,15 @@ Plans:
 | MODEL-02 | Phase 1 | Completed |
 | MODEL-03 | Phase 1 | Completed |
 | SYNC-01 | Phase 1 | Completed |
-| SYNC-02 | Phase 2 | Pending |
-| SYNC-03 | Phase 2 | Pending |
-| SCORE-01 | Phase 2 | Pending |
-| SCORE-02 | Phase 2 | Pending |
-| SCORE-03 | Phase 2 | Pending |
-| VAL-01 | Phase 3 | Pending |
-| VAL-02 | Phase 3 | Pending |
-| VAL-03 | Phase 3 | Pending |
-| TEST-01 | Phase 3 | Pending |
+| SYNC-02 | Phase 2 | Completed |
+| SYNC-03 | Phase 2 | Completed |
+| SCORE-01 | Phase 2 | Completed |
+| SCORE-02 | Phase 2 | Completed |
+| SCORE-03 | Phase 2 | Completed |
+| VAL-01 | Phase 3 | Completed |
+| VAL-02 | Phase 3 | Completed |
+| VAL-03 | Phase 3 | Completed |
+| TEST-01 | Phase 3 | Completed |
 | XML-01 | Phase 4 | Pending |
 | XML-02 | Phase 4 | Pending |
 | TEST-02 | Phase 4 | Pending |

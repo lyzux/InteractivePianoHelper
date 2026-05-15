@@ -25,9 +25,9 @@
 
 ### Validation
 
-- [ ] **VAL-01**: Pattern loading validates required fields and reports missing or invalid pattern modules.
-- [ ] **VAL-02**: Pattern validation checks note names, playable range, rests, chords, timing values, time signatures, and fingering length assumptions.
-- [ ] **VAL-03**: Invalid selected patterns show clear UI feedback while developer details go to the console.
+- [x] **VAL-01**: Pattern loading validates required fields and reports missing or invalid pattern modules.
+- [x] **VAL-02**: Pattern validation checks note names, playable range, rests, chords, timing values, time signatures, and fingering length assumptions.
+- [x] **VAL-03**: Invalid selected patterns show clear UI feedback while developer details go to the console.
 
 ### MusicXML Readiness
 
@@ -36,7 +36,7 @@
 
 ### Regression Safety
 
-- [ ] **TEST-01**: Focused tests or fixtures cover transposition, timing conversion, measure grouping, validation, Lombard rhythm, Für Elise, chords, rests, and unsupported native keys.
+- [x] **TEST-01**: Focused tests or fixtures cover transposition, timing conversion, measure grouping, validation, Lombard rhythm, Für Elise, chords, rests, and unsupported native keys.
 - [ ] **TEST-02**: A lightweight browser smoke check covers app boot, pattern loading, notation SVG rendering, and play/stop highlight cleanup.
 
 ## v2 Requirements
@@ -76,12 +76,12 @@
 | SCORE-01 | Phase 2 | Complete |
 | SCORE-02 | Phase 2 | Complete |
 | SCORE-03 | Phase 2 | Complete |
-| VAL-01 | Phase 3 | Pending |
-| VAL-02 | Phase 3 | Pending |
-| VAL-03 | Phase 3 | Pending |
+| VAL-01 | Phase 3 | Completed |
+| VAL-02 | Phase 3 | Completed |
+| VAL-03 | Phase 3 | Completed |
 | XML-01 | Phase 4 | Pending |
 | XML-02 | Phase 4 | Pending |
-| TEST-01 | Phase 3 | Pending |
+| TEST-01 | Phase 3 | Completed |
 | TEST-02 | Phase 4 | Pending |
 
 **Coverage:**
@@ -91,4 +91,4 @@
 
 ---
 *Requirements defined: 2026-05-14*
-*Last updated: 2026-05-15 after roadmap creation*
+*Last updated: 2026-05-15 after Phase 3 execution*

@@ -2,6 +2,7 @@
 created: 2026-05-14T11:49:50.088Z
 title: Harden notation playback contract
 area: general
+completed: 2026-05-15
 files:
   - CLAUDE.md:277
   - js/staffNotationRenderer.js
@@ -31,3 +32,11 @@ Start with the high-achievability fixes from `CLAUDE.md`:
 3. Add clear unsupported-key handling for native-key pieces such as Für Elise.
 4. Add pattern validation around required fields, note ranges, rests, timing values, time signatures, native-key behavior, and cyclic length assumptions.
 5. Defer major sound, keyboard UI, and framework changes until the notation/data contract is trustworthy.
+
+## Completion
+
+Closed through:
+
+- Phase 01 canonical resolver and playback/notation event contract.
+- Phase 02 full-score A4 sheet rendering and authored-key playback behavior.
+- Phase 03 validation, loader rejection, and user feedback work.
