@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+import { basename, resolve } from 'node:path';
 
 import {
     DEFAULT_HIGHLIGHT_COLOR,
@@ -8,6 +10,29 @@ import {
     createProfessionalMusicXmlRenderer,
     describeProfessionalRendererContract
 } from '../js/professionalMusicXmlRenderer.js';
+import { readMusicXmlFile } from '../js/musicXmlFileReader.js';
+import { adaptMusicXmlDocumentToCanonical } from '../js/musicXmlCanonicalAdapter.js';
+import { parseMusicXmlText } from '../js/musicXmlParser.js';
+
+const FIXTURE_SUITE_ROOT = resolve(new URL('.', import.meta.url).pathname, 'fixtures/musicxml-suite');
+const MANIFEST_PATH = resolve(FIXTURE_SUITE_ROOT, 'MANIFEST.json');
+
+function readFixtureManifest() {
+    return JSON.parse(readFileSync(MANIFEST_PATH, 'utf8'));
+}
+
+async function readManifestFixtureXml(fixture) {
+    const filePath = resolve(FIXTURE_SUITE_ROOT, fixture.file);
+    if (/\.mxl$/i.test(filePath)) {
+        const file = new File([readFileSync(filePath)], basename(filePath), {
+            type: 'application/vnd.recordare.musicxml'
+        });
+        const result = await readMusicXmlFile(file);
+        assert.equal(result.ok, true, `${fixture.id} MXL should extract MusicXML`);
+        return result.xmlText;
+    }
+    return readFileSync(filePath, 'utf8');
+}
 
 class FakeClassList {
     constructor(initial = []) {
@@ -239,4 +264,65 @@ test('supports measure clicks note clicks highlights ranges and cleanup', async 
     assert.equal(renderer.eventMap.size, 0);
     assert.equal(renderer.measureMap.size, 0);
     assert.equal(renderer.noteMap.size, 0);
+});
+
+test('validates curated MusicXML suite manifest source license and hard gate policy', () => {
+    const manifest = readFixtureManifest();
+    const licenseText = readFileSync(resolve(FIXTURE_SUITE_ROOT, manifest.source.licenseFile), 'utf8');
+    const hardGateStatuses = new Set(manifest.policy.hardGateStatuses);
+    const fixtureIds = new Set();
+    const categories = new Set();
+
+    assert.equal(manifest.source.name, 'cuthbertLab/musicxmlTestSuite');
+    assert.equal(manifest.source.license, 'MIT');
+    assert.match(manifest.source.commit, /^[a-f0-9]{40}$/);
+    assert.match(licenseText, /MIT License/);
+    assert.equal(manifest.policy.fullExternalSuiteHardGate, false);
+
+    for (const fixture of manifest.fixtures) {
+        assert.equal(fixtureIds.has(fixture.id), false, `${fixture.id} should be unique`);
+        fixtureIds.add(fixture.id);
+        categories.add(fixture.category);
+        assert.ok(existsSync(resolve(FIXTURE_SUITE_ROOT, fixture.file)), `${fixture.file} should exist`);
+        assert.ok(Array.isArray(fixture.gates) && fixture.gates.length > 0, `${fixture.id} should define gates`);
+        if (hardGateStatuses.has(fixture.expectedStatus)) {
+            assert.ok(fixture.gates.includes('renderer-load'), `${fixture.id} hard gate should exercise renderer load path`);
+        }
+    }
+
+    manifest.requiredCategories.forEach(category => {
+        assert.ok(categories.has(category), `${category} should be represented by the curated subset`);
+    });
+});
+
+test('runs hard gate MusicXML suite fixtures through parser adapter gates and renderer facade path', async () => {
+    const manifest = readFixtureManifest();
+    const hardGateStatuses = new Set(manifest.policy.hardGateStatuses);
+    const hardGateFixtures = manifest.fixtures.filter(fixture => hardGateStatuses.has(fixture.expectedStatus));
+
+    assert.ok(hardGateFixtures.length >= 4, 'curated suite should start with several hard gate fixtures');
+
+    for (const fixture of hardGateFixtures) {
+        const xmlText = await readManifestFixtureXml(fixture);
+        const parsed = parseMusicXmlText(xmlText, {
+            sourceId: fixture.id,
+            filename: basename(fixture.file)
+        });
+
+        assert.ok(parsed.document, `${fixture.id} should parse into a MusicXML document`);
+        if (fixture.expectedStatus === 'must-pass-import-playback') {
+            const adapted = adaptMusicXmlDocumentToCanonical(parsed.document, {
+                sourceId: fixture.id,
+                filename: basename(fixture.file),
+                descriptor: parsed.descriptor
+            });
+            assert.equal(adapted.ok, true, `${fixture.id} should pass current canonical playback import`);
+        }
+
+        const renderer = createProfessionalMusicXmlRenderer({ osmdClass: FakeOsmd });
+        await renderer.load(xmlText, { sourceId: fixture.id });
+        const result = await renderer.render(new FakeElement('div'));
+        assert.ok(result.pages.length > 0, `${fixture.id} should load through the renderer facade path`);
+        renderer.destroy();
+    }
 });

@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "suite": "curated-musicxml-renderer-fixtures",
+  "source": {
+    "name": "cuthbertLab/musicxmlTestSuite",
+    "repository": "https://github.com/cuthbertLab/musicxmlTestSuite",
+    "commit": "ceb4f5ac45ba2299683faec93e2c2fa42fe3d45e",
+    "license": "MIT",
+    "licenseFile": "LICENSE",
+    "upstreamDirectory": "xmlFiles"
+  },
+  "coverageReference": {
+    "name": "LilyPond MusicXML regression tests",
+    "url": "https://lilypond.org/doc/v2.24/input/regression/musicxml/collated-files.html#introduction",
+    "usage": "coverage guidance only; not the vendored license source"
+  },
+  "policy": {
+    "fullExternalSuiteHardGate": false,
+    "hardGateStatuses": [
+      "must-pass-render",
+      "must-pass-import-playback",
+      "must-pass-addressability"
+    ],
+    "exploratoryStatuses": [
+      "known-render-only",
+      "known-unsupported",
+      "known-fail-upstream"
+    ]
+  },
+  "requiredCategories": [
+    "piano-core",
+    "layout-credits",
+    "voices-chords",
+    "directions-text",
+    "compressed-mxl",
+    "render-only",
+    "known-unsupported",
+    "known-fail"
+  ],
+  "fixtures": [
+    {
+      "id": "rhythm-backup",
+      "file": "files/03b-Rhythm-Backup.xml",
+      "sourcePath": "xmlFiles/03b-Rhythm-Backup.xml",
+      "category": "piano-core",
+      "expectedStatus": "must-pass-import-playback",
+      "gates": ["parse", "canonical-adapter", "renderer-load"],
+      "notes": "Two-voice backup cursor movement; app already needs backup correctness for playable piano scores."
+    },
+    {
+      "id": "three-note-chords",
+      "file": "files/21c-Chords-ThreeNotesDuration.xml",
+      "sourcePath": "xmlFiles/21c-Chords-ThreeNotesDuration.xml",
+      "category": "voices-chords",
+      "expectedStatus": "must-pass-import-playback",
+      "gates": ["parse", "canonical-adapter", "renderer-load", "note-addressability"],
+      "notes": "Regression guard for chords with more than two notes."
+    },
+    {
+      "id": "page-layout",
+      "file": "files/52a-PageLayout.xml",
+      "sourcePath": "xmlFiles/52a-PageLayout.xml",
+      "category": "layout-credits",
+      "expectedStatus": "must-pass-render",
+      "gates": ["parse", "renderer-load", "page-metadata"],
+      "notes": "Layout-oriented fixture for page sizing, margins, and renderer page behavior."
+    },
+    {
+      "id": "compressed-musicxml",
+      "file": "files/90a-Compressed-MusicXML.mxl",
+      "sourcePath": "xmlFiles/90a-Compressed-MusicXML.mxl",
+      "category": "compressed-mxl",
+      "expectedStatus": "must-pass-render",
+      "gates": ["mxl-read", "parse", "renderer-load"],
+      "notes": "Compressed MusicXML package from the upstream suite."
+    },
+    {
+      "id": "directions",
+      "file": "files/31a-Directions.xml",
+      "sourcePath": "xmlFiles/31a-Directions.xml",
+      "category": "directions-text",
+      "expectedStatus": "known-render-only",
+      "gates": ["parse", "renderer-load"],
+      "notes": "Renderer should display directions; strict playback import is not a hard gate for every direction type yet."
+    },
+    {
+      "id": "multi-voice-lyrics",
+      "file": "files/42a-MultiVoice-TwoVoicesOnStaff-Lyrics.xml",
+      "sourcePath": "xmlFiles/42a-MultiVoice-TwoVoicesOnStaff-Lyrics.xml",
+      "category": "render-only",
+      "expectedStatus": "known-render-only",
+      "gates": ["parse", "renderer-load", "note-addressability"],
+      "notes": "Important visual future case; lyrics and complex voices are not current playback hard gates."
+    },
+    {
+      "id": "pitches-accidentals-wide",
+      "file": "files/01a-Pitches-Pitches.xml",
+      "sourcePath": "xmlFiles/01a-Pitches-Pitches.xml",
+      "category": "known-unsupported",
+      "expectedStatus": "known-unsupported",
+      "gates": ["parse", "renderer-load"],
+      "notes": "Contains accidentals beyond the current strict playback adapter; useful renderer coverage but not a blocking playback import gate."
+    },
+    {
+      "id": "accordion-invalid",
+      "file": "files/99d-AccordionInvalid.xml",
+      "sourcePath": "xmlFiles/99d-AccordionInvalid.xml",
+      "category": "known-fail",
+      "expectedStatus": "known-fail-upstream",
+      "gates": ["parse"],
+      "notes": "Intentionally invalid accordion registration fixture; kept to prove known-fail separation from hard gates."
+    }
+  ]
+}
