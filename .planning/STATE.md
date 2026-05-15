@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 02
 status: completed
-last_updated: "2026-05-15T09:34:41.470Z"
+last_updated: "2026-05-15T09:42:00.000Z"
 progress:
   total_phases: 6
   completed_phases: 2
@@ -59,7 +59,7 @@ Important files:
 ### Known Risks
 
 - Pattern data is executable JavaScript and still under-validated until Phase 3.
-- Long notation is still capped by current renderer behavior until Phase 2.
+- Long notation is now paginated by the Phase 2 renderer; human browser smoke remains the main residual visual check.
 - MusicXML import remains a future adapter target; Phase 1 prepared the model boundary but did not implement import.
 
 ---

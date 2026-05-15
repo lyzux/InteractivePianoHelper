@@ -5,8 +5,8 @@
 A zero-dependency, vanilla-JS web app for learning and practicing piano bass/accompaniment patterns. It provides:
 
 - An interactive **88-key piano** that plays sound on mouse interaction
-- **Pattern playback** — looping accompaniment patterns across multiple musical styles
-- **Staff notation** rendered via VexFlow (bass + treble clefs, with fingering annotations)
+- **Score playback** — accompaniment patterns and longer pieces played from a canonical sequence, with optional looping
+- **Sheet notation** rendered via VexFlow as A4-style pages (bass + treble clefs, with fingering annotations)
 - A **"Piano Controls" sidebar** with per-parameter sound shaping sliders
 - **Mobile support** — keyboard pins to the bottom 25vh, sidebar slides in as a drawer
 
@@ -44,10 +44,10 @@ InteractivePianoHelper/
 ├── js/
 │   ├── audioEngine.js           # Web Audio API synth (AudioEngine class)
 │   ├── piano.js                 # 88-key DOM piano component (Piano class)
-│   ├── player.js                # Pattern playback loop (Player class)
-│   ├── settings.js              # Tempo/sustain/key state + localStorage (Settings class)
-│   ├── simplePatternLoader.js   # SimplePatternLoader: registry + VexFlow notation + pattern loader
-│   ├── staffNotationRenderer.js # drawStaffNotation(): VexFlow two-stave rendering
+│   ├── player.js                # Canonical score playback + optional loop (Player class)
+│   ├── settings.js              # Tempo/sustain/swing state + localStorage (Settings class)
+│   ├── simplePatternLoader.js   # SimplePatternLoader: registry + canonical display resolution
+│   ├── staffNotationRenderer.js # drawStaffNotation(): A4-style VexFlow sheet rendering
 │   ├── physicsControlsPanel.js  # generatePhysicsControls(): builds sidebar sliders dynamically
 │   ├── mobileMenu.js            # initializeMobileMenu(): sidebar drawer toggle
 │   └── pianoResizeHandler.js    # initializePianoResize(): drag-to-resize + localStorage persist
@@ -70,7 +70,7 @@ InteractivePianoHelper/
 1. All 9 JS modules loaded in parallel via `Promise.all([...dynamic imports...])` with a single `APP_VERSION = Date.now()` cache-buster
 2. `AudioEngine` instantiated (lazy — `AudioContext` only created on first note)
 3. `Piano` built inside `#piano` div (DOM construction + event listeners)
-4. `Settings` attached to slider/checkbox/select elements; settings loaded from `localStorage`
+4. `Settings` attached to tempo/sustain/swing controls; settings loaded from `localStorage`
 5. `Player` wired to `AudioEngine`, `Piano`, `Settings`
 6. `SimplePatternLoader` calls `autoLoadPatterns()`
    - Reads `PATTERN_IDS` from `patterns/index.js` (the single source of truth for pattern IDs)
@@ -158,7 +158,9 @@ Renders an 88-key piano into a container div. Keys are DOM elements with `data-n
 
 Web Audio API **lookahead scheduler** (25ms `setTimeout` poll, 150ms lookahead). Notes are scheduled into the audio graph in advance using `audioEngine.playNote(..., startTime)`, eliminating `Date.now()`-based jitter. Visual key highlights are triggered with matching `setTimeout` delays calibrated to `startTime − currentTime`.
 
-**Two-hand support:** `play()` resolves `leftHand`/`rightHand` (or falls back to `pattern`). Both arrays wrap independently at their own length; a single `noteIndex` advances through the shared timing array.
+**Two-hand support:** `play()` consumes canonical sequence events, preserving separate left/right material where present.
+
+**Looping:** `play(sequence, { loop })` loops the complete canonical sequence only when `loop` is true. The Loop checkbox is off by default.
 
 **Tempo changes** take effect for notes not yet scheduled (within the next 150ms); already-scheduled audio nodes play at their original timing.
 
@@ -168,7 +170,7 @@ Web Audio API **lookahead scheduler** (25ms `setTimeout` poll, 150ms lookahead).
 
 ### `js/settings.js` — `Settings`
 
-Pub/sub over tempo, sustain, key, and swingRatio. Persists to `localStorage` under key `pianoHelperSettings`. `getBeatDuration()` returns `60000 / tempo` ms. Each setter (`setKey`, `setSustain`) also updates its DOM element directly so programmatic changes stay in sync with the UI.
+Pub/sub over tempo, sustain, and swingRatio. Persists to `localStorage` under key `pianoHelperSettings`. `getBeatDuration()` returns `60000 / tempo` ms. Legacy key data in stored settings is ignored by the active product path.
 
 ---
 
@@ -204,7 +206,7 @@ export const mypattern = {
 
 Both the Player and the VexFlow renderer read `leftHand`/`rightHand`. There is no longer a separate `bassClef`/`trebleClef` naming — all patterns use the same fields for both playback and notation.
 
-**Key transposition:** Pattern functions only need to implement the C major version. `_resolveNotes()` (in `simplePatternLoader.js`) and `_resolveNotesP()` (in `player.js`) always call `fn('C')` and transpose chromatically for all other keys. Flat keys (F, B♭, E♭, A♭, D♭, Dm) produce flat enharmonics (e.g. B♭4 instead of A♯4). Chord arrays (`['C4','E4','G4']`) are transposed element-wise. Patterns that are not transposable (e.g. `furelise`) set `nativeKey: 'Am'`; for these, `fn(key)` is called directly and returns `null` for unsupported keys (stave shown empty).
+**Authored-key display:** The active UI resolves each pattern through `resolvePatternSequenceForDisplay()`, using `nativeKey` when present and `C` otherwise. The old key-changing control has been removed from the active product path so pieces display and play as authored. Lower-level resolver methods still accept a key argument for compatibility and future import work.
 
 **Chord notation:** `['C4','E4','G4']` inside a note array = simultaneous chord. `null` = rest.
 
@@ -250,8 +252,8 @@ Desktop: sidebar is always visible. Mobile (≤768px): sidebar is a fixed-positi
 
 `generateVexFlowNotation()` lives on `SimplePatternLoader` in `js/simplePatternLoader.js`. `drawStaffNotation()` is in `js/staffNotationRenderer.js`. Both are dynamically imported into `index.html`; a thin wrapper in the inline script calls them with the current `patternLoader` and `settings`.
 
-- **Responsive width** — SVG width is set to `vexFlowDiv.clientWidth - 40` (subtracting CSS padding); falls back to 800 if the element has not yet laid out.
-- **Multi-measure layout** — notes are grouped into per-measure arrays using beat-count arithmetic (`bpm = numBeats × 4/beatValue`). Measures are distributed across horizontal systems (lines); the number of measures per line is `floor((width - headerWidth) / 80)`.
+- **A4-style pages** — `drawStaffNotation()` creates `.score-sheet-view`, `.score-page-grid`, and one `.score-page` per page plan. Each VexFlow SVG uses a 794 × 1123 viewBox.
+- **Full-score layout** — `buildScoreMeasures(sequence)` groups canonical events into measures. `planScorePages(measureCount)` covers the complete score without the old first-eight-measures cap.
 - **Bar lines** — each measure is a separate `VF.Stave`; VexFlow automatically draws a right bar line at each stave boundary.
 - **Dotted notes** — VexFlow 4 separates tick count (set by the `'d'` suffix in the duration string, e.g. `'qd'`, `'8d'`) from visual rendering of the augmentation dot (requires an explicit `VF.Dot.buildAndAttach([sn], { all: true })` call). Both are needed; omitting the modifier call leaves notes visually undotted even though they occupy the correct number of ticks.
 - **Rest fill sizes** (`REST_FILL_SIZES`) exclude dotted values (1.5, 0.75) to avoid VexFlow's ambiguous `'xdr'` duration parsing for rests. Dotted rest durations are decomposed into two plain rests instead (e.g. 1.5 → quarter + eighth).
@@ -289,10 +291,10 @@ The app is strongest where it is already intentionally simple:
 
 The weakest area is the contract between **pattern data**, **playback**, and **notation rendering**. The current pattern format is flexible but under-validated, and the renderer makes display-only decisions that do not always match playback behavior.
 
-Concrete issues observed:
+Concrete issues observed before Phase 02:
 
-- `js/staffNotationRenderer.js` has `MAX_DISPLAY_MEASURES = 8`, so longer pieces such as `patterns/furelise.js` are intentionally cut off after the first few systems.
-- Short accompaniment cycles are expanded for notation display by `expandPattern()`, but playback loops the raw source pattern. For example, `patterns/lombardisch.js` defines 4 notes with timings `[0.25, 0.75, 0.25, 0.75]` for a 2-beat cycle. The renderer expands this to fill a 4/4 measure, displaying 8 note events, while the player loops the original 4-note cycle. This is understandable internally, but it feels inconsistent to the user.
+- Phase 02 removed the old first-eight-measure display cap and now renders complete canonical score sequences as A4-style pages.
+- Phase 02 routes display and playback through the same canonical score source, so short accompaniment cycles no longer use a separate display-only expansion path.
 - Pattern files are executable JavaScript modules, not data. They are convenient for hand-written examples, but they are hard to validate thoroughly, hard to import from notation software, and easy to make subtly inconsistent.
 - Validation is mostly implicit. Missing fields, mismatched note/timing/fingering lengths, unsupported notes, unsupported keys, impossible durations, and very long pieces are not surfaced to the user in a structured way.
 - The notation renderer is a custom layout layer over VexFlow. It can render simple material, but it is carrying more responsibility than it should for complete score display, pagination, systems, rests, ties, and edge cases.
@@ -337,10 +339,9 @@ This is more achievable than making MusicXML the only format immediately. MusicX
     - one full musical measure, with playback using the same expanded sequence.
   - For Lombard rhythm, prefer displaying and playing the same 4-note cycle unless the UI labels the display as a full-measure expansion.
 - Remove the hard cut-off for long pieces:
-  - Replace `MAX_DISPLAY_MEASURES = 8` with renderer modes:
-    - `loop-preview`: compact one-cycle or one-measure preview for accompaniment patterns.
-    - `score`: render all measures for complete pieces.
-  - Für Elise should use `score` mode and render the complete available excerpt.
+  - Phase 02 now renders all canonical measures on A4-style score pages.
+  - Future display modes can still distinguish compact practice previews from full score display, but the active UI currently prefers full score preview.
+  - Für Elise uses authored-key score resolution and renders the complete available excerpt.
 - Add basic renderer overflow handling:
   - Ensure the notation container scrolls vertically or expands naturally.
   - Keep the piano usable at the bottom without hiding the last systems.

@@ -23,8 +23,8 @@ InteractivePianoHelper/
   js/
     audioEngine.js      # Web Audio piano synth
     piano.js            # Reusable 88‑key piano component
-    settings.js         # Tempo, sustain, key; events + localStorage
-    player.js           # Pattern playback/looping
+    settings.js         # Tempo, sustain, swing; events + localStorage
+    player.js           # Score playback with optional looping
     patternLoader.js    # Pattern registry + helpers
     autoPatternLoader.js# Attempts to auto‑load patterns by common names
     patternDiscovery.js # Alternate discovery by known IDs
@@ -38,10 +38,10 @@ InteractivePianoHelper/
 
 - Interactive 88‑key piano with visual highlight
 - Simple, musical Web Audio piano synth with harmonics
-- Pattern playback with tempo control and sustain pedal
+- Score playback with tempo control, sustain pedal, and optional looping
 - Auto‑discovery of patterns under `patterns/`
 - Optional two‑hand patterns (left/right or bass/treble)
-- VexFlow is included via CDN in `index.html` for future/staff rendering placeholders
+- Full-score A4-style sheet display rendered with VexFlow
 
 ## Adding Patterns
 
@@ -79,7 +79,7 @@ export const hymn = {
 };
 ```
 
-Notes use scientific names like `C3`, `F#4`. Provide arrays for chords, and `null` for rests. The player loops patterns; if your note list is shorter than the timing list, values repeat modulo their lengths.
+Notes use scientific names like `C3`, `F#4`. Provide arrays for chords, and `null` for rests. Playback follows the canonical score sequence and loops only when the Loop control is enabled.
 
 Naming rules that help auto‑loading:
 - File name and exported constant should match (e.g., `alberti.js` exports `alberti`).
@@ -89,16 +89,17 @@ Naming rules that help auto‑loading:
 
 - `js/audioEngine.js`: Web Audio–based, parameterized synth (attack/release, brightness, harmonics, pedal resonance).
 - `js/piano.js`: 88‑key UI with mouse interaction and highlighting.
-- `js/settings.js`: Central tempo/sustain/key state + change callbacks.
-- `js/player.js`: Drives timed playback; supports optional two‑hand patterns.
-- `js/patternLoader.js`: Registry + ABC text generator helper. Note: ABC rendering is not wired; VexFlow CDN is present for future staff rendering.
+- `js/settings.js`: Central tempo/sustain/swing state + change callbacks.
+- `js/player.js`: Drives timed playback; supports optional two‑hand scores and complete-sequence looping.
+- `js/staffNotationRenderer.js`: Renders complete canonical score sequences as A4-style VexFlow pages.
+- `js/patternLoader.js`: Registry + ABC text generator helper retained for legacy compatibility.
 - `js/autoPatternLoader.js` and `js/patternDiscovery.js`: Two strategies for finding/loading patterns by name.
 - `js/patternImporter.js`: Static import fallback that registers known patterns.
 
 ## Development Notes
 
 - ES modules, no bundler. Serve over HTTP for module imports to work.
-- VexFlow is included in `index.html`; wiring actual staff rendering is a good next step.
+- VexFlow is included in `index.html` and used for the current sheet music renderer.
 - Console logs include some debug output; feel free to trim for production.
 
 ## Phase 02 score display smoke check
