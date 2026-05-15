@@ -2,41 +2,42 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_phase: 06
-status: milestone_complete
-last_updated: "2026-05-15T18:45:00.000Z"
+current_phase: 07
+status: phase_planned
+last_updated: "2026-05-15T19:39:47+02:00"
 progress:
-  total_phases: 6
+  total_phases: 7
   completed_phases: 6
-  total_plans: 17
+  total_plans: 19
   completed_plans: 17
-  percent: 100
+  percent: 89
 ---
 
 # Project State: Interactive Piano Helper
 
 **Initialized:** 2026-05-15
-**Current Phase:** 06
-**Status:** Milestone complete
+**Current Phase:** 07
+**Status:** Phase planned
 
 ## Project Reference
 
-See: `.planning/PROJECT.md` (updated 2026-05-14)
+See: `.planning/PROJECT.md` (updated 2026-05-15)
 
 **Core value:** Displayed notation and playback must describe the same musical events so learners can trust what they see, hear, and play.
-**Current focus:** Milestone complete — professional MusicXML renderer path planned and proven
+**Current focus:** Phase 07 planned — production OSMD score rendering and interaction bridge
 
 ## Roadmap Reference
 
 See: `.planning/ROADMAP.md`
 
-**Active roadmap:** 6 phases, vertical MVP mode.
+**Active roadmap:** 7 phases, vertical MVP mode.
 **Phase 1:** Canonical Pattern Event Pipeline - completed
 **Phase 2:** Score Display Modes - completed
 **Phase 3:** Pattern Validation And Feedback - completed
 **Phase 4:** MusicXML-Ready Foundation - completed
 **Phase 5:** MusicXML Import And Practice UX - completed; 05-06 browser smoke and regression coverage complete
 **Phase 6:** Professional MusicXML Renderer - completed; OSMD-first renderer decision, facade, and MusicXML test-suite strategy
+**Phase 7:** OSMD Production Score Rendering - planned; production renderer switch plus playback/practice interaction correctness
 
 ## Codebase Reference
 
@@ -57,8 +58,8 @@ Important files:
 
 ### Last Session
 
-- Stopped at: Completed 06-01-PLAN.md and marked Phase 6 complete
-- Resume from: Start the next milestone or plan production OSMD integration
+- Stopped at: Planned Phase 7 with research, UI spec, and two execution plans
+- Resume from: Execute `.planning/phases/07-osmd-production-score-rendering/07-01-PLAN.md`
 
 ### Decisions
 
@@ -81,6 +82,9 @@ Important files:
 - 06 exploration reopens the Phase 5 renderer decision because real MuseScore exports show the simplified VexFlow reconstruction is not sufficient for professional MusicXML page fidelity.
 - 06 chooses OSMD as the preferred renderer candidate, with Verovio retained as fallback/comparison due to stronger LGPL obligations and larger footprint.
 - 06 recommends cuthbertLab/musicxmlTestSuite as the preferred MIT fixture source, with LilyPond collated tests used as coverage guidance.
+- 07 plans to make OSMD the production renderer for imported MusicXML instead of the Phase 5 VexFlow reconstruction.
+- 07 splits production integration into page-fidelity wiring first, then canonical event/measure mapping for playback, range selection, and auto-follow.
+- 07 treats the user's local MuseScore `.mxl` file as an optional critical fixture that runs when present and skips cleanly otherwise.
 
 ### Performance Metrics
 
@@ -94,6 +98,7 @@ Important files:
 | 05 | 06 | 8 min | 3 | 7 |
 | 06 | Explore | 20 min | 4 artifacts | 4 |
 | 06 | 01 | 55 min | 4 | 9 |
+| 07 | Plan | 45 min | 6 artifacts | 6 |
 
 ### Key Constraints
 
@@ -106,7 +111,8 @@ Important files:
 - Pattern data is still executable JavaScript, but it is now validated before selection.
 - Long notation is now paginated by the Phase 2 renderer; human browser smoke remains the main residual visual check.
 - MusicXML import is now covered by fixture-backed parser/adapter tests and integrated browser smoke for import, persistence, rendering, range playback, auto-follow, cleanup, removal, and built-in score practice behavior.
-- Phase 6 should not expand app-owned engraving logic unless OSMD and Verovio both fail the renderer decision gate.
+- Phase 7 must not silently fall back to app-owned VexFlow reconstruction for imported MusicXML rendering.
+- Phase 7 mapping must not silently highlight the wrong OSMD note when canonical-to-renderer matching is ambiguous.
 
 ---
 *State initialized: 2026-05-15*

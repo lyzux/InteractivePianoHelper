@@ -63,6 +63,22 @@
 
 - [x] **TEST-03**: A curated MusicXML fixture suite is integrated into automated tests, using the cuthbertLab MIT MusicXML Test Suite as the preferred source and LilyPond's collated tests as coverage guidance.
 
+## v3 Requirements
+
+### Production MusicXML Rendering
+
+- [ ] **XML-09**: Imported MusicXML scores render through the OSMD-backed professional renderer facade in the real app, not through the simplified VexFlow reconstruction.
+- [ ] **XML-10**: Imported MusicXML display preserves score-page semantics where supported: titles, credits, page layout, system/page breaks, printed measure behavior, voices, chords, directions, and full-page scaling within the notestand viewport.
+
+### Production Playback And Practice Sync
+
+- [ ] **SYNC-04**: Canonical playback event IDs map to OSMD-rendered visual note targets so score highlighting, keyboard highlighting, and cleanup remain synchronized.
+- [ ] **PRAC-04**: Practice range selection, selected-measure looping, start position, and auto-follow work on OSMD-rendered measures.
+
+### Production Renderer Regression Safety
+
+- [ ] **TEST-04**: Automated tests cover production OSMD import/render behavior with curated MusicXML fixtures and the local MuseScore `.mxl` sample when present, including page fidelity markers, chords/voices, compressed MXL, highlights, range selection, and auto-follow.
+
 ## Out of Scope
 
 | Feature | Reason |
@@ -104,12 +120,17 @@
 | XML-07 | Phase 6 | Completed |
 | XML-08 | Phase 6 | Completed |
 | TEST-03 | Phase 6 | Completed |
+| XML-09 | Phase 7 | Planned |
+| XML-10 | Phase 7 | Planned |
+| SYNC-04 | Phase 7 | Planned |
+| PRAC-04 | Phase 7 | Planned |
+| TEST-04 | Phase 7 | Planned |
 
 **Coverage:**
-- Requirements: 26 total
-- Mapped to phases: 26
+- Requirements: 31 total
+- Mapped to phases: 31
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-14*
-*Last updated: 2026-05-15 after Phase 6 completion*
+*Last updated: 2026-05-15 after Phase 7 planning*

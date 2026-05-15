@@ -14,6 +14,7 @@
 | 4 | MusicXML-Ready Foundation | Prepare the score model for MusicXML while adding browser smoke coverage | XML-01, XML-02, TEST-02 | Completed |
 | 5 | MusicXML Import And Practice UX | Import MusicXML scores and add practice controls for score playback | XML-03, XML-04, XML-05, PRAC-01, PRAC-02, PRAC-03 | Completed |
 | 6 | Professional MusicXML Renderer | Evaluate and integrate a professional, page-faithful, interactive MusicXML renderer | XML-06, XML-07, XML-08, TEST-03 | Completed |
+| 7 | OSMD Production Score Rendering | Make OSMD the production imported-score renderer and preserve playback/practice interaction correctness | XML-09, XML-10, SYNC-04, PRAC-04, TEST-04 | Planned |
 
 ## Phases
 
@@ -163,6 +164,30 @@ Plans:
 **Wave 1**
 - [x] `06-01-PLAN.md` — Renderer decision spike, facade contract, and MusicXML test-suite strategy
 
+### Phase 7: OSMD Production Score Rendering
+
+**Goal:** Imported MusicXML in the real app uses OSMD page rendering with MuseScore-like score-page fidelity where supported, while playback highlighting, range selection, start position, and auto-follow remain correct.
+**Mode:** mvp
+**UI hint:** yes
+**Requirements:** XML-09, XML-10, SYNC-04, PRAC-04, TEST-04
+**Depends on:** Phase 6
+**Plans:** 2 plans
+
+**Success Criteria**:
+1. `js/musicXmlScoreRenderer.js` delegates imported MusicXML rendering to the OSMD-backed professional renderer facade in production.
+2. Imported scores display as OSMD SVG pages with title/credit/page behavior enabled where OSMD supports it.
+3. The notestand scales complete score pages to fit the viewport without app-owned MusicXML reflow, using two pages per row on wide screens and one page per row on small screens.
+4. Canonical playback event IDs map to OSMD visual note targets for playback highlighting and cleanup.
+5. OSMD-rendered measures remain selectable for practice ranges, start positions, looping, and auto-follow.
+6. Curated MusicXML fixture and browser smoke tests cover page layout/credits, chords, voices, compressed `.mxl`, the local MuseScore sample when present, and production app interactions.
+
+Plans:
+**Wave 1**
+- [ ] `07-01-PLAN.md` — Production OSMD renderer and page fidelity
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] `07-02-PLAN.md` — Canonical interaction bridge and practice regression
+
 ## Coverage
 
 | Requirement | Phase | Status |
@@ -193,5 +218,10 @@ Plans:
 | XML-07 | Phase 6 | Completed |
 | XML-08 | Phase 6 | Completed |
 | TEST-03 | Phase 6 | Completed |
+| XML-09 | Phase 7 | Planned |
+| XML-10 | Phase 7 | Planned |
+| SYNC-04 | Phase 7 | Planned |
+| PRAC-04 | Phase 7 | Planned |
+| TEST-04 | Phase 7 | Planned |
 
-**Coverage:** 26 / 26 requirements mapped.
+**Coverage:** 31 / 31 requirements mapped.

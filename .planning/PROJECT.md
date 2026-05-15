@@ -6,7 +6,7 @@ Interactive Piano Helper is a browser-only piano learning app for exploring acco
 
 The next stage is to make it feel trustworthy as a notation-backed learning tool: visible notes, played notes, validation, and score-like material should agree and fail clearly.
 
-The current frontier is professional MusicXML rendering. Phase 5 proved import, storage, playback, and practice controls, but real MuseScore exports showed that a simplified app-owned VexFlow reconstruction is not enough for full page-fidelity MusicXML display.
+The current frontier is production MusicXML score rendering. Phase 6 proved OSMD as the preferred professional renderer, but Phase 7 still needs to make OSMD the real imported-score display path and preserve playback/practice correctness on top of OSMD pages.
 
 ## Core Value
 
@@ -33,8 +33,10 @@ Displayed notation and playback must describe the same musical events so learner
 - [ ] Show clear user-facing errors or guidance for unsupported keys and invalid pattern data.
 - [ ] Prepare the architecture for MusicXML import by introducing an internal score/event model that both notation and playback can consume.
 - [ ] Add focused regression tests around transposition, timing, notation grouping, validation, and playback/notation synchronization.
-- [ ] Evaluate and integrate a professional MusicXML renderer module, with OSMD as the preferred candidate and Verovio retained as fallback/comparison.
-- [ ] Add a curated MusicXML compatibility fixture suite using the cuthbertLab MIT test suite as the preferred source and LilyPond's collated tests as coverage guidance.
+- [x] Evaluate a professional MusicXML renderer module, with OSMD as the preferred candidate and Verovio retained as fallback/comparison.
+- [x] Add a curated MusicXML compatibility fixture suite using the cuthbertLab MIT test suite as the preferred source and LilyPond's collated tests as coverage guidance.
+- [ ] Make OSMD the production imported MusicXML renderer in the real app instead of the simplified VexFlow reconstruction.
+- [ ] Preserve playback highlights, range selection, start position, and auto-follow on OSMD-rendered score pages.
 
 ### Out of Scope
 
@@ -46,11 +48,11 @@ Displayed notation and playback must describe the same musical events so learner
 
 ## Context
 
-This is a brownfield static web app with no build step, no package manifest, and no automated tests. The current stack is documented in `.planning/codebase/STACK.md`; the architecture map is in `.planning/codebase/ARCHITECTURE.md`; known risks are in `.planning/codebase/CONCERNS.md`.
+This is a brownfield static web app with no production build step. It now has npm-based test tooling and pinned browser dependencies for renderer/testing work. The current stack is documented in `.planning/codebase/STACK.md`; the architecture map is in `.planning/codebase/ARCHITECTURE.md`; known risks are in `.planning/codebase/CONCERNS.md`.
 
-The app boots from `index.html`, dynamically imports modules from `js/`, loads pattern modules from `patterns/index.js`, renders notation with VexFlow 4.2.2 from CDN, and plays audio through `js/audioEngine.js`.
+The app boots from `index.html`, dynamically imports modules from `js/`, loads pattern modules from `patterns/index.js`, renders built-in pattern notation with VexFlow 4.2.2 from CDN, has an OSMD facade ready for imported MusicXML, and plays audio through `js/audioEngine.js`.
 
-The codebase map and `CLAUDE.md` agree on the main architectural issue: pattern data, playback, and notation rendering do not share one canonical model. `js/player.js` and `js/simplePatternLoader.js` duplicate transposition/resolve logic, and `js/staffNotationRenderer.js` expands and caps notation independently from playback. This creates user-visible edge cases like the Lombard rhythm mismatch and Für Elise truncation.
+The early architectural issue was that pattern data, playback, and notation rendering did not share one canonical model. Phases 1-6 established canonical events, validation, MusicXML import, practice controls, browser smoke coverage, and an OSMD renderer facade. The current architectural issue is that imported MusicXML production display still uses the old simplified reconstruction path instead of OSMD.
 
 The user explicitly values the current sound generation and piano interaction. Improvements should preserve those areas and concentrate on robustness around notation, validation, score display, and future MusicXML support.
 
@@ -72,8 +74,9 @@ The user explicitly values the current sound generation and piano interaction. I
 | Prioritize canonical notation/playback sequence | Fixes the trust problem where visible notes and played notes can diverge | — Pending |
 | Support two input directions over time: validated short patterns and MusicXML for pieces | MusicXML is best for complete sheet music, but compact accompaniment patterns are still useful | — Pending |
 | Avoid full framework rewrite | Current architecture is small and understandable; the core issue is model consistency | — Pending |
-| Prefer a dedicated professional renderer for full MusicXML | Real MuseScore exports exceed the practical scope of app-owned VexFlow reconstruction | Phase 6 planned |
-| Use curated MusicXML fixtures instead of ad hoc samples | Renderer trust needs repeatable coverage across voices, chords, layout, directions, and compressed files | Phase 6 planned |
+| Prefer a dedicated professional renderer for full MusicXML | Real MuseScore exports exceed the practical scope of app-owned VexFlow reconstruction | Phase 6 completed; OSMD selected |
+| Use curated MusicXML fixtures instead of ad hoc samples | Renderer trust needs repeatable coverage across voices, chords, layout, directions, and compressed files | Phase 6 completed |
+| Promote OSMD through a production facade | Phase 6 proved OSMD, but the app still needs production wiring and interaction mapping | Phase 7 planned |
 
 ## Evolution
 
@@ -93,4 +96,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-14 after initialization*
+*Last updated: 2026-05-15 after Phase 7 planning*
