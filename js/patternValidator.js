@@ -538,12 +538,192 @@ export function validateResolvedSequence(sequence, options = {}) {
         }
     });
 
-    if (Math.abs(durationTotal - sequence.loopUnitBeats) > ROUND_TOLERANCE) {
+    const isMusicXmlSequence = context.sourceType === 'musicxml' || sequence.sourceType === 'musicxml';
+    if (!isMusicXmlSequence && Math.abs(durationTotal - sequence.loopUnitBeats) > ROUND_TOLERANCE) {
         pushDiagnostic(diagnostics, context, {
             severity: 'error',
             code: 'LOOP_UNIT_MISMATCH',
             path: 'loopUnitBeats',
             message: 'Canonical event durations must add up to loopUnitBeats.'
+        });
+    } else if (isMusicXmlSequence) {
+        const maxEventEnd = sequence.events.reduce((max, event) => {
+            if (!Number.isFinite(event.startBeat) || !Number.isFinite(event.durationBeats)) return max;
+            return Math.max(max, roundBeat(event.startBeat + event.durationBeats));
+        }, 0);
+        if (sequence.loopUnitBeats + ROUND_TOLERANCE < maxEventEnd) {
+            pushDiagnostic(diagnostics, context, {
+                severity: 'error',
+                code: 'LOOP_UNIT_MISMATCH',
+                path: 'loopUnitBeats',
+                message: 'MusicXML loopUnitBeats must cover the last canonical event.'
+            });
+        }
+    }
+
+    return diagnostics;
+}
+
+export function validateMusicXmlCanonicalScore(sequence, options = {}) {
+    const context = {
+        ...sourceContext(options),
+        sourceType: 'musicxml'
+    };
+    const diagnostics = [];
+
+    if (!isPlainObject(sequence)) {
+        pushDiagnostic(diagnostics, context, {
+            severity: 'error',
+            code: 'MUSICXML_CANONICAL_INVALID',
+            path: '',
+            message: 'MusicXML canonical score must be an object.'
+        });
+        return diagnostics;
+    }
+
+    if (sequence.sourceType !== 'musicxml') {
+        pushDiagnostic(diagnostics, context, {
+            severity: 'error',
+            code: 'MUSICXML_SOURCE_TYPE_INVALID',
+            path: 'sourceType',
+            message: 'MusicXML canonical score must use sourceType musicxml.'
+        });
+    }
+
+    if (!sequence.sourceId || typeof sequence.sourceId !== 'string') {
+        pushDiagnostic(diagnostics, context, {
+            severity: 'error',
+            code: 'MUSICXML_SOURCE_ID_INVALID',
+            path: 'sourceId',
+            message: 'MusicXML canonical score must expose a stable sourceId.'
+        });
+    }
+
+    if (!Array.isArray(sequence.measures) || sequence.measures.length === 0) {
+        pushDiagnostic(diagnostics, context, {
+            severity: 'error',
+            code: 'MUSICXML_MEASURES_INVALID',
+            path: 'measures',
+            message: 'MusicXML canonical score must contain measure metadata.'
+        });
+    } else {
+        const eventIds = new Set(Array.isArray(sequence.events) ? sequence.events.map(event => event.id) : []);
+        let previousMeasureStart = -Infinity;
+        sequence.measures.forEach((measure, index) => {
+            const measurePath = `measures[${index}]`;
+            if (!measure.measureNumber && measure.measureNumber !== 0) {
+                pushDiagnostic(diagnostics, context, {
+                    severity: 'error',
+                    code: 'MUSICXML_MEASURE_NUMBER_INVALID',
+                    path: `${measurePath}.measureNumber`,
+                    message: 'MusicXML measures must expose their source measure number.'
+                });
+            }
+            if (!Number.isFinite(measure.startBeat) || measure.startBeat < previousMeasureStart - ROUND_TOLERANCE) {
+                pushDiagnostic(diagnostics, context, {
+                    severity: 'error',
+                    code: 'MUSICXML_MEASURE_ORDER_INVALID',
+                    path: `${measurePath}.startBeat`,
+                    message: 'MusicXML measures must be ordered by startBeat.'
+                });
+            }
+            previousMeasureStart = Number.isFinite(measure.startBeat) ? measure.startBeat : previousMeasureStart;
+            if (!Number.isFinite(measure.durationBeats) || measure.durationBeats <= 0) {
+                pushDiagnostic(diagnostics, context, {
+                    severity: 'error',
+                    code: 'MUSICXML_MEASURE_DURATION_INVALID',
+                    path: `${measurePath}.durationBeats`,
+                    message: 'MusicXML measures must expose a positive durationBeats value.'
+                });
+            }
+            if (!Array.isArray(measure.eventIds)) {
+                pushDiagnostic(diagnostics, context, {
+                    severity: 'error',
+                    code: 'MUSICXML_MEASURE_EVENTS_INVALID',
+                    path: `${measurePath}.eventIds`,
+                    message: 'MusicXML measures must list canonical event IDs.'
+                });
+            } else {
+                measure.eventIds.forEach((eventId, eventIndex) => {
+                    if (!eventIds.has(eventId)) {
+                        pushDiagnostic(diagnostics, context, {
+                            severity: 'error',
+                            code: 'MUSICXML_MEASURE_EVENT_MISSING',
+                            path: `${measurePath}.eventIds[${eventIndex}]`,
+                            message: 'MusicXML measure event IDs must reference canonical events.'
+                        });
+                    }
+                });
+            }
+        });
+    }
+
+    const pageLayout = sequence.pageLayout;
+    if (!isPlainObject(pageLayout)) {
+        pushDiagnostic(diagnostics, context, {
+            severity: 'error',
+            code: 'MUSICXML_PAGE_LAYOUT_INVALID',
+            path: 'pageLayout',
+            message: 'MusicXML canonical score must contain page layout metadata.'
+        });
+        return diagnostics;
+    }
+
+    if (!isPlainObject(pageLayout.pageSize)
+        || !Number.isFinite(pageLayout.pageSize.width)
+        || !Number.isFinite(pageLayout.pageSize.height)
+        || pageLayout.pageSize.width <= 0
+        || pageLayout.pageSize.height <= 0) {
+        pushDiagnostic(diagnostics, context, {
+            severity: 'error',
+            code: 'MUSICXML_PAGE_SIZE_INVALID',
+            path: 'pageLayout.pageSize',
+            message: 'MusicXML page layout must include positive page dimensions.'
+        });
+    }
+
+    if (!isPlainObject(pageLayout.pageMargins)) {
+        pushDiagnostic(diagnostics, context, {
+            severity: 'error',
+            code: 'MUSICXML_PAGE_MARGINS_INVALID',
+            path: 'pageLayout.pageMargins',
+            message: 'MusicXML page layout must include page margins.'
+        });
+    }
+
+    if (!Array.isArray(pageLayout.measureLayout)) {
+        pushDiagnostic(diagnostics, context, {
+            severity: 'error',
+            code: 'MUSICXML_MEASURE_LAYOUT_INVALID',
+            path: 'pageLayout.measureLayout',
+            message: 'MusicXML page layout must include measure layout records.'
+        });
+    } else if (Array.isArray(sequence.measures) && pageLayout.measureLayout.length !== sequence.measures.length) {
+        pushDiagnostic(diagnostics, context, {
+            severity: 'error',
+            code: 'MUSICXML_MEASURE_LAYOUT_MISMATCH',
+            path: 'pageLayout.measureLayout',
+            message: 'MusicXML measure layout records must match the measure count.'
+        });
+    } else {
+        pageLayout.measureLayout.forEach((layout, index) => {
+            const layoutPath = `pageLayout.measureLayout[${index}]`;
+            if (!Number.isFinite(layout.pageNumber) || layout.pageNumber < 1) {
+                pushDiagnostic(diagnostics, context, {
+                    severity: 'error',
+                    code: 'MUSICXML_PAGE_NUMBER_INVALID',
+                    path: `${layoutPath}.pageNumber`,
+                    message: 'MusicXML measure layout must include positive page numbers.'
+                });
+            }
+            if (!Number.isInteger(layout.systemIndex) || layout.systemIndex < 0) {
+                pushDiagnostic(diagnostics, context, {
+                    severity: 'error',
+                    code: 'MUSICXML_SYSTEM_INDEX_INVALID',
+                    path: `${layoutPath}.systemIndex`,
+                    message: 'MusicXML measure layout must include non-negative system indexes.'
+                });
+            }
         });
     }
 

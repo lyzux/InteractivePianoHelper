@@ -167,18 +167,17 @@ test('maps accepted MusicXML into canonical sequence, measures, and page metadat
     assert.equal(result.sequence.timeSignature, '4/4');
     assert.equal(result.sequence.beatsPerMeasure, 4);
     assert.equal(result.sequence.loopUnitBeats, 7);
-    assert.equal(result.sequence.events.length, 6);
+    assert.equal(result.sequence.events.length, 5);
     assert.deepEqual(result.sequence.events.map(event => event.id), [
         'fixture-score-m1-event-0',
         'fixture-score-m1-event-1',
         'fixture-score-m1-event-2',
-        'fixture-score-m1-event-3',
-        'fixture-score-m2-event-4',
-        'fixture-score-m2-event-5'
+        'fixture-score-m2-event-3',
+        'fixture-score-m2-event-4'
     ]);
-    assert.deepEqual(result.sequence.events.map(event => event.startBeat), [0, 1, 1.5, 0, 4, 4.5]);
-    assert.deepEqual(result.sequence.events.map(event => event.durationBeats), [1, 0.5, 0.5, 2, 1, 0.5]);
-    assert.deepEqual(result.sequence.events.map(event => event.measureIndex), [0, 0, 0, 0, 1, 1]);
+    assert.deepEqual(result.sequence.events.map(event => event.startBeat), [0, 1, 1.5, 4, 4.5]);
+    assert.deepEqual(result.sequence.events.map(event => event.durationBeats), [2, 0.5, 0.5, 1, 0.5]);
+    assert.deepEqual(result.sequence.events.map(event => event.measureIndex), [0, 0, 0, 1, 1]);
 });
 
 test('maps chord, rest, accidentals, staff hands, and ties into canonical payloads', () => {
@@ -186,13 +185,13 @@ test('maps chord, rest, accidentals, staff hands, and ties into canonical payloa
 
     assert.deepEqual(sequence.events[0].hands.right.notes, ['C#4', 'E4']);
     assert.equal(sequence.events[0].hands.right.isRest, false);
+    assert.deepEqual(sequence.events[0].hands.left.notes, ['C3']);
+    assert.equal(sequence.events[0].hands.left.tie, 'start');
     assert.deepEqual(sequence.events[2].hands.right.notes, []);
     assert.equal(sequence.events[2].hands.right.isRest, true);
     assert.deepEqual(sequence.events[3].hands.left.notes, ['C3']);
-    assert.equal(sequence.events[3].hands.left.tie, 'start');
-    assert.deepEqual(sequence.events[4].hands.left.notes, ['C3']);
-    assert.equal(sequence.events[4].hands.left.tie, 'stop');
-    assert.deepEqual(sequence.events[5].hands.right.notes, ['Bb4']);
+    assert.equal(sequence.events[3].hands.left.tie, 'stop');
+    assert.deepEqual(sequence.events[4].hands.right.notes, ['Ab4']);
 });
 
 test('honors backup and forward cursor movement rather than append-only parsing', () => {
@@ -201,7 +200,8 @@ test('honors backup and forward cursor movement rather than append-only parsing'
 
     assert.equal(leftHalfNote.startBeat, 0);
     assert.equal(leftHalfNote.durationBeats, 2);
-    assert.ok(sequence.events[3].startBeat < sequence.events[2].startBeat, 'backup should move the cursor back to beat 0');
+    assert.deepEqual(leftHalfNote.hands.right.notes, ['C#4', 'E4']);
+    assert.ok(leftHalfNote.startBeat < sequence.events[2].startBeat, 'backup should move the cursor back to beat 0');
 });
 
 test('records measure event IDs and page/system layout hints', () => {
@@ -213,12 +213,11 @@ test('records measure event IDs and page/system layout hints', () => {
     assert.deepEqual(sequence.measures[0].eventIds, [
         'fixture-score-m1-event-0',
         'fixture-score-m1-event-1',
-        'fixture-score-m1-event-2',
-        'fixture-score-m1-event-3'
+        'fixture-score-m1-event-2'
     ]);
     assert.deepEqual(sequence.measures[1].eventIds, [
-        'fixture-score-m2-event-4',
-        'fixture-score-m2-event-5'
+        'fixture-score-m2-event-3',
+        'fixture-score-m2-event-4'
     ]);
     assert.equal(sequence.pageLayout.pageSize.width, 1190);
     assert.equal(sequence.pageLayout.pageSize.height, 1683);

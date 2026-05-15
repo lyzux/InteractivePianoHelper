@@ -1,5 +1,5 @@
 export const MUSICXML_SOURCE_TYPE = 'musicxml';
-export const MUSICXML_ADAPTER_VERSION = 'phase-04-foundation';
+export const MUSICXML_ADAPTER_VERSION = 'phase-05-canonical-adapter';
 
 export const SUPPORTED_MUSICXML_ROOTS = Object.freeze(['score-partwise']);
 export const DEFERRED_MUSICXML_ROOTS = Object.freeze(['score-timewise']);
@@ -7,6 +7,8 @@ export const DEFERRED_MUSICXML_ROOTS = Object.freeze(['score-timewise']);
 export const MUSICXML_REQUIRED_CANONICAL_FIELDS = Object.freeze([
     'sourceId',
     'sourceType',
+    'patternId',
+    'patternName',
     'metadata',
     'timeSignature',
     'beatsPerMeasure',
@@ -20,6 +22,7 @@ export const MUSICXML_REQUIRED_CANONICAL_FIELDS = Object.freeze([
     'measures.measureNumber',
     'measures.startBeat',
     'measures.durationBeats',
+    'measures.eventIds',
     'pageLayout',
     'pageLayout.measureLayout'
 ]);
@@ -40,6 +43,8 @@ export const MUSICXML_DEFERRED_FEATURES = Object.freeze([
     'local-import-library',
     'score-timewise',
     'arbitrary-multipart-playback',
+    'grace-notes',
+    'tuplets',
     'full-repeat-navigation',
     'lyrics',
     'ornaments',
@@ -90,6 +95,7 @@ export function describeMusicXmlAdapterContract() {
         deferredFeatures: [...MUSICXML_DEFERRED_FEATURES],
         validation: {
             canonicalValidator: 'validateResolvedSequence',
+            musicXmlValidator: 'validateMusicXmlCanonicalScore',
             rejectedSourcePath: 'SimplePatternLoader.recordRejectedSource',
             diagnostics: ['sourceId', 'sourceType', 'severity', 'code', 'path', 'message']
         },
