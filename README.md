@@ -101,7 +101,26 @@ Naming rules that help auto‑loading:
 - VexFlow is included in `index.html`; wiring actual staff rendering is a good next step.
 - Console logs include some debug output; feel free to trim for production.
 
+## Phase 02 score display smoke check
+
+Serve the static app from the repo root:
+
+```bash
+npx http-server -p 8000
+```
+
+Then open http://localhost:8000 and verify:
+
+- The app boots and the pattern dropdown populates.
+- Fur Elise renders as complete A4-style sheet pages.
+- The final page scrolls above the fixed piano keyboard.
+- The Loop checkbox starts off.
+- Play without Loop stops after the complete score sequence.
+- Play with Loop enabled repeats after the complete score sequence.
+- Notation highlights follow playback on later pages, not only the first page.
+
+MusicXML import and pattern validation are not implemented yet; this smoke check covers the current built-in score display path.
+
 ## License
 
 MIT — see `LICENSE`.
-

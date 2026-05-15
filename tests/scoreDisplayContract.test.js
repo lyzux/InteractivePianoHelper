@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 
 import { resolvePatternSequence } from '../js/canonicalPatternResolver.js';
 import { SimplePatternLoader } from '../js/simplePatternLoader.js';
@@ -20,6 +21,8 @@ test('builds all Fur Elise measures for full-score rendering', () => {
     const score = buildScoreMeasures(sequence);
 
     assert.equal(sequence.isKeySupported, true);
+    assert.equal(sequence.selectedKey, 'Am');
+    assert.ok(sequence.events.length > 100);
     assert.equal(score.measureCount, 67);
 });
 
@@ -45,4 +48,39 @@ test('keeps short patterns on the sheet rendering path', () => {
     assert.equal(score.measureCount, 1);
     assert.ok(pages.length >= 1);
     assert.deepEqual(coveredMeasures(pages), [0]);
+});
+
+test('score display source contracts stay wired', () => {
+    const indexHtml = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+    const playerSource = fs.readFileSync(new URL('../js/player.js', import.meta.url), 'utf8');
+    const rendererSource = fs.readFileSync(new URL('../js/staffNotationRenderer.js', import.meta.url), 'utf8');
+    const cssSource = [
+        fs.readFileSync(new URL('../css/styles.css', import.meta.url), 'utf8'),
+        fs.readFileSync(new URL('../css/mobile.css', import.meta.url), 'utf8')
+    ].join('\n');
+
+    assert.doesNotMatch(indexHtml, /select\s+id="key"/);
+    assert.match(indexHtml, /id="loopPlayback"/);
+    assert.match(indexHtml, /player\.play\(sequence, \{ loop \}\)/);
+    assert.match(playerSource, /play\(sequence, \{ loop = false \} = \{\}\)/);
+    assert.doesNotMatch(rendererSource, /MAX_DISPLAY_MEASURES/);
+    assert.match(cssSource, /\.score-page-grid/);
+    assert.match(cssSource, /\.score-page/);
+    assert.match(cssSource, /aspect-ratio:\s*210 \/ 297/);
+});
+
+test('display loader resolves long and short fixtures for score view', () => {
+    const loader = new SimplePatternLoader();
+    loader.registerPattern('furelise', furelise);
+    loader.registerPattern('lombardisch', lombardisch);
+
+    const furElise = loader.resolvePatternSequenceForDisplay('furelise');
+    const lombard = loader.resolvePatternSequenceForDisplay('lombardisch');
+
+    assert.equal(loader.getAuthoredKey('furelise'), 'Am');
+    assert.equal(furElise.isKeySupported, true);
+    assert.equal(furElise.events.length > 100, true);
+    assert.equal(buildScoreMeasures(furElise).measureCount, 67);
+    assert.equal(loader.getAuthoredKey('lombardisch'), 'C');
+    assert.equal(lombard.isKeySupported, true);
 });
