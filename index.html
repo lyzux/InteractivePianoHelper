@@ -281,27 +281,37 @@
         // They close over the module-level `patternLoader`, `settings`, and
         // `audioEngine` vars that are assigned by the async boot IIFE below.
         function drawStaffNotation() {
-            currentNotationMaps = _drawStaffNotation(patternLoader, settings);
+            if (!currentPatternSequence) resolveCurrentPatternSequence();
+            currentNotationMaps = _drawStaffNotation(patternLoader, settings, currentPatternSequence);
         }
         function generatePhysicsControls() { _generatePhysicsControls(window.audioEngine || audioEngine); }
 
         // ── Notation note highlighting ─────────────────────────────────────────
-        let currentNotationMaps = null;  // { leftMap, rightMap, leftLen, rightLen }
+        let currentPatternSequence = null;
+        let currentNotationMaps = null;  // { eventMap }
         let activeHighlightEls  = [];    // SVGElements currently carrying vf-note-highlight
+
+        function resolveCurrentPatternSequence() {
+            const patternSelect = document.getElementById('pattern');
+            const patternType = patternSelect ? patternSelect.value : null;
+            const key = settings && typeof settings.getKey === 'function' ? settings.getKey() : 'C';
+
+            currentPatternSequence = patternType && patternLoader?.resolvePatternSequence
+                ? patternLoader.resolvePatternSequence(patternType, key)
+                : null;
+
+            return currentPatternSequence;
+        }
 
         function clearNotationHighlights() {
             for (const el of activeHighlightEls) el.classList.remove('vf-note-highlight');
             activeHighlightEls = [];
         }
 
-        function highlightNotationNote(noteIndex) {
+        function highlightNotationNote(eventId) {
             if (!currentNotationMaps) return;
             clearNotationHighlights();
-            const { leftMap, rightMap, leftLen, rightLen } = currentNotationMaps;
-            // Maps store a single SVGElement per pattern position (first occurrence only)
-            const els = [];
-            if (leftLen  > 0) { const e = leftMap.get(noteIndex  % leftLen);  if (e) els.push(e); }
-            if (rightLen > 0) { const e = rightMap.get(noteIndex % rightLen); if (e) els.push(e); }
+            const els = currentNotationMaps.eventMap?.get(eventId) || [];
             for (const el of els) el.classList.add('vf-note-highlight');
             activeHighlightEls = els;
         }
@@ -478,6 +488,36 @@
                 getPattern: function(id) { return this.patterns.get(id); },
                 getAllPatterns: function() { return Array.from(this.patterns.entries()).map(([id, pattern]) => ({ id, ...pattern })); },
                 getPatternOptions: function() { return this.getAllPatterns().map(p => ({ value: p.id, label: p.name })); },
+                resolvePatternSequence: function(patternId, key) {
+                    const pattern = this.getPattern(patternId);
+                    const notes = pattern?.pattern ? pattern.pattern(key) : ['C3', 'G3', 'E3', 'G3'];
+                    const timing = pattern?.timing || [1, 1, 1, 1];
+                    return {
+                        patternId,
+                        patternName: pattern?.name || patternId,
+                        selectedKey: key,
+                        nativeKey: null,
+                        isKeySupported: true,
+                        timeSignature: '4/4',
+                        beatsPerMeasure: 4,
+                        loopUnitBeats: 4,
+                        events: notes.map((note, index) => ({
+                            id: `${patternId}-event-${index}`,
+                            sourceIndex: index,
+                            startBeat: index,
+                            durationBeats: timing[index] || 1,
+                            measureIndex: 0,
+                            beatInMeasure: index,
+                            hands: {
+                                left: {
+                                    notes: note ? [note] : [],
+                                    isRest: !note,
+                                    fingering: pattern?.fingering?.[index] ?? null
+                                }
+                            }
+                        }))
+                    };
+                },
                 generateABCNotation: () => 'X:1\nT:Fallback\nK:C\nC4 G4 E4 G4 |',
                 generateVexFlowNotation: function(patternId, key) {
                     return {
@@ -546,6 +586,7 @@
             const pattern = patternLoader.getPattern(patternType);
             
             if (pattern) {
+                resolveCurrentPatternSequence();
                 document.getElementById('patternInfo').innerHTML = `
                     <h2>${pattern.name}</h2>
                     <p>${pattern.description}</p>
@@ -573,13 +614,14 @@
                 player.stop(); // Ensure clean state
                 setTimeout(() => {
                     const patternType = document.getElementById('pattern').value;
-                    const pattern = patternLoader.getPattern(patternType);
-                    const key = settings.getKey();
-                    
-                    if (pattern) {
-                        player.play(pattern, key);
+                    const sequence = currentPatternSequence || resolveCurrentPatternSequence();
+
+                    if (sequence?.isKeySupported && sequence.events.length) {
+                        player.play(sequence);
                         button.classList.add('playing');
                         button.textContent = 'Stop';
+                    } else {
+                        console.warn(sequence?.unsupportedReason || `No playable sequence for ${patternType}`);
                     }
                 }, 100);
             }
@@ -591,6 +633,7 @@
             const button = document.getElementById('playStopBtn');
             button.classList.remove('playing');
             button.textContent = 'Play';
+            resolveCurrentPatternSequence();
             updatePatternInfo();
         }
 
@@ -600,6 +643,7 @@
             const button = document.getElementById('playStopBtn');
             button.classList.remove('playing');
             button.textContent = 'Play';
+            resolveCurrentPatternSequence();
             drawStaffNotation();
             settings.save();
         }
