@@ -12,60 +12,30 @@ function r3(v) {
 }
 
 /**
- * Expand a cycling accompaniment pattern (e.g. 4-note Alberti) so it fills
- * at least `minMeasures` complete measures.  Long patterns (pieces) are
- * returned as-is once they already exceed the target length.
- */
-function expandPattern(notes, timings, fingerings, bpm, minMeasures = 1) {
-    const cycleLen  = notes.length;
-    const cycleBeats = notes.reduce((s, _, i) => r3(s + timings[i % timings.length]), 0);
-    const targetBeats = Math.max(bpm * minMeasures, cycleBeats);
-
-    if (cycleBeats >= targetBeats - 0.001) {
-        return { notes: [...notes], timings: [...timings], fingerings: fingerings ? [...fingerings] : [] };
-    }
-
-    const out = { notes: [], timings: [], fingerings: [] };
-    let beat = 0;
-    let i = 0;
-    while (beat < targetBeats - 0.001) {
-        const idx  = i % cycleLen;
-        const tim  = timings[idx % timings.length];
-        out.notes.push(notes[idx]);
-        out.timings.push(tim);
-        out.fingerings.push(fingerings ? fingerings[idx % fingerings.length] : null);
-        beat = r3(beat + tim);
-        i++;
-        if (i >= cycleLen * 200) break; // safety ceiling
-    }
-    return out;
-}
-
-/**
  * Split a note/timing stream into per-measure arrays.
  * Notes that straddle a bar line are split into two tied notes when both
  * parts are standard VexFlow durations.  Rests (null) are split into two
  * separate rests without a tie.  Notes that can't be split cleanly are
  * moved to the next measure intact.
  */
-function groupIntoMeasures(notes, timings, fingerings, bpm) {
+function groupIntoMeasures(notes, timings, fingerings, bpm, eventIds = []) {
     const measures = [];
-    let cur = { notes: [], timings: [], fingerings: [], tieF: [], tieB: [], expandedIdx: [] };
+    let cur = { notes: [], timings: [], fingerings: [], tieF: [], tieB: [], eventIds: [] };
     let beat = 0;
 
     function flush() {
         if (cur.notes.length) measures.push(cur);
-        cur = { notes: [], timings: [], fingerings: [], tieF: [], tieB: [], expandedIdx: [] };
+        cur = { notes: [], timings: [], fingerings: [], tieF: [], tieB: [], eventIds: [] };
         beat = 0;
     }
 
-    function add(note, tim, fing, tf, tb, eidx) {
+    function add(note, tim, fing, tf, tb, eventId) {
         cur.notes.push(note);
         cur.timings.push(tim);
         cur.fingerings.push(fing);
         cur.tieF.push(tf);
         cur.tieB.push(tb);
-        cur.expandedIdx.push(eidx);
+        cur.eventIds.push(eventId);
         beat = r3(beat + tim);
     }
 
@@ -73,29 +43,30 @@ function groupIntoMeasures(notes, timings, fingerings, bpm) {
         const note   = notes[i];
         const timing = r3(timings[i % timings.length]);
         const fing   = fingerings ? fingerings[i % fingerings.length] : null;
+        const eventId = eventIds[i] || null;
         const left   = r3(bpm - beat);
 
         if (timing <= left + 0.001) {
-            add(note, timing, fing, false, false, i);
+            add(note, timing, fing, false, false, eventId);
             if (beat >= bpm - 0.001) flush();
         } else {
             const over = r3(timing - left);
             if (left > 0.001 && VALID_BEATS.has(left) && VALID_BEATS.has(over)) {
                 if (note === null) {
                     // Rests are never tied — just split into two separate rests
-                    add(null, left, null, false, false, i);
+                    add(null, left, null, false, false, null);
                     flush();
-                    add(null, over, null, false, false, i);
+                    add(null, over, null, false, false, null);
                 } else {
-                    add(note, left, fing, true, false, i);
+                    add(note, left, fing, true, false, eventId);
                     flush();
-                    add(note, over, null, false, true, i);
+                    add(note, over, null, false, true, eventId);
                 }
                 if (beat >= bpm - 0.001) flush();
             } else {
                 // Can't split cleanly — close current measure, put full note in next
                 flush();
-                add(note, timing, fing, false, false, i);
+                add(note, timing, fing, false, false, eventId);
                 if (beat >= bpm - 0.001) flush();
             }
         }
@@ -121,7 +92,7 @@ function fillMeasureRests(measures, bpm) {
                 m.fingerings.push(null);
                 m.tieF.push(false);
                 m.tieB.push(false);
-                m.expandedIdx.push(-1);
+                m.eventIds.push(null);
                 remaining = r3(remaining - sz);
             }
             if (remaining < 0.001) break;
@@ -129,12 +100,12 @@ function fillMeasureRests(measures, bpm) {
     }
 }
 
-/** Build VF.StaveNote objects for one measure. Returns staveNotes, tieItems, and expandedIdxs arrays. */
+/** Build VF.StaveNote objects for one measure. Returns staveNotes, tieItems, and eventIds arrays. */
 function buildMeasureNotes(VF, measureData, clef, patternLoader) {
     const staveNotes   = [];
     const tieItems     = [];
-    const expandedIdxs = [];
-    if (!measureData || !measureData.notes.length) return { staveNotes, tieItems, expandedIdxs };
+    const eventIds     = [];
+    if (!measureData || !measureData.notes.length) return { staveNotes, tieItems, eventIds };
 
     const vjust = clef === 'treble'
         ? VF.Annotation.VerticalJustify.TOP
@@ -190,16 +161,33 @@ function buildMeasureNotes(VF, measureData, clef, patternLoader) {
         }
 
         staveNotes.push(sn);
-        // Use -1 for rests (null notes) so they are excluded from the highlight map
-        expandedIdxs.push(note === null ? -1 : (measureData.expandedIdx?.[i] ?? -1));
+        eventIds.push(note === null ? null : (measureData.eventIds?.[i] || null));
         if (measureData.tieF[i]) tieItems.push({ noteIndex: i, direction: 'forward' });
         if (measureData.tieB[i]) tieItems.push({ noteIndex: i, direction: 'back' });
     }
 
-    return { staveNotes, tieItems, expandedIdxs };
+    return { staveNotes, tieItems, eventIds };
 }
 
-export function drawStaffNotation(patternLoader, settings) {
+function handNote(payload) {
+    if (!payload || payload.isRest) return null;
+    return payload.notes.length === 1 ? payload.notes[0] : payload.notes;
+}
+
+function buildHandStream(sequence, hand) {
+    const stream = { notes: [], timings: [], fingerings: [], eventIds: [] };
+    sequence.events.forEach(event => {
+        const payload = event.hands[hand];
+        if (!payload) return;
+        stream.notes.push(handNote(payload));
+        stream.timings.push(event.durationBeats);
+        stream.fingerings.push(payload.fingering);
+        stream.eventIds.push(payload.isRest ? null : event.id);
+    });
+    return stream;
+}
+
+export function drawStaffNotation(patternLoader, settings, sequence = null) {
     const patternType = document.getElementById('pattern').value;
 
     let key = 'C';
@@ -212,11 +200,15 @@ export function drawStaffNotation(patternLoader, settings) {
 
     console.log(`Drawing staff notation for pattern: ${patternType}, key: ${key}`);
 
-    const notationData = patternLoader.generateVexFlowNotation(patternType, key);
-    if (!notationData) return null;
-
     const vexFlowDiv = document.getElementById('vexflow-notation');
     vexFlowDiv.innerHTML = '';
+
+    const notationData = sequence || patternLoader.resolvePatternSequence(patternType, key);
+    if (!notationData || !notationData.isKeySupported || !notationData.events.length) {
+        const msg = notationData?.unsupportedReason || 'No notation available for this pattern.';
+        vexFlowDiv.innerHTML = `<p>${msg}</p>`;
+        return null;
+    }
 
     if (typeof Vex === 'undefined') {
         console.error('VexFlow is not loaded properly');
@@ -225,8 +217,7 @@ export function drawStaffNotation(patternLoader, settings) {
         return null;
     }
 
-    const leftHighlightMap  = new Map(); // leftPatternIdx  → SVGElement (first occurrence only)
-    const rightHighlightMap = new Map(); // rightPatternIdx → SVGElement (first occurrence only)
+    const eventHighlightMap = new Map(); // eventId → SVGElement[]
 
     try {
         const VF = Vex;
@@ -236,27 +227,21 @@ export function drawStaffNotation(patternLoader, settings) {
         const [numBeats, beatValue] = notationData.timeSignature.split('/').map(Number);
         const bpm = numBeats * (4 / beatValue);   // beats per measure in quarter-note units
 
-        // ── Expand and group notes into measures ──────────────────────────────
-        const bc = notationData.bassClef;
-        const tc = notationData.trebleClef;
+        // ── Group canonical events into measures ──────────────────────────────
+        const bc = buildHandStream(notationData, 'left');
+        const tc = buildHandStream(notationData, 'right');
 
-        // Cycle lengths for highlight index mapping (before expansion)
-        const leftCycleLen  = bc.notes.length;
-        const rightCycleLen = tc ? tc.notes.length : 0;
-
-        const bcExp = expandPattern(bc.notes, bc.timing, bc.fingering, bpm);
-        const bassMeasures = groupIntoMeasures(bcExp.notes, bcExp.timings, bcExp.fingerings, bpm);
+        const bassMeasures = groupIntoMeasures(bc.notes, bc.timings, bc.fingerings, bpm, bc.eventIds);
         fillMeasureRests(bassMeasures, bpm);
 
         let trebleMeasures;
-        if (tc) {
-            const tcExp = expandPattern(tc.notes, tc.timing, tc.fingering, bpm);
-            trebleMeasures = groupIntoMeasures(tcExp.notes, tcExp.timings, tcExp.fingerings, bpm);
+        if (tc.notes.length) {
+            trebleMeasures = groupIntoMeasures(tc.notes, tc.timings, tc.fingerings, bpm, tc.eventIds);
             fillMeasureRests(trebleMeasures, bpm);
         } else {
             // No right-hand data: one whole-measure rest per measure (greedy fill from empty)
             trebleMeasures = bassMeasures.map(() => {
-                const m = { notes: [], timings: [], fingerings: [], tieF: [], tieB: [], expandedIdx: [] };
+                const m = { notes: [], timings: [], fingerings: [], tieF: [], tieB: [], eventIds: [] };
                 fillMeasureRests([m], bpm);
                 return m;
             });
@@ -269,8 +254,8 @@ export function drawStaffNotation(patternLoader, settings) {
         );
         if (!numMeasures) return null;
 
-        while (bassMeasures.length   < numMeasures) bassMeasures.push(  { notes: [], timings: [], fingerings: [], tieF: [], tieB: [] });
-        while (trebleMeasures.length < numMeasures) trebleMeasures.push({ notes: [], timings: [], fingerings: [], tieF: [], tieB: [] });
+        while (bassMeasures.length   < numMeasures) bassMeasures.push(  { notes: [], timings: [], fingerings: [], tieF: [], tieB: [], eventIds: [] });
+        while (trebleMeasures.length < numMeasures) trebleMeasures.push({ notes: [], timings: [], fingerings: [], tieF: [], tieB: [], eventIds: [] });
 
         // ── Layout ────────────────────────────────────────────────────────────
         const TREBLE_Y   = 40;
@@ -335,8 +320,8 @@ export function drawStaffNotation(patternLoader, settings) {
                 ts.setContext(ctx).draw();
                 bs.setContext(ctx).draw();
 
-                const { staveNotes: tn, tieItems: tti, expandedIdxs: tei } = buildMeasureNotes(VF, trebleMeasures[mi], 'treble', patternLoader);
-                const { staveNotes: bn, tieItems: bti, expandedIdxs: bei } = buildMeasureNotes(VF, bassMeasures[mi],   'bass',   patternLoader);
+                const { staveNotes: tn, tieItems: tti, eventIds: tei } = buildMeasureNotes(VF, trebleMeasures[mi], 'treble', patternLoader);
+                const { staveNotes: bn, tieItems: bti, eventIds: bei } = buildMeasureNotes(VF, bassMeasures[mi],   'bass',   patternLoader);
 
                 const fw = Math.max(30, measW - 20);
 
@@ -356,28 +341,22 @@ export function drawStaffNotation(patternLoader, settings) {
                     v.draw(ctx, bs);
                 }
 
-                // Collect SVG elements for highlight maps (available after voice.draw()).
-                // Only store the first occurrence of each pattern position so that
-                // repeated measures don't all light up simultaneously.
+                // Collect SVG elements for canonical event highlight maps.
                 for (let ni = 0; ni < bn.length; ni++) {
-                    const eidx = bei[ni];
-                    if (eidx < 0 || leftCycleLen === 0) continue;
-                    const patIdx = eidx % leftCycleLen;
-                    if (leftHighlightMap.has(patIdx)) continue; // keep first occurrence only
+                    const eventId = bei[ni];
+                    if (!eventId) continue;
                     const el = bn[ni].attrs?.id ? document.getElementById(`vf-${bn[ni].attrs.id}`) : null;
                     if (!el) continue;
-                    leftHighlightMap.set(patIdx, el);
+                    if (!eventHighlightMap.has(eventId)) eventHighlightMap.set(eventId, []);
+                    eventHighlightMap.get(eventId).push(el);
                 }
-                if (rightCycleLen > 0) {
-                    for (let ni = 0; ni < tn.length; ni++) {
-                        const eidx = tei[ni];
-                        if (eidx < 0) continue;
-                        const patIdx = eidx % rightCycleLen;
-                        if (rightHighlightMap.has(patIdx)) continue; // keep first occurrence only
-                        const el = tn[ni].attrs?.id ? document.getElementById(`vf-${tn[ni].attrs.id}`) : null;
-                        if (!el) continue;
-                        rightHighlightMap.set(patIdx, el);
-                    }
+                for (let ni = 0; ni < tn.length; ni++) {
+                    const eventId = tei[ni];
+                    if (!eventId) continue;
+                    const el = tn[ni].attrs?.id ? document.getElementById(`vf-${tn[ni].attrs.id}`) : null;
+                    if (!el) continue;
+                    if (!eventHighlightMap.has(eventId)) eventHighlightMap.set(eventId, []);
+                    eventHighlightMap.get(eventId).push(el);
                 }
 
                 tNotes.push({ staveNotes: tn, tieItems: tti });
@@ -418,10 +397,8 @@ export function drawStaffNotation(patternLoader, settings) {
         }
 
         return {
-            leftMap:  leftHighlightMap,
-            rightMap: rightHighlightMap,
-            leftLen:  leftCycleLen,
-            rightLen: rightCycleLen,
+            eventMap: eventHighlightMap,
+            sequence: notationData,
         };
 
     } catch (error) {
