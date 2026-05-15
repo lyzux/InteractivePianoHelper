@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 current_phase: 05
 status: executing
-last_updated: "2026-05-15T14:24:18.096Z"
+last_updated: "2026-05-15T14:38:35.004Z"
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 16
-  completed_plans: 13
-  percent: 81
+  completed_plans: 14
+  percent: 88
 ---
 
 # Project State: Interactive Piano Helper
@@ -35,7 +35,7 @@ See: `.planning/ROADMAP.md`
 **Phase 2:** Score Display Modes - completed
 **Phase 3:** Pattern Validation And Feedback - completed
 **Phase 4:** MusicXML-Ready Foundation - completed
-**Phase 5:** MusicXML Import And Practice UX - in progress; 05-03 canonical adapter/playback mapping complete
+**Phase 5:** MusicXML Import And Practice UX - in progress; 05-04 interactive import/library rendering complete
 
 ## Codebase Reference
 
@@ -56,8 +56,8 @@ Important files:
 
 ### Last Session
 
-- Stopped at: Completed 05-03-PLAN.md
-- Resume from: Phase 05 Plan 04
+- Stopped at: Completed 05-04-PLAN.md
+- Resume from: Phase 05 Plan 05
 
 ### Decisions
 
@@ -69,6 +69,9 @@ Important files:
 - 05-02 exposes complete-score filtering while preserving built-in short pattern APIs internally.
 - 05-03 maps strict MusicXML documents into canonical score events, measures, and page layout before display or playback.
 - 05-03 implements `Player.play(sequence, { loop, range })` through canonical event ranges rather than a MusicXML-specific playback path.
+- 05-04 imports register only after strict parse/adapt and IndexedDB save succeed.
+- 05-04 routes imported MusicXML through renderMusicXmlScore while built-ins stay on drawStaffNotation.
+- 05-04 uses Für Elise as the default complete-score built-in library entry after clear storage.
 
 ### Performance Metrics
 
@@ -77,6 +80,7 @@ Important files:
 | 05 | 01 | 4 min | 3 | 5 |
 | 05 | 02 | 4 min | 3 | 4 |
 | 05 | 03 | 7 min | 3 | 8 |
+| 05 | 04 | 35 min | 3 | 8 |
 
 ### Key Constraints
 
@@ -88,7 +92,7 @@ Important files:
 
 - Pattern data is still executable JavaScript, but it is now validated before selection.
 - Long notation is now paginated by the Phase 2 renderer; human browser smoke remains the main residual visual check.
-- MusicXML import is now mapped to canonical events before playback; browser rendering/range-selection integration remains for 05-04 and 05-05.
+- MusicXML import is now visible in the score library, restored from IndexedDB, and rendered through the imported-score renderer; range-selection integration remains for 05-05.
 
 ---
 *State initialized: 2026-05-15*

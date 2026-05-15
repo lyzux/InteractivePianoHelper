@@ -112,7 +112,7 @@ Plans:
 **UI hint:** yes
 **Requirements:** XML-03, XML-04, XML-05, PRAC-01, PRAC-02, PRAC-03
 **Depends on:** Phase 1, Phase 2, Phase 3, Phase 4
-**Plans:** 3/6 plans complete
+**Plans:** 4/6 plans complete
 
 **Success Criteria**:
 1. User can import `.musicxml` or `.xml` files through a browser file picker without a backend.
@@ -134,7 +134,7 @@ Plans:
 - [x] `05-03-PLAN.md` — Canonical adapter and playback mapping
 
 **Wave 4** *(blocked on Wave 1 and Wave 3 completion)*
-- [ ] `05-04-PLAN.md` — Interactive score rendering and import UI
+- [x] `05-04-PLAN.md` — Interactive score rendering and import UI
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] `05-05-PLAN.md` — Practice range, loop, start, auto-follow UX
