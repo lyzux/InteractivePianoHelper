@@ -37,7 +37,7 @@
 ### Regression Safety
 
 - [x] **TEST-01**: Focused tests or fixtures cover transposition, timing conversion, measure grouping, validation, Lombard rhythm, Für Elise, chords, rests, and unsupported native keys.
-- [ ] **TEST-02**: A lightweight browser smoke check covers app boot, pattern loading, notation SVG rendering, and play/stop highlight cleanup.
+- [x] **TEST-02**: A lightweight browser smoke check covers app boot, pattern loading, notation SVG rendering, and play/stop highlight cleanup.
 
 ## v2 Requirements
 
@@ -82,7 +82,7 @@
 | XML-01 | Phase 4 | Complete |
 | XML-02 | Phase 4 | Complete |
 | TEST-01 | Phase 3 | Completed |
-| TEST-02 | Phase 4 | Pending |
+| TEST-02 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 16 total
@@ -91,4 +91,4 @@
 
 ---
 *Requirements defined: 2026-05-14*
-*Last updated: 2026-05-15 after Phase 3 execution*
+*Last updated: 2026-05-15 after Phase 4 execution*
