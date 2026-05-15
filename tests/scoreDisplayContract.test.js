@@ -73,9 +73,12 @@ test('score display source contracts stay wired', () => {
     assert.match(cssSource, /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
     assert.match(cssSource, /body\.sound-panel-expanded \.container/);
     assert.match(cssSource, /aspect-ratio:\s*210 \/ 297/);
+    assert.match(cssSource, /\.score-sheet-view\s*\{[\s\S]*overflow:\s*hidden/);
     assert.match(rendererSource, /score-sheet-view single-page/);
-    assert.match(rendererSource, /responsivePageLayout/);
-    assert.match(rendererSource, /renderer\.resize\(layout\.pageWidth,\s*layout\.pageHeight\)/);
+    assert.match(rendererSource, /const pages = planScorePages\(scoreMeasures\.measureCount\)/);
+    assert.match(rendererSource, /renderer\.resize\(PAGE_WIDTH,\s*PAGE_HEIGHT\)/);
+    assert.doesNotMatch(rendererSource, /responsivePageLayout/);
+    assert.doesNotMatch(rendererSource, /renderer\.resize\(layout\.pageWidth/);
 });
 
 test('sound panel and bottom keyboard state contracts stay wired', () => {

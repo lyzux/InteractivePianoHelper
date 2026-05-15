@@ -207,6 +207,7 @@ button.playing {
     --score-page-max-width: 860px;
     --score-page-gap: clamp(8px, 1.6vw, 32px);
     width: 100%;
+    overflow: hidden;
 }
 
 .score-sheet-view.single-page {

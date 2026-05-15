@@ -15,47 +15,6 @@ const SYSTEM_HEIGHT = 190;
 const BASS_OFFSET = 92;
 const SYSTEM_HEADER_WIDTH = 112;
 const MIN_MEASURE_WIDTH = 96;
-const MIN_RENDER_PAGE_WIDTH = 360;
-
-function clamp(value, min, max) {
-    return Math.min(Math.max(value, min), max);
-}
-
-function pageHeightForWidth(pageWidth) {
-    return Math.round(pageWidth * PAGE_HEIGHT / PAGE_WIDTH);
-}
-
-function responsivePageLayout(measureCount, containerWidth) {
-    const availableWidth = clamp(containerWidth || PAGE_WIDTH, MIN_RENDER_PAGE_WIDTH, PAGE_WIDTH * 2 + SYSTEM_GAP);
-    const gap = clamp(Math.round(availableWidth * 0.016), 8, 32);
-    const fullPageWidth = Math.min(PAGE_WIDTH, availableWidth);
-    const fullPageHeight = pageHeightForWidth(fullPageWidth);
-    const singlePagePlan = planScorePages(measureCount, {
-        pageWidth: fullPageWidth,
-        pageHeight: fullPageHeight
-    });
-
-    const useSinglePage = singlePagePlan.length === 1;
-    const pageWidth = useSinglePage
-        ? fullPageWidth
-        : clamp(Math.floor((availableWidth - gap) / 2), MIN_RENDER_PAGE_WIDTH, PAGE_WIDTH);
-    const pageHeight = pageHeightForWidth(pageWidth);
-    const marginX = clamp(Math.round(pageWidth * 0.06), 24, PAGE_MARGIN_X);
-    const marginY = clamp(Math.round(pageHeight * 0.05), 28, PAGE_MARGIN_Y);
-    const headerWidth = clamp(Math.round(pageWidth * 0.14), 88, SYSTEM_HEADER_WIDTH);
-
-    return {
-        pageWidth,
-        pageHeight,
-        marginX,
-        marginY,
-        systemGap: SYSTEM_GAP,
-        systemHeight: SYSTEM_HEIGHT,
-        headerWidth,
-        bassOffset: BASS_OFFSET,
-        minMeasureWidth: MIN_MEASURE_WIDTH
-    };
-}
 
 function r3(v) {
     return Math.round(v * 1000) / 1000;
@@ -372,9 +331,7 @@ export function drawStaffNotation(patternLoader, settings, sequence = null) {
             return null;
         }
 
-        const availableScoreWidth = vexFlowDiv.clientWidth || document.querySelector('.staff-notation')?.clientWidth || PAGE_WIDTH;
-        const layout = responsivePageLayout(scoreMeasures.measureCount, availableScoreWidth);
-        const pages = planScorePages(scoreMeasures.measureCount, layout);
+        const pages = planScorePages(scoreMeasures.measureCount);
         const scoreKey = notationData.selectedKey || notationData.nativeKey || 'C';
         const sheetView = document.createElement('div');
         sheetView.className = pages.length === 1 ? 'score-sheet-view single-page' : 'score-sheet-view';
@@ -390,10 +347,10 @@ export function drawStaffNotation(patternLoader, settings, sequence = null) {
             pageGrid.appendChild(pageEl);
 
             const renderer = new VF.Renderer(pageEl, VF.Renderer.Backends.SVG);
-            renderer.resize(layout.pageWidth, layout.pageHeight);
+            renderer.resize(PAGE_WIDTH, PAGE_HEIGHT);
             const svg = pageEl.querySelector('svg');
             if (svg) {
-                svg.setAttribute('viewBox', `0 0 ${layout.pageWidth} ${layout.pageHeight}`);
+                svg.setAttribute('viewBox', `0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}`);
                 svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
             }
             const ctx = renderer.getContext();
@@ -404,10 +361,10 @@ export function drawStaffNotation(patternLoader, settings, sequence = null) {
             let globalSystemIndex = pagePlan.pageIndex * 1000;
 
             pagePlan.systems.forEach((system, pageSystemIndex) => {
-                const trebleY = layout.marginY + pageSystemIndex * (layout.systemHeight + layout.systemGap);
-                const bassY = trebleY + layout.bassOffset;
-                const systemWidth = layout.pageWidth - layout.marginX * 2;
-                const measureWidth = Math.floor((systemWidth - layout.headerWidth) / system.count);
+                const trebleY = PAGE_MARGIN_Y + pageSystemIndex * (SYSTEM_HEIGHT + SYSTEM_GAP);
+                const bassY = trebleY + BASS_OFFSET;
+                const systemWidth = PAGE_WIDTH - PAGE_MARGIN_X * 2;
+                const measureWidth = Math.floor((systemWidth - SYSTEM_HEADER_WIDTH) / system.count);
                 const isFirstSystem = pagePlan.pageIndex === 0 && pageSystemIndex === 0;
 
                 let firstTrebleStave = null;
@@ -416,8 +373,8 @@ export function drawStaffNotation(patternLoader, settings, sequence = null) {
                 for (let m = 0; m < system.count; m++) {
                     const measureIndex = system.start + m;
                     const isFirstMeasure = m === 0;
-                    const staveX = layout.marginX + (isFirstMeasure ? 0 : layout.headerWidth + m * measureWidth);
-                    const staveWidth = isFirstMeasure ? layout.headerWidth + measureWidth : measureWidth;
+                    const staveX = PAGE_MARGIN_X + (isFirstMeasure ? 0 : SYSTEM_HEADER_WIDTH + m * measureWidth);
+                    const staveWidth = isFirstMeasure ? SYSTEM_HEADER_WIDTH + measureWidth : measureWidth;
 
                     const trebleStave = new VF.Stave(staveX, trebleY, staveWidth);
                     const bassStave = new VF.Stave(staveX, bassY, staveWidth);
