@@ -233,7 +233,7 @@
                                     <span class="material-icons" aria-hidden="true">upload_file</span>
                                     <span>Import MusicXML</span>
                                 </label>
-                                <input type="file" id="musicXmlFileInput" accept=".musicxml,.xml">
+                                <input type="file" id="musicXmlFileInput" accept=".musicxml,.xml,.mxl">
                             </div>
 
                             <button id="removeImportedScoreBtn" class="remove-imported-score" type="button" hidden>
@@ -358,6 +358,7 @@
             { Player },
             { SimplePatternLoader },
             { drawStaffNotation: _drawStaffNotation },
+            { readMusicXmlFile },
             { parseMusicXmlText },
             { adaptMusicXmlDocumentToCanonical },
             { assignDuplicateImportedTitle, createImportedScoreRecord, registerImportedScore, removeImportedScore },
@@ -375,6 +376,7 @@
             import(`./js/player.js?v=${APP_VERSION}`),
             import(`./js/simplePatternLoader.js?v=${APP_VERSION}`),
             import(`./js/staffNotationRenderer.js?v=${APP_VERSION}`),
+            import(`./js/musicXmlFileReader.js?v=${APP_VERSION}`),
             import(`./js/musicXmlParser.js?v=${APP_VERSION}`),
             import(`./js/musicXmlCanonicalAdapter.js?v=${APP_VERSION}`),
             import(`./js/importedScoreLibrary.js?v=${APP_VERSION}`),
@@ -698,11 +700,21 @@
             showImportStatus(`Importing ${file.name}...`, { kind: 'info' });
 
             try {
-                const xmlText = await file.text();
+                const readResult = await readMusicXmlFile(file);
+                if (!readResult.ok) {
+                    showImportStatus('This MusicXML file could not be imported. Review the details, fix the file, and import it again.', {
+                        kind: 'error',
+                        diagnostics: readResult.diagnostics
+                    });
+                    return;
+                }
+
+                const xmlText = readResult.xmlText;
+                const importFilename = readResult.filename || file.name;
                 const existingScores = patternLoader.getAllPatterns();
                 const preliminary = parseMusicXmlText(xmlText, {
                     sourceId: 'musicxml-import-preview',
-                    filename: file.name
+                    filename: importFilename
                 });
                 const baseTitle = preliminary.descriptor?.title || file.name || 'Imported score';
                 const title = assignDuplicateImportedTitle(baseTitle, existingScores);
@@ -710,7 +722,7 @@
 
                 const adapted = parseAndAdaptMusicXml(xmlText, {
                     sourceId,
-                    filename: file.name
+                    filename: importFilename
                 });
                 if (!adapted.ok || !adapted.sequence) {
                     showImportStatus('This MusicXML file could not be imported. Review the details, fix the file, and import it again.', {

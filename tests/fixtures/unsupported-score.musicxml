@@ -17,11 +17,11 @@
           <beat-type>4</beat-type>
         </time>
       </attributes>
-      <direction placement="above">
-        <direction-type>
-          <words>Strict import should reject directions for now.</words>
-        </direction-type>
-      </direction>
+      <harmony>
+        <root>
+          <root-step>C</root-step>
+        </root>
+      </harmony>
       <note>
         <pitch>
           <step>C</step>

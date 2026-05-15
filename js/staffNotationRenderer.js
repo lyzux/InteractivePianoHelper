@@ -238,13 +238,14 @@ function buildMeasureFromEvents(sequence, measure, hand) {
         if (gap > 0.001) pushRestSegments(renderedMeasure, gap);
 
         const payload = event.hands[hand];
+        const payloadDuration = payload.durationBeats || event.durationBeats;
         const nextLocalStart = events[index + 1]
             ? r3(events[index + 1].startBeat - measure.startBeat)
             : null;
         const durationUntilNext = nextLocalStart !== null && nextLocalStart > localStart + 0.001
             ? r3(nextLocalStart - localStart)
-            : event.durationBeats;
-        const renderedDuration = Math.max(0.001, Math.min(event.durationBeats, durationUntilNext));
+            : payloadDuration;
+        const renderedDuration = Math.max(0.001, Math.min(payloadDuration, durationUntilNext));
         renderedMeasure.notes.push(handNote(payload));
         renderedMeasure.timings.push(renderedDuration);
         renderedMeasure.fingerings.push(payload.fingering);
@@ -461,6 +462,43 @@ function appendHighlightedElement(eventHighlightMap, eventId, staveNote) {
     el.dataset.musicxmlEventId = eventId;
     if (!eventHighlightMap.has(eventId)) eventHighlightMap.set(eventId, []);
     eventHighlightMap.get(eventId).push(el);
+}
+
+function appendPageCredits(svg, sequence, sourcePageNumber) {
+    const credits = sequence?.pageLayout?.credits;
+    if (!svg || !Array.isArray(credits) || !credits.length) return;
+
+    const sourcePageSize = sequence.pageLayout?.pageSize || {};
+    const sourceWidth = sourcePageSize.width || PAGE_WIDTH;
+    const sourceHeight = sourcePageSize.height || PAGE_HEIGHT;
+    const scaleX = PAGE_WIDTH / sourceWidth;
+    const scaleY = PAGE_HEIGHT / sourceHeight;
+    const namespace = 'http://www.w3.org/2000/svg';
+
+    credits
+        .filter(credit => (Number(credit.pageNumber) || 1) === sourcePageNumber)
+        .forEach(credit => {
+            const text = document.createElementNS(namespace, 'text');
+            const justify = credit.justify || 'left';
+            const fallbackX = justify === 'center'
+                ? PAGE_WIDTH / 2
+                : (justify === 'right' ? PAGE_WIDTH - PAGE_MARGIN_X : PAGE_MARGIN_X);
+            const x = Number.isFinite(credit.defaultX) ? credit.defaultX * scaleX : fallbackX;
+            const y = Number.isFinite(credit.defaultY)
+                ? (sourceHeight - credit.defaultY) * scaleY
+                : PAGE_MARGIN_Y;
+            const fontSize = Number.isFinite(credit.fontSize) ? credit.fontSize : 12;
+
+            text.textContent = credit.text;
+            text.setAttribute('x', String(x));
+            text.setAttribute('y', String(y));
+            text.setAttribute('font-family', credit.type === 'title' ? 'Georgia, serif' : 'Georgia, serif');
+            text.setAttribute('font-size', String(fontSize));
+            text.setAttribute('fill', '#1f2933');
+            text.setAttribute('text-anchor', justify === 'center' ? 'middle' : (justify === 'right' ? 'end' : 'start'));
+            if (credit.type === 'title') text.setAttribute('font-weight', '600');
+            svg.appendChild(text);
+        });
 }
 
 function appendMeasureHitTarget(pageEl, measureMap, measureInfo) {
@@ -705,6 +743,7 @@ export function drawStaffNotation(patternLoader, settings, sequence = null) {
                 drawSameSystemTies(VF, ctx, tNotes[measureIndex], tNotes[measureIndex + 1]);
                 drawSameSystemTies(VF, ctx, bNotes[measureIndex], bNotes[measureIndex + 1]);
             }
+            appendPageCredits(svg, notationData, pagePlan.sourcePageNumber || pagePlan.pageIndex + 1);
         });
 
         scaleScoreSheet(sheetView, pageGrid);

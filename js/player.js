@@ -214,8 +214,9 @@ export class Player {
             if (Math.abs((nextEvent.startBeat || 0) - expectedStart) > 0.001) break;
             if (nextPayload.tie !== 'stop' && nextPayload.tie !== 'continue') break;
 
-            durationBeats += nextEvent.durationBeats || 0;
-            expectedStart += nextEvent.durationBeats || 0;
+            const nextDuration = nextPayload.durationBeats || nextEvent.durationBeats || 0;
+            durationBeats += nextDuration;
+            expectedStart += nextDuration;
             if (nextPayload.tie === 'stop') break;
         }
 
@@ -246,7 +247,8 @@ export class Player {
             const leftPayload = event.hands.left;
             const leftNote = this._payloadShouldAttack(leftPayload) ? leftPayload.notes : null;
             if (leftNote?.length) {
-                const durSec = this._noteDurationSec(this._tiedDurationBeats(idx, 'left', rawBeats));
+                const leftBeats = leftPayload.durationBeats || rawBeats;
+                const durSec = this._noteDurationSec(this._tiedDurationBeats(idx, 'left', leftBeats));
                 const unhighlightMs = visualMs + durSec * 900;
                 eventVisualEndMs = Math.max(eventVisualEndMs, unhighlightMs);
                 this.audioEngine.playNote(leftNote, durSec, useSustain, 0.8, startTime);
@@ -266,7 +268,8 @@ export class Player {
             const rightPayload = event.hands.right;
             const rightNote = this._payloadShouldAttack(rightPayload) ? rightPayload.notes : null;
             if (rightNote?.length) {
-                const durSec = this._noteDurationSec(this._tiedDurationBeats(idx, 'right', rawBeats));
+                const rightBeats = rightPayload.durationBeats || rawBeats;
+                const durSec = this._noteDurationSec(this._tiedDurationBeats(idx, 'right', rightBeats));
                 const unhighlightMs = visualMs + durSec * 900;
                 eventVisualEndMs = Math.max(eventVisualEndMs, unhighlightMs);
                 this.audioEngine.playNote(rightNote, durSec, useSustain, 0.8, startTime);

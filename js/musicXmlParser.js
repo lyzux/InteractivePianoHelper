@@ -9,7 +9,7 @@ const DEFAULT_SOURCE_ID = 'musicxml-import';
 const XML_DECLARATION_PATTERN = /^<\?xml[\s\S]*?\?>\s*/i;
 const SELF_CLOSING_PATTERN = /\/\s*>$/;
 const TAG_PATTERN = /<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<!\[CDATA\[[\s\S]*?\]\]>|<!DOCTYPE[\s\S]*?>|<\/?[^>]+>/gi;
-const SUPPORTED_MEASURE_CHILDREN = new Set(['attributes', 'print', 'note', 'backup', 'forward', 'barline']);
+const SUPPORTED_MEASURE_CHILDREN = new Set(['attributes', 'print', 'note', 'backup', 'forward', 'barline', 'direction']);
 
 function normalizeText(value, fallback = '') {
     return typeof value === 'string' && value.trim() ? value.trim() : fallback;

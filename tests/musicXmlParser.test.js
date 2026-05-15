@@ -51,8 +51,8 @@ test('rejects the shared unsupported fixture during strict parse validation', ()
 
     assert.equal(result.ok, false);
     assert.deepEqual(codes(result), ['MUSICXML_ELEMENT_UNSUPPORTED']);
-    assert.match(firstDiagnostic(result).message, /Unsupported MusicXML element "direction"/);
-    assert.equal(firstDiagnostic(result).path, 'score-partwise.part[0].measure[0].direction[1]');
+    assert.match(firstDiagnostic(result).message, /Unsupported MusicXML element "harmony"/);
+    assert.equal(firstDiagnostic(result).path, 'score-partwise.part[0].measure[0].harmony[1]');
 });
 
 test('rejects malformed XML with a parse failure diagnostic', () => {

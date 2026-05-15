@@ -202,7 +202,7 @@ test('MusicXML import and practice workflow works as a static browser flow', asy
         }));
         assert.match(failureState.text, /This MusicXML file could not be imported/);
         assert.match(failureState.text, /Show import details/);
-        assert.match(failureState.text, /Unsupported MusicXML element "direction"/);
+        assert.match(failureState.text, /Unsupported MusicXML element "harmony"/);
         assert.equal(failureState.role, 'alert');
         assert.equal(failureState.detailsOpen, false);
 

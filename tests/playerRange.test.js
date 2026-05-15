@@ -181,3 +181,41 @@ test('tied stop events do not retrigger playback attacks', () => {
     assert.deepEqual(played.map(call => call.notes), [['C3'], ['D3']]);
     assert.equal(played[0].duration, 0.01);
 });
+
+test('hand payload duration controls playback length when hands share an event', () => {
+    const { player, played } = makePlayer();
+    const sequence = {
+        ...makeSequence(),
+        loopUnitBeats: 1,
+        measures: [
+            { measureNumber: '1', startBeat: 0, durationBeats: 1, eventIds: ['shared0'] }
+        ],
+        events: [
+            {
+                id: 'shared0',
+                startBeat: 0,
+                durationBeats: 1,
+                measureIndex: 0,
+                beatInMeasure: 0,
+                hands: {
+                    right: {
+                        notes: ['C5'],
+                        isRest: false,
+                        durationBeats: 0.5
+                    },
+                    left: {
+                        notes: [],
+                        isRest: true,
+                        durationBeats: 1
+                    }
+                }
+            }
+        ]
+    };
+
+    player.play(sequence);
+    player.stop();
+
+    assert.deepEqual(played.map(call => call.notes), [['C5']]);
+    assert.equal(played[0].duration, 0.0025);
+});

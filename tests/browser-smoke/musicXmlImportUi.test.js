@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve } from 'node:path';
+import { deflateRawSync } from 'node:zlib';
 import { chromium } from 'playwright';
 
 const PROJECT_ROOT = resolve(new URL('../..', import.meta.url).pathname);
@@ -21,6 +22,7 @@ const MIME_TYPES = {
     '.css': 'text/css; charset=utf-8',
     '.json': 'application/json; charset=utf-8',
     '.mp3': 'audio/mpeg',
+    '.mxl': 'application/vnd.recordare.musicxml',
     '.svg': 'image/svg+xml',
     '.png': 'image/png',
     '.ico': 'image/x-icon'
@@ -73,6 +75,70 @@ const VALID_SCORE = `<?xml version="1.0" encoding="UTF-8"?>
     </measure>
   </part>
 </score-partwise>`;
+
+function createMxlBuffer(xmlText) {
+    const containerXml = `<?xml version="1.0" encoding="UTF-8"?>
+<container><rootfiles><rootfile full-path="score.xml"/></rootfiles></container>`;
+    const files = [
+        ['META-INF/container.xml', containerXml],
+        ['score.xml', xmlText]
+    ];
+    let offset = 0;
+    const locals = [];
+    const entries = files.map(([name, text]) => {
+        const nameBytes = Buffer.from(name, 'utf8');
+        const source = Buffer.from(text, 'utf8');
+        const compressed = deflateRawSync(source);
+        const local = Buffer.alloc(30);
+        local.writeUInt32LE(0x04034b50, 0);
+        local.writeUInt16LE(20, 4);
+        local.writeUInt16LE(0, 6);
+        local.writeUInt16LE(8, 8);
+        local.writeUInt32LE(0, 10);
+        local.writeUInt32LE(0, 14);
+        local.writeUInt32LE(compressed.length, 18);
+        local.writeUInt32LE(source.length, 22);
+        local.writeUInt16LE(nameBytes.length, 26);
+        local.writeUInt16LE(0, 28);
+        const localPart = Buffer.concat([local, nameBytes, compressed]);
+        const entry = { nameBytes, source, compressed, offset };
+        locals.push(localPart);
+        offset += localPart.length;
+        return entry;
+    });
+    const centralOffset = offset;
+    const centrals = entries.map(entry => {
+        const central = Buffer.alloc(46);
+        central.writeUInt32LE(0x02014b50, 0);
+        central.writeUInt16LE(20, 4);
+        central.writeUInt16LE(20, 6);
+        central.writeUInt16LE(0, 8);
+        central.writeUInt16LE(8, 10);
+        central.writeUInt32LE(0, 12);
+        central.writeUInt32LE(0, 16);
+        central.writeUInt32LE(entry.compressed.length, 20);
+        central.writeUInt32LE(entry.source.length, 24);
+        central.writeUInt16LE(entry.nameBytes.length, 28);
+        central.writeUInt16LE(0, 30);
+        central.writeUInt16LE(0, 32);
+        central.writeUInt16LE(0, 34);
+        central.writeUInt16LE(0, 36);
+        central.writeUInt32LE(0, 38);
+        central.writeUInt32LE(entry.offset, 42);
+        return Buffer.concat([central, entry.nameBytes]);
+    });
+    const centralDirectory = Buffer.concat(centrals);
+    const eocd = Buffer.alloc(22);
+    eocd.writeUInt32LE(0x06054b50, 0);
+    eocd.writeUInt16LE(0, 4);
+    eocd.writeUInt16LE(0, 6);
+    eocd.writeUInt16LE(entries.length, 8);
+    eocd.writeUInt16LE(entries.length, 10);
+    eocd.writeUInt32LE(centralDirectory.length, 12);
+    eocd.writeUInt32LE(centralOffset, 16);
+    eocd.writeUInt16LE(0, 20);
+    return Buffer.concat([...locals, centralDirectory, eocd]);
+}
 
 function findChromiumExecutable() {
     return CHROME_CANDIDATES.find(candidate => existsSync(candidate)) || null;
@@ -143,7 +209,7 @@ test('MusicXML import UI shows details, restores saved scores, and removes impor
             accept: input.getAttribute('accept') || ''
         }));
         assert.match(importControl.label, /Import MusicXML/);
-        assert.equal(importControl.accept, '.musicxml,.xml');
+        assert.equal(importControl.accept, '.musicxml,.xml,.mxl');
 
         await setFileInput(page, 'broken.musicxml', 'application/xml', '<score-timewise></score-timewise>');
         await page.waitForSelector('#importStatus details');
@@ -158,7 +224,11 @@ test('MusicXML import UI shows details, restores saved scores, and removes impor
         assert.match(failureState.text, /Only score-partwise MusicXML files are supported/);
         assert.equal(failureState.role, 'alert');
 
-        await setFileInput(page, 'smoke-import.musicxml', 'application/xml', VALID_SCORE);
+        await page.locator('#musicXmlFileInput').setInputFiles({
+            name: 'smoke-import.mxl',
+            mimeType: 'application/vnd.recordare.musicxml',
+            buffer: createMxlBuffer(VALID_SCORE)
+        });
         await page.waitForFunction(() => document.querySelector('#pattern option:checked')?.textContent?.includes('Smoke Import'));
         await page.waitForSelector('.score-page svg');
         await page.waitForSelector('[data-musicxml-event-id]');

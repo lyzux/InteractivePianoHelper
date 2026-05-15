@@ -33,7 +33,10 @@ const SUPPORTED_NOTE_CHILDREN = new Set([
     'chord',
     'tie',
     'accidental',
-    'dot'
+    'dot',
+    'stem',
+    'beam',
+    'notations'
 ]);
 
 function roundBeat(value) {
@@ -118,9 +121,29 @@ function parsePageLayout(root) {
             bottom: numericChild(pageMargins, 'bottom-margin', DEFAULT_PAGE_MARGINS.bottom)
         },
         systemLayout: {},
+        credits: readCredits(root),
         printBreaks: [],
         measureLayout: []
     };
+}
+
+function readCredits(root) {
+    return childrenByName(root, 'credit').flatMap(credit => {
+        const pageNumber = Number(credit.attributes.page) || 1;
+        const creditType = childText(credit, 'credit-type');
+        return childrenByName(credit, 'credit-words')
+            .map(words => ({
+                pageNumber,
+                type: creditType || words.attributes.defaultText || '',
+                text: normalizeText(words.text, ''),
+                defaultX: Number(words.attributes['default-x']),
+                defaultY: Number(words.attributes['default-y']),
+                justify: words.attributes.justify || 'left',
+                valign: words.attributes.valign || 'top',
+                fontSize: Number(words.attributes['font-size']) || null
+            }))
+            .filter(item => item.text);
+    });
 }
 
 function readTimeSignature(attributes, previous, diagnostics, context, path) {
@@ -199,12 +222,13 @@ function tieForNote(noteElement) {
     return ties[0] || null;
 }
 
-function makeHandPayload(noteElement) {
+function makeHandPayload(noteElement, durationBeats) {
     if (firstChild(noteElement, 'rest')) {
         return {
             notes: [],
             isRest: true,
-            fingering: null
+            fingering: null,
+            durationBeats
         };
     }
 
@@ -212,6 +236,7 @@ function makeHandPayload(noteElement) {
         notes: [pitchToNote(noteElement)].filter(Boolean),
         isRest: false,
         fingering: null,
+        durationBeats,
         ...(tieForNote(noteElement) ? { tie: tieForNote(noteElement) } : {})
     };
 }
@@ -224,6 +249,7 @@ function mergeHandPayload(existing, incoming) {
         ...existing,
         notes: [...existing.notes, ...incoming.notes],
         isRest: existing.isRest && incoming.isRest,
+        durationBeats: Math.max(existing.durationBeats || 0, incoming.durationBeats || 0),
         tie: existing.tie || incoming.tie || null
     };
 }
@@ -260,7 +286,7 @@ function readPrintHints(printElement, measureNumber, pageState) {
 }
 
 function pushUnsupportedDiagnosticIfNeeded(child, diagnostics, context, path) {
-    if (['attributes', 'print', 'note', 'backup', 'forward', 'barline'].includes(child.name)) {
+    if (['attributes', 'print', 'note', 'backup', 'forward', 'barline', 'direction'].includes(child.name)) {
         return;
     }
     diagnostics.push(diagnostic(context, {
@@ -394,7 +420,10 @@ function convertDocument(document, context) {
 
     childrenByName(part, 'measure').forEach((measure, measureIndex) => {
         const measureNumber = normalizeText(measure.attributes.number, String(measureIndex + 1));
+        const isImplicitMeasure = measure.attributes.implicit === 'yes';
         let cursorBeat = 0;
+        let actualMeasureBeats = 0;
+        const chordStartByVoice = new Map();
         const printHint = readPrintHints(firstChild(measure, 'print'), measureNumber, pageState);
         if (printHint) {
             pageLayout.printBreaks.push(printHint);
@@ -457,9 +486,11 @@ function convertDocument(document, context) {
 
             const isChord = firstChild(child, 'chord') !== null;
             const durationBeats = roundBeat(Number(childText(child, 'duration')) / divisions);
-            const startBeat = isChord && eventOrdinal > 0
-                ? [...eventsByKey.values()][eventsByKey.size - 1].startBeat
-                : roundBeat(scoreBeat + cursorBeat);
+            const voiceKey = `${childText(child, 'staff') || 'auto'}:${childText(child, 'voice') || 'default'}`;
+            const localStartBeat = isChord && chordStartByVoice.has(voiceKey)
+                ? chordStartByVoice.get(voiceKey)
+                : cursorBeat;
+            const startBeat = roundBeat(scoreBeat + localStartBeat);
             const key = eventKey(measureIndex, startBeat);
             let event = eventsByKey.get(key);
             if (!event) {
@@ -478,14 +509,19 @@ function convertDocument(document, context) {
             }
 
             const hand = handForNote(child);
-            event.hands[hand] = mergeHandPayload(event.hands[hand], makeHandPayload(child));
+            event.hands[hand] = mergeHandPayload(event.hands[hand], makeHandPayload(child, durationBeats));
+            actualMeasureBeats = Math.max(actualMeasureBeats, roundBeat(localStartBeat + durationBeats));
 
             if (!isChord) {
+                chordStartByVoice.set(voiceKey, cursorBeat);
                 cursorBeat = roundBeat(cursorBeat + durationBeats);
             }
         });
 
-        const measureDuration = beatsPerMeasure(timeSignature);
+        const nominalMeasureDuration = beatsPerMeasure(timeSignature);
+        const measureDuration = isImplicitMeasure && actualMeasureBeats > ROUND_TOLERANCE
+            ? actualMeasureBeats
+            : nominalMeasureDuration;
         const measureEventKeys = [...eventsByKey.entries()]
             .filter(([, event]) => event.measureIndex === measureIndex)
             .sort((a, b) => a[1].startBeat - b[1].startBeat || a[1]._ordinal - b[1]._ordinal)
@@ -494,6 +530,7 @@ function convertDocument(document, context) {
         measures.push({
             measureIndex,
             measureNumber,
+            implicit: isImplicitMeasure,
             partId,
             partName: partNames.get(partId) || partId,
             startBeat: roundBeat(scoreBeat),

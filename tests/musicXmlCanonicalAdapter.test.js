@@ -138,6 +138,88 @@ const UNSUPPORTED_KEY_SIGNATURE_FIXTURE = `<?xml version="1.0" encoding="UTF-8"?
   </part>
 </score-partwise>`;
 
+const MUSESCORE_ENGRAVING_FIXTURE = `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <credit page="1">
+    <credit-type>title</credit-type>
+    <credit-words default-x="500" default-y="700" justify="center" font-size="22">Engraving Fixture</credit-words>
+  </credit>
+  <part-list>
+    <score-part id="P1"><part-name>Piano</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>2</divisions>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <staves>2</staves>
+      </attributes>
+      <direction placement="above">
+        <direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>84</per-minute></metronome></direction-type>
+        <sound tempo="84"/>
+      </direction>
+      <note>
+        <pitch><step>C</step><octave>5</octave></pitch>
+        <duration>1</duration>
+        <voice>1</voice>
+        <type>eighth</type>
+        <stem>down</stem>
+        <staff>1</staff>
+        <beam number="1">begin</beam>
+        <notations><slur type="start" number="1"/></notations>
+      </note>
+      <note>
+        <pitch><step>D</step><octave>5</octave></pitch>
+        <duration>1</duration>
+        <voice>1</voice>
+        <type>eighth</type>
+        <stem>down</stem>
+        <staff>1</staff>
+        <beam number="1">end</beam>
+      </note>
+      <backup><duration>2</duration></backup>
+      <note>
+        <rest/>
+        <duration>2</duration>
+        <voice>5</voice>
+        <type>quarter</type>
+        <staff>2</staff>
+      </note>
+    </measure>
+  </part>
+</score-partwise>`;
+
+const IMPLICIT_PICKUP_CHORD_FIXTURE = `<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <work><work-title>Pickup Chord Fixture</work-title></work>
+  <part-list>
+    <score-part id="P1"><part-name>Piano</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="0" implicit="yes">
+      <attributes>
+        <divisions>2</divisions>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <staves>2</staves>
+      </attributes>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
+      <note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
+      <backup><duration>2</duration></backup>
+      <note><rest/><duration>2</duration><voice>5</voice><staff>2</staff></note>
+    </measure>
+    <measure number="1">
+      <note><pitch><step>E</step><alter>-1</alter><octave>5</octave></pitch><duration>3</duration><voice>1</voice><staff>1</staff></note>
+      <note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
+      <note><pitch><step>E</step><alter>-1</alter><octave>5</octave></pitch><duration>2</duration><voice>1</voice><staff>1</staff></note>
+      <note><pitch><step>G</step><octave>5</octave></pitch><duration>2</duration><voice>1</voice><staff>1</staff></note>
+      <backup><duration>8</duration></backup>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>8</duration><voice>5</voice><staff>2</staff></note>
+      <note><chord/><pitch><step>E</step><alter>-1</alter><octave>4</octave></pitch><duration>8</duration><voice>5</voice><staff>2</staff></note>
+      <note><chord/><pitch><step>G</step><octave>4</octave></pitch><duration>8</duration><voice>5</voice><staff>2</staff></note>
+    </measure>
+  </part>
+</score-partwise>`;
+
 function adaptFixture(xml = ACCEPTED_FIXTURE) {
     const parsed = parseMusicXmlText(xml, {
         sourceId: 'fixture-score',
@@ -297,6 +379,44 @@ test('rejects unsupported MusicXML meter, accidental text, and key signatures', 
     assert.equal(keySignature.ok, false);
     assert.equal(keySignature.sequence, null);
     assert.ok(fatalCodes(keySignature.diagnostics).includes('MUSICXML_KEY_SIGNATURE_UNSUPPORTED'));
+});
+
+test('accepts common MuseScore engraving-only elements without changing playback data', () => {
+    const result = adaptFixture(MUSESCORE_ENGRAVING_FIXTURE);
+
+    assert.equal(result.ok, true);
+    assert.deepEqual(fatalCodes(result.diagnostics), []);
+    assert.equal(result.sequence.events.length, 2);
+    assert.deepEqual(result.sequence.events.map(event => event.startBeat), [0, 0.5]);
+    assert.deepEqual(result.sequence.events.map(event => event.durationBeats), [1, 0.5]);
+    assert.equal(result.sequence.events[0].hands.right.durationBeats, 0.5);
+    assert.equal(result.sequence.events[0].hands.left.durationBeats, 1);
+    assert.equal(result.sequence.events[0].hands.left.isRest, true);
+    assert.equal(result.sequence.events[1].hands.right.durationBeats, 0.5);
+    assert.deepEqual(result.sequence.pageLayout.credits.map(credit => [credit.pageNumber, credit.type, credit.text]), [
+        [1, 'title', 'Engraving Fixture']
+    ]);
+});
+
+test('honors implicit pickup duration and chord starts after backup cursor moves', () => {
+    const result = adaptFixture(IMPLICIT_PICKUP_CHORD_FIXTURE);
+
+    assert.equal(result.ok, true);
+    assert.deepEqual(fatalCodes(result.diagnostics), []);
+    assert.deepEqual(result.sequence.measures.map(measure => ({
+        number: measure.measureNumber,
+        implicit: measure.implicit,
+        startBeat: measure.startBeat,
+        durationBeats: measure.durationBeats
+    })), [
+        { number: '0', implicit: true, startBeat: 0, durationBeats: 1 },
+        { number: '1', implicit: false, startBeat: 1, durationBeats: 4 }
+    ]);
+
+    const firstFullMeasure = result.sequence.events.filter(event => event.measureIndex === 1);
+    assert.deepEqual(firstFullMeasure.map(event => event.beatInMeasure), [0, 1.5, 2, 3]);
+    assert.deepEqual(firstFullMeasure[0].hands.left.notes, ['C4', 'Eb4', 'G4']);
+    assert.deepEqual(firstFullMeasure[3].hands.left, undefined);
 });
 
 test('rejects unsupported multi-part MusicXML instead of silently skipping parts', () => {

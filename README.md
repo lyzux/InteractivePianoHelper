@@ -42,12 +42,12 @@ InteractivePianoHelper/
 - Auto‑discovery of patterns under `patterns/`
 - Optional two‑hand patterns (left/right or bass/treble)
 - Full-score A4-style sheet display rendered with VexFlow
-- Browser-only MusicXML import for strict piano-oriented `.musicxml` and `.xml` scores
+- Browser-only MusicXML import for strict piano-oriented `.musicxml`, `.xml`, and compressed `.mxl` scores
 - Selected measure range looping and auto-follow during score playback
 
 ## MusicXML Import And Practice
 
-Use **Import MusicXML** in the score library to add a `.musicxml` or `.xml` file. The app parses the file in the browser as inert data, validates it strictly, converts accepted scores into the same canonical score sequence used by notation and playback, and then displays the score as VexFlow sheet pages. Static hosting is still enough; no backend or build step is required.
+Use **Import MusicXML** in the score library to add a `.musicxml`, `.xml`, or MuseScore-style compressed `.mxl` file. The app reads the file in the browser as inert data, decompresses `.mxl` packages locally, validates the extracted MusicXML strictly, converts accepted scores into the same canonical score sequence used by notation and playback, and then displays the score as VexFlow sheet pages. Static hosting is still enough; no backend or build step is required.
 
 Imports are stored locally in this browser with IndexedDB for the current origin. `http://localhost:8000`, another local port, and the GitHub Pages URL each have separate imported-score libraries. Clearing site data removes imported scores. The app does not upload imported files, sync them between browsers, or modify the original file.
 
@@ -114,7 +114,7 @@ Naming rules that help auto‑loading:
 
 - ES modules, no bundler. Serve over HTTP for module imports to work.
 - VexFlow is included in `index.html` and used for the current sheet music renderer.
-- MusicXML import uses browser file input, strict parser/adapter modules, IndexedDB storage, and the same validated score sequence used by playback and notation.
+- MusicXML import uses browser file input, local `.mxl` extraction, strict parser/adapter modules, IndexedDB storage, and the same validated score sequence used by playback and notation.
 - Short pedagogical patterns remain supported through the current validated pattern source path.
 - Console logs include some debug output; feel free to trim for production.
 
@@ -155,7 +155,7 @@ Then open http://localhost:8000 and verify:
 - Play without Loop stops after the complete score sequence.
 - Play with Loop enabled repeats after the complete score sequence.
 - Notation highlights follow playback on later pages, not only the first page.
-- Import a supported `.musicxml` or `.xml` file and verify it appears in the score library after reload.
+- Import a supported `.musicxml`, `.xml`, or `.mxl` file and verify it appears in the score library after reload.
 - Select a measure range and confirm Loop repeats only that range.
 - Scroll manually during playback, then use Resume follow to continue automatic score following.
 
