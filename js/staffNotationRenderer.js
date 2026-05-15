@@ -283,8 +283,43 @@ function appendHighlightedElement(eventHighlightMap, eventId, staveNote) {
     if (!eventId) return;
     const el = staveNote.attrs?.id ? document.getElementById(`vf-${staveNote.attrs.id}`) : null;
     if (!el) return;
+    el.dataset.musicxmlEventId = eventId;
     if (!eventHighlightMap.has(eventId)) eventHighlightMap.set(eventId, []);
     eventHighlightMap.get(eventId).push(el);
+}
+
+function appendMeasureHitTarget(pageEl, measureMap, measureInfo) {
+    const hitTarget = document.createElement('button');
+    hitTarget.type = 'button';
+    hitTarget.className = 'score-measure-hit-target';
+    hitTarget.dataset.musicxmlMeasure = 'true';
+    hitTarget.dataset.page = String(measureInfo.pageNumber);
+    hitTarget.dataset.systemIndex = String(measureInfo.systemIndex);
+    hitTarget.dataset.measureIndex = String(measureInfo.measureIndex);
+    hitTarget.dataset.measureNumber = String(measureInfo.measureNumber);
+    hitTarget.setAttribute('role', 'button');
+    hitTarget.setAttribute('aria-label', `Measure ${measureInfo.measureNumber}`);
+    hitTarget.style.position = 'absolute';
+    hitTarget.style.left = `${measureInfo.x}px`;
+    hitTarget.style.top = `${measureInfo.y}px`;
+    hitTarget.style.width = `${measureInfo.width}px`;
+    hitTarget.style.height = `${measureInfo.height}px`;
+    hitTarget.style.padding = '0';
+    hitTarget.style.margin = '0';
+    hitTarget.style.border = '0';
+    hitTarget.style.background = 'transparent';
+    hitTarget.style.cursor = 'pointer';
+    hitTarget.style.opacity = '0';
+
+    pageEl.appendChild(hitTarget);
+    measureMap.set(measureInfo.measureIndex, {
+        element: hitTarget,
+        pageNumber: measureInfo.pageNumber,
+        systemIndex: measureInfo.systemIndex,
+        measureIndex: measureInfo.measureIndex,
+        measureNumber: measureInfo.measureNumber,
+        eventIds: measureInfo.eventIds
+    });
 }
 
 function drawSystemConnectors(VF, ctx, firstTrebleStave, firstBassStave) {
@@ -333,6 +368,7 @@ export function drawStaffNotation(patternLoader, settings, sequence = null) {
     }
 
     const eventHighlightMap = new Map();
+    const measureMap = new Map();
 
     try {
         const VF = Vex;
@@ -355,6 +391,7 @@ export function drawStaffNotation(patternLoader, settings, sequence = null) {
             const pageEl = document.createElement('div');
             pageEl.className = 'score-page';
             pageEl.dataset.page = String(pagePlan.pageIndex + 1);
+            pageEl.style.position = 'relative';
             pageGrid.appendChild(pageEl);
 
             const renderer = new VF.Renderer(pageEl, VF.Renderer.Backends.SVG);
@@ -452,6 +489,20 @@ export function drawStaffNotation(patternLoader, settings, sequence = null) {
                     tNotes[measureIndex] = treble;
                     bNotes[measureIndex] = bass;
                     systemByMeasure.set(measureIndex, globalSystemIndex + pageSystemIndex);
+                    appendMeasureHitTarget(pageEl, measureMap, {
+                        pageNumber: pagePlan.pageIndex + 1,
+                        systemIndex: pageSystemIndex,
+                        measureIndex,
+                        measureNumber: measureIndex + 1,
+                        x: staveX,
+                        y: trebleY,
+                        width: staveWidth,
+                        height: BASS_OFFSET + 80,
+                        eventIds: [...new Set([
+                            ...treble.eventIds.filter(Boolean),
+                            ...bass.eventIds.filter(Boolean)
+                        ])]
+                    });
                 }
 
                 drawSystemConnectors(VF, ctx, firstTrebleStave, firstBassStave);
@@ -469,6 +520,7 @@ export function drawStaffNotation(patternLoader, settings, sequence = null) {
 
         return {
             eventMap: eventHighlightMap,
+            measureMap,
             sequence: notationData,
             pages
         };

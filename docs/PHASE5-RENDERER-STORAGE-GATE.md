@@ -16,9 +16,9 @@ Imported MusicXML rendering must enter production through `renderMusicXmlScore` 
 | SVG output | PASS | Browser gate requires `.score-page svg` and rejects static image or canvas fallbacks. |
 | Page scaling | PASS | Existing score grid exposes `--score-scale` and scales A4 page content without reflowing measures. |
 | Two-page desktop / one-page mobile layout | PASS | Existing `.score-page-grid` two-column desktop and mobile CSS one-column behavior remain the layout contract. |
-| Click hit targets | FAIL until implementation | Browser gate requires rendered measure DOM hooks with click events. |
-| Playback highlight hooks | FAIL until implementation | Browser gate requires event DOM hooks that accept `vf-note-highlight`. |
-| Auto-follow metadata | FAIL until implementation | Renderer facade must return page and measure metadata for later system/page following. |
+| Click hit targets | PASS | Browser gate requires rendered measure DOM hooks with click events. |
+| Playback highlight hooks | PASS | Browser gate requires event DOM hooks that accept `vf-note-highlight`. |
+| Auto-follow metadata | PASS | Current renderer returns `pages`; `measureMap` records page/system/measure metadata for later auto-follow. |
 | Dependency footprint | PASS | No new runtime dependency and no build step. |
 
 ## Non-Negotiables
