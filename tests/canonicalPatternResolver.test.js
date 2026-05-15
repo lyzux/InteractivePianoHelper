@@ -20,18 +20,33 @@ test('resolves Lombard rhythm to one complete visible 4/4 loop unit', () => {
     assert.equal(sequence.loopUnitBeats, 4);
     assert.equal(sequence.events.length, 8);
     assert.equal(durationTotal(sequence), 4);
+    assert.equal(durationTotal(sequence), sequence.loopUnitBeats);
 });
 
 test('creates stable unique event IDs for canonical maps', () => {
     const sequence = resolvePatternSequence(lombardisch, { patternId: 'lombardisch', key: 'C' });
     const ids = sequence.events.map(event => event.id);
+    const eventMap = new Map(sequence.events.map(event => [event.id, event]));
 
     assert.equal(new Set(ids).size, ids.length);
+    assert.equal(eventMap.size, sequence.events.length);
     assert.deepEqual(ids.slice(0, 3), [
         'lombardisch-event-0',
         'lombardisch-event-1',
         'lombardisch-event-2'
     ]);
+});
+
+test('orders canonical events by playback and notation position', () => {
+    const sequence = resolvePatternSequence(lombardisch, { patternId: 'lombardisch', key: 'G' });
+    const positions = sequence.events.map(event => event.startBeat);
+
+    assert.deepEqual(positions, [0, 0.25, 1, 1.25, 2, 2.25, 3, 3.25]);
+    sequence.events.forEach((event, index) => {
+        assert.equal(event.sourceIndex, index % 4);
+        assert.equal(event.measureIndex, 0);
+        assert.equal(event.beatInMeasure, positions[index]);
+    });
 });
 
 test('transposes pattern notes through shared note helper', () => {
