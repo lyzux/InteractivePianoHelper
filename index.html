@@ -404,12 +404,31 @@
                 currentNotationMaps = null;
                 return null;
             }
+            const renderToken = ++notationRenderToken;
             if (currentPatternSequence.sourceType === MUSICXML_SOURCE_TYPE) {
-                currentNotationMaps = renderMusicXmlScore({
+                currentNotationMaps = null;
+                practiceRangeController?.updateNotationMaps(null);
+                autoFollowController?.updateNotationMaps(null);
+                renderMusicXmlScore({
                     patternLoader,
                     settings,
                     sequence: currentPatternSequence
+                }).then(renderResult => {
+                    if (renderToken !== notationRenderToken) return renderResult;
+                    currentNotationMaps = renderResult;
+                    practiceRangeController?.updateNotationMaps(currentNotationMaps);
+                    autoFollowController?.updateNotationMaps(currentNotationMaps);
+                    return renderResult;
+                }).catch(error => {
+                    if (renderToken !== notationRenderToken) return null;
+                    console.error('MusicXML score render failed:', error);
+                    renderScoreFailureState();
+                    currentNotationMaps = null;
+                    practiceRangeController?.updateNotationMaps(null);
+                    autoFollowController?.updateNotationMaps(null);
+                    return null;
                 });
+                return null;
             } else {
                 currentNotationMaps = _drawStaffNotation(patternLoader, settings, currentPatternSequence);
             }
@@ -425,6 +444,7 @@
         let activeHighlightEls  = [];    // SVGElements currently carrying vf-note-highlight
         let practiceRangeController = null;
         let autoFollowController = null;
+        let notationRenderToken = 0;
 
         function resolveCurrentPatternSequence() {
             const patternSelect = document.getElementById('pattern');
@@ -438,6 +458,7 @@
         }
 
         function clearNotationHighlights() {
+            currentNotationMaps?.clearHighlights?.();
             for (const el of activeHighlightEls) el.classList.remove('vf-note-highlight');
             activeHighlightEls = [];
         }
@@ -445,6 +466,11 @@
         function highlightNotationNote(eventId, event) {
             if (!currentNotationMaps) return;
             clearNotationHighlights();
+            if (typeof currentNotationMaps.highlightEvents === 'function') {
+                currentNotationMaps.highlightEvents(eventId);
+                autoFollowController?.handlePlaybackEvent(event);
+                return;
+            }
             const els = currentNotationMaps.eventMap?.get(eventId) || [];
             for (const el of els) el.classList.add('vf-note-highlight');
             activeHighlightEls = els;

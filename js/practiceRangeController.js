@@ -20,6 +20,13 @@ function sortedMeasureEntries(measureMap) {
         .sort((a, b) => a.measureIndex - b.measureIndex);
 }
 
+function forEachMeasureElement(entry, callback) {
+    const elements = Array.isArray(entry?.elements) && entry.elements.length
+        ? entry.elements
+        : [entry?.element].filter(Boolean);
+    elements.forEach(callback);
+}
+
 function formatRangeText(range) {
     return RANGE_SELECTED_TEXT
         .replace('{start}', range.startMeasureNumber)
@@ -60,16 +67,20 @@ export function createPracticeRangeController(options = {}) {
 
     function clearMeasureClasses() {
         entries.forEach(entry => {
-            entry.element.classList.remove('range-selected', 'range-boundary', 'range-pending');
-            entry.element.removeAttribute('aria-current');
+            forEachMeasureElement(entry, element => {
+                element.classList.remove('range-selected', 'range-boundary', 'range-pending');
+                element.removeAttribute('aria-current');
+            });
         });
     }
 
     function applyRangeClasses() {
         clearMeasureClasses();
         if (pendingStart && !selectedRange) {
-            pendingStart.element.classList.add('range-pending', 'range-boundary');
-            pendingStart.element.setAttribute('aria-current', 'true');
+            forEachMeasureElement(pendingStart, element => {
+                element.classList.add('range-pending', 'range-boundary');
+                element.setAttribute('aria-current', 'true');
+            });
             return;
         }
         if (!selectedRange) return;
@@ -78,11 +89,13 @@ export function createPracticeRangeController(options = {}) {
             if (entry.measureIndex < selectedRange.startMeasureIndex || entry.measureIndex > selectedRange.endMeasureIndex) {
                 return;
             }
-            entry.element.classList.add('range-selected');
-            entry.element.setAttribute('aria-current', 'true');
-            if (entry.measureIndex === selectedRange.startMeasureIndex || entry.measureIndex === selectedRange.endMeasureIndex) {
-                entry.element.classList.add('range-boundary');
-            }
+            forEachMeasureElement(entry, element => {
+                element.classList.add('range-selected');
+                element.setAttribute('aria-current', 'true');
+                if (entry.measureIndex === selectedRange.startMeasureIndex || entry.measureIndex === selectedRange.endMeasureIndex) {
+                    element.classList.add('range-boundary');
+                }
+            });
         });
     }
 
@@ -177,7 +190,10 @@ export function createPracticeRangeController(options = {}) {
     }
 
     function makeRangeFromDomSelection() {
-        const selectedEntries = entries.filter(entry => entry.element.classList.contains('range-selected'));
+        const selectedEntries = entries.filter(entry => (
+            entry.element.classList.contains('range-selected')
+            || entry.elements?.some?.(element => element.classList.contains('range-selected'))
+        ));
         if (!selectedEntries.length) return null;
         return makeRange(selectedEntries[0], selectedEntries[selectedEntries.length - 1]);
     }

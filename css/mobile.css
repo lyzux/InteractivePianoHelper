@@ -244,12 +244,13 @@
     }
 
     .score-page-grid {
-        grid-template-columns: 794px;
+        grid-template-columns: var(--score-page-width, 794px);
         gap: 24px;
+        width: var(--score-page-width, 794px);
     }
 
     .score-page-grid.single-page {
-        grid-template-columns: 794px;
+        grid-template-columns: var(--score-page-width, 794px);
     }
     
     /* Piano keyboard fixed to bottom with exactly 1/4 viewport height */

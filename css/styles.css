@@ -410,7 +410,7 @@ button:disabled {
     border-radius: 0;
     margin-bottom: 30px;
     box-shadow: none;
-    overflow-x: auto;
+    overflow-x: hidden;
     width: 100%;
 }
 
@@ -506,6 +506,8 @@ button:disabled {
 }
 
 .score-sheet-view {
+    --score-page-width: 794px;
+    --score-page-height: 1123px;
     --score-page-gap: 32px;
     --score-scale: 1;
     width: 100%;
@@ -520,23 +522,23 @@ button:disabled {
 
 .score-page-grid {
     display: grid;
-    grid-template-columns: repeat(2, 794px);
+    grid-template-columns: repeat(2, var(--score-page-width));
     gap: var(--score-page-gap);
     justify-content: center;
     align-items: start;
-    width: calc(794px * 2 + var(--score-page-gap));
+    width: calc(1588px + var(--score-page-gap));
     transform: scale(var(--score-scale));
     transform-origin: top center;
 }
 
 .score-page-grid.single-page {
-    grid-template-columns: 794px;
-    width: 794px;
+    grid-template-columns: var(--score-page-width);
+    width: var(--score-page-width);
 }
 
 .score-page {
-    width: 794px;
-    height: 1123px;
+    width: var(--score-page-width);
+    height: var(--score-page-height);
     background: #ffffff;
     border: 1px solid #d8dee6;
     box-shadow: 0 12px 32px rgba(31, 41, 51, 0.18);
