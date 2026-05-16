@@ -3,28 +3,28 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_phase: 07
-status: phase_planned
-last_updated: "2026-05-15T19:39:47+02:00"
+status: completed
+last_updated: "2026-05-16T14:31:52.000Z"
 progress:
   total_phases: 7
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 19
-  completed_plans: 17
-  percent: 89
+  completed_plans: 19
+  percent: 100
 ---
 
 # Project State: Interactive Piano Helper
 
 **Initialized:** 2026-05-15
 **Current Phase:** 07
-**Status:** Phase planned
+**Status:** Completed Phase 07
 
 ## Project Reference
 
 See: `.planning/PROJECT.md` (updated 2026-05-15)
 
 **Core value:** Displayed notation and playback must describe the same musical events so learners can trust what they see, hear, and play.
-**Current focus:** Phase 07 planned — production OSMD score rendering and interaction bridge
+**Current focus:** Phase 07 — osmd-production-score-rendering completed
 
 ## Roadmap Reference
 
@@ -37,7 +37,7 @@ See: `.planning/ROADMAP.md`
 **Phase 4:** MusicXML-Ready Foundation - completed
 **Phase 5:** MusicXML Import And Practice UX - completed; 05-06 browser smoke and regression coverage complete
 **Phase 6:** Professional MusicXML Renderer - completed; OSMD-first renderer decision, facade, and MusicXML test-suite strategy
-**Phase 7:** OSMD Production Score Rendering - planned; production renderer switch plus playback/practice interaction correctness
+**Phase 7:** OSMD Production Score Rendering - completed; production OSMD renderer, score-page scaling, canonical playback/practice bridge, and local MuseScore gate
 
 ## Codebase Reference
 
@@ -58,8 +58,8 @@ Important files:
 
 ### Last Session
 
-- Stopped at: Planned Phase 7 with research, UI spec, and two execution plans
-- Resume from: Execute `.planning/phases/07-osmd-production-score-rendering/07-01-PLAN.md`
+- Stopped at: Completed Phase 7 execution with summaries committed for both plans
+- Resume from: Review next milestone/backlog, or manually test OSMD import fidelity for more complex MusicXML files
 
 ### Decisions
 
@@ -85,6 +85,9 @@ Important files:
 - 07 plans to make OSMD the production renderer for imported MusicXML instead of the Phase 5 VexFlow reconstruction.
 - 07 splits production integration into page-fidelity wiring first, then canonical event/measure mapping for playback, range selection, and auto-follow.
 - 07 treats the user's local MuseScore `.mxl` file as an optional critical fixture that runs when present and skips cleanly otherwise.
+- 07 implements OSMD as the production imported MusicXML renderer and does not silently fall back to the simplified VexFlow reconstruction for imported scores.
+- 07 uses canonical sequence measures/events as the app contract because OSMD emits multiple SVG groups for staves and fragments.
+- 07 keeps OSMD mapping tests semantic: event IDs, measure numbers, renderer classes, and diagnostics are asserted instead of brittle SVG snapshots.
 
 ### Performance Metrics
 
@@ -99,6 +102,8 @@ Important files:
 | 06 | Explore | 20 min | 4 artifacts | 4 |
 | 06 | 01 | 55 min | 4 | 9 |
 | 07 | Plan | 45 min | 6 artifacts | 6 |
+| 07 | 01 | 52 min | 3 | 6 |
+| 07 | 02 | 15 min | 4 | 4 |
 
 ### Key Constraints
 
@@ -109,10 +114,9 @@ Important files:
 ### Known Risks
 
 - Pattern data is still executable JavaScript, but it is now validated before selection.
-- Long notation is now paginated by the Phase 2 renderer; human browser smoke remains the main residual visual check.
+- Long built-in notation is still paginated by the Phase 2 renderer; imported MusicXML now uses OSMD score pages.
 - MusicXML import is now covered by fixture-backed parser/adapter tests and integrated browser smoke for import, persistence, rendering, range playback, auto-follow, cleanup, removal, and built-in score practice behavior.
-- Phase 7 must not silently fall back to app-owned VexFlow reconstruction for imported MusicXML rendering.
-- Phase 7 mapping must not silently highlight the wrong OSMD note when canonical-to-renderer matching is ambiguous.
+- OSMD mapping for very complex voices/chords is protected by diagnostics and smoke coverage, but visual engraving should still be manually inspected for professional publishing-grade fidelity.
 
 ---
 *State initialized: 2026-05-15*
