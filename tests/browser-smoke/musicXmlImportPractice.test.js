@@ -8,6 +8,7 @@ import { chromium } from 'playwright';
 const PROJECT_ROOT = resolve(new URL('../..', import.meta.url).pathname);
 const FIXTURE_ROOT = resolve(PROJECT_ROOT, 'tests/fixtures');
 const HOST = '127.0.0.1';
+const USER_MUSESCORE_MXL = '/home/mel/Documents/MuseScore4/Scores/mel_test.mxl';
 const CHROME_CANDIDATES = [
     process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,
     '/usr/bin/google-chrome',
@@ -295,6 +296,35 @@ test('MusicXML import and practice workflow works as a static browser flow', asy
         await page.uncheck('#loopPlayback');
         await selectMeasureRange(page, 1, 3);
         await exerciseSelectedRangePlayback(page, 2, 4);
+
+        if (existsSync(USER_MUSESCORE_MXL)) {
+            await page.locator('#musicXmlFileInput').setInputFiles(USER_MUSESCORE_MXL);
+            await page.waitForSelector('.score-page svg');
+            await page.waitForSelector('[data-musicxml-event-id]');
+            const localSampleState = await page.evaluate(() => {
+                const measureNumbers = Array.from(document.querySelectorAll('.score-measure-hit-target'))
+                    .slice(0, 2)
+                    .map(element => element.dataset.measureNumber || '');
+                return {
+                    selectedSourceType: document.querySelector('#pattern option:checked')?.dataset.sourceType || '',
+                    titleRendered: /Confessions in the Moonlight/i.test(document.getElementById('vexflow-notation')?.textContent || ''),
+                    pageCount: document.querySelectorAll('.score-page').length,
+                    canonicalEventHooks: Array.from(document.querySelectorAll('[data-musicxml-event-id]'))
+                        .filter(element => /-m[^-]+-event-\d+$/.test(element.dataset.musicxmlEventId || ''))
+                        .length,
+                    measureNumbers
+                };
+            });
+            assert.equal(localSampleState.selectedSourceType, 'musicxml');
+            assert.equal(localSampleState.titleRendered, true);
+            assert.ok(localSampleState.pageCount > 0);
+            assert.ok(localSampleState.canonicalEventHooks > 0);
+            assert.equal(localSampleState.measureNumbers.length, 2);
+
+            await page.uncheck('#loopPlayback');
+            await selectMeasureRange(page, 0, 1);
+            await exerciseSelectedRangePlayback(page, localSampleState.measureNumbers[0], localSampleState.measureNumbers[1]);
+        }
 
         assert.deepEqual(pageErrors, []);
     } finally {
