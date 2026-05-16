@@ -106,10 +106,12 @@ test('score display source contracts stay wired', () => {
     assert.match(cssSource, /\.score-page/);
     assert.match(cssSource, /\.score-sheet-view\.single-page/);
     assert.match(cssSource, /--score-scale:\s*1/);
-    assert.match(cssSource, /grid-template-columns:\s*repeat\(2,\s*794px\)/);
+    assert.match(cssSource, /--score-page-width:\s*794px/);
+    assert.match(cssSource, /grid-template-columns:\s*repeat\(2,\s*var\(--score-page-width\)\)/);
     assert.match(cssSource, /transform:\s*scale\(var\(--score-scale\)\)/);
     assert.match(cssSource, /body\.sound-panel-expanded \.container/);
-    assert.match(cssSource, /height:\s*1123px/);
+    assert.match(cssSource, /--score-page-height:\s*1123px/);
+    assert.match(cssSource, /height:\s*var\(--score-page-height\)/);
     assert.match(cssSource, /\.score-sheet-view\s*\{[\s\S]*overflow:\s*hidden/);
     assert.match(rendererSource, /score-sheet-view single-page/);
     assert.match(rendererSource, /scaleScoreSheet\(sheetView,\s*pageGrid\)/);

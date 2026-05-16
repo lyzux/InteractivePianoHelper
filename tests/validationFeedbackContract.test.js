@@ -54,10 +54,12 @@ test('score scaling and bottom keyboard contracts remain intact', () => {
     const cssSource = `${stylesSource}\n${mobileSource}`;
 
     assert.match(cssSource, /\.score-page-grid/);
-    assert.match(cssSource, /grid-template-columns:\s*repeat\(2,\s*794px\)/);
+    assert.match(cssSource, /--score-page-width:\s*794px/);
+    assert.match(cssSource, /grid-template-columns:\s*repeat\(2,\s*var\(--score-page-width\)\)/);
     assert.match(cssSource, /transform:\s*scale\(var\(--score-scale\)\)/);
-    assert.match(cssSource, /width:\s*794px/);
-    assert.match(cssSource, /height:\s*1123px/);
+    assert.match(cssSource, /width:\s*var\(--score-page-width\)/);
+    assert.match(cssSource, /--score-page-height:\s*1123px/);
+    assert.match(cssSource, /height:\s*var\(--score-page-height\)/);
     assert.match(cssSource, /\.piano-keyboard-container\s*\{[\s\S]*position:\s*fixed !important/);
     assert.match(cssSource, /\.piano-keyboard-container\.is-collapsed/);
     assert.match(rendererSource, /score-sheet-view single-page/);
