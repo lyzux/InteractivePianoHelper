@@ -132,11 +132,13 @@ async function stopAndAssertCleanup(page) {
     const cleanupState = await page.evaluate(() => ({
         activePianoKeys: document.querySelectorAll('.key.active').length,
         notationHighlights: document.querySelectorAll('.vf-note-highlight').length,
+        osmdHighlights: document.querySelectorAll('.professional-musicxml-highlight').length,
         rangeStillSelected: /Measures .* selected/.test(document.getElementById('practiceRangeStatus')?.textContent || '')
     }));
     assert.deepEqual(cleanupState, {
         activePianoKeys: 0,
         notationHighlights: 0,
+        osmdHighlights: 0,
         rangeStillSelected: true
     });
 }
@@ -152,6 +154,10 @@ async function exerciseSelectedRangePlayback(page, expectedStartMeasure, expecte
     const playbackState = await page.evaluate(() => window.__iphPracticeDebug?.lastPlaybackStart);
     assert.equal(playbackState.loop, true);
     assert.deepEqual(playbackState.range, selectedRange);
+    const selectedSourceType = await page.evaluate(() => document.querySelector('#pattern option:checked')?.dataset.sourceType || '');
+    if (selectedSourceType === 'musicxml') {
+        await page.waitForFunction(() => document.querySelectorAll('.professional-musicxml-highlight').length > 0);
+    }
 
     await page.locator('#vexflow-notation').evaluate(element => {
         element.dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: 120 }));
@@ -219,6 +225,9 @@ test('MusicXML import and practice workflow works as a static browser flow', asy
             pageCount: document.querySelectorAll('.score-page').length,
             svgCount: document.querySelectorAll('.score-page svg').length,
             eventHooks: document.querySelectorAll('[data-musicxml-event-id]').length,
+            canonicalEventHooks: Array.from(document.querySelectorAll('[data-musicxml-event-id]'))
+                .filter(element => /-m[^-]+-event-\d+$/.test(element.dataset.musicxmlEventId || ''))
+                .length,
             measureTargets: document.querySelectorAll('.score-measure-hit-target').length
         }));
         assert.match(importedState.status, /Imported "Tiny Fixture Score"/);
@@ -228,6 +237,7 @@ test('MusicXML import and practice workflow works as a static browser flow', asy
         assert.ok(importedState.pageCount > 0);
         assert.equal(importedState.svgCount, importedState.pageCount);
         assert.ok(importedState.eventHooks > 0);
+        assert.ok(importedState.canonicalEventHooks >= 5);
         assert.ok(importedState.measureTargets >= 2);
 
         await uploadFixture(page, 'tiny-score.musicxml');

@@ -276,6 +276,74 @@ test('supports measure clicks note clicks highlights ranges and cleanup', async 
     assert.equal(renderer.noteMap.size, 0);
 });
 
+test('maps canonical sequence events and measures onto OSMD DOM hooks', async () => {
+    const container = new FakeElement('div');
+    const renderer = createProfessionalMusicXmlRenderer({ osmdClass: FakeOsmd });
+    const sequence = {
+        measures: [
+            {
+                measureIndex: 0,
+                measureNumber: 'A',
+                systemIndex: 0,
+                staves: { count: 1 },
+                canonicalEventIds: ['canonical-event-a']
+            },
+            {
+                measureIndex: 1,
+                measureNumber: 'B',
+                systemIndex: 0,
+                staves: { count: 1 },
+                canonicalEventIds: ['canonical-event-b']
+            }
+        ],
+        events: [
+            { id: 'canonical-event-a', measureIndex: 0, startBeat: 0, durationBeats: 1 },
+            { id: 'canonical-event-b', measureIndex: 1, startBeat: 1, durationBeats: 1 }
+        ]
+    };
+
+    await renderer.load('<score-partwise version="4.0"></score-partwise>');
+    const result = await renderer.render(container, { sequence });
+
+    assert.deepEqual([...result.eventMap.keys()], ['canonical-event-a', 'canonical-event-b']);
+    assert.equal(result.noteMap.get('canonical-event-a').source, sequence.events[0]);
+    assert.deepEqual(result.playbackTimeline.map(item => item.eventId), ['canonical-event-a', 'canonical-event-b']);
+    assert.deepEqual([...result.measureMap.values()].map(measure => [measure.measureIndex, measure.measureNumber]), [
+        [0, 'A'],
+        [1, 'B']
+    ]);
+    assert.deepEqual(result.measureMap.get(0).eventIds, ['canonical-event-a']);
+    assert.equal(result.diagnostics.length, 0);
+
+    result.highlightEvents('canonical-event-a');
+    assert.equal(result.eventMap.get('canonical-event-a')[0].classList.contains('professional-musicxml-highlight'), true);
+    result.clearHighlights();
+    assert.equal(result.eventMap.get('canonical-event-a')[0].classList.contains('professional-musicxml-highlight'), false);
+});
+
+test('reports unmapped canonical events instead of assigning misleading OSMD hooks', async () => {
+    const container = new FakeElement('div');
+    const renderer = createProfessionalMusicXmlRenderer({ osmdClass: FakeOsmd });
+    const sequence = {
+        measures: [
+            { measureIndex: 0, measureNumber: '1', systemIndex: 0, staves: { count: 1 } }
+        ],
+        events: [
+            { id: 'mapped-a', measureIndex: 0, startBeat: 0, durationBeats: 1 },
+            { id: 'mapped-b', measureIndex: 0, startBeat: 1, durationBeats: 1 },
+            { id: 'missing-c', measureIndex: 0, startBeat: 2, durationBeats: 1 }
+        ]
+    };
+
+    await renderer.load('<score-partwise version="4.0"></score-partwise>');
+    const result = await renderer.render(container, { sequence });
+    const warning = result.diagnostics.find(diagnostic => diagnostic.code === 'OSMD_EVENT_MAPPING_INCOMPLETE');
+
+    assert.ok(warning);
+    assert.deepEqual(warning.eventIds, ['missing-c']);
+    assert.equal(result.eventMap.has('missing-c'), false);
+});
+
 test('validates curated MusicXML suite manifest source license and hard gate policy', () => {
     const manifest = readFixtureManifest();
     const licenseText = readFileSync(resolve(FIXTURE_SUITE_ROOT, manifest.source.licenseFile), 'utf8');
